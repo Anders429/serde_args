@@ -11,13 +11,15 @@ pub struct Deserializer<Args> {
 }
 
 impl Deserializer<()> {
-    pub fn new<Args, Arg>(args: Args) -> Deserializer<Map<Args, impl FnMut(Arg) -> Vec<u8>>>
+    pub fn new<Args, Arg>(
+        args: Args,
+    ) -> Deserializer<Map<Args::IntoIter, impl FnMut(Arg) -> Vec<u8>>>
     where
-        Args: Iterator<Item = Arg>,
+        Args: IntoIterator<Item = Arg>,
         Arg: Into<OsString>,
     {
         Deserializer {
-            args: args.map(|arg| arg.into().into_encoded_bytes()),
+            args: args.into_iter().map(|arg| arg.into().into_encoded_bytes()),
         }
     }
 }
@@ -315,14 +317,14 @@ mod tests {
             }
         }
 
-        let deserializer = Deserializer::new(vec!["".to_owned()].into_iter());
+        let deserializer = Deserializer::new(vec!["".to_owned()]);
 
         assert_err_eq!(Any::deserialize(deserializer), Error::NotSelfDescribing);
     }
 
     #[test]
     fn ignored_any() {
-        let deserializer = Deserializer::new(vec!["".to_owned()].into_iter());
+        let deserializer = Deserializer::new(vec!["".to_owned()]);
 
         assert_err_eq!(
             IgnoredAny::deserialize(deserializer),
