@@ -71,6 +71,13 @@ impl de::Error for Error {
             expected.to_string(),
         ))
     }
+
+    fn invalid_value(unexpected: Unexpected, expected: &dyn Expected) -> Self {
+        Self::UsageNoContext(usage::Kind::InvalidValue(
+            unexpected.to_string(),
+            expected.to_string(),
+        ))
+    }
 }
 
 impl de::StdError for Error {}
@@ -114,6 +121,17 @@ mod tests {
     }
 
     #[test]
+    fn display_usage_no_context_invalid_value() {
+        assert_eq!(
+            format!(
+                "{}",
+                Error::invalid_value(Unexpected::Char('a'), &"character between `b` and `d`")
+            ),
+            "invalid value: expected character between `b` and `d`, found character `a`"
+        );
+    }
+
+    #[test]
     fn display_usage_custom() {
         assert_eq!(
             format!(
@@ -134,6 +152,18 @@ mod tests {
                     .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
             ),
             "invalid type: expected i8, found character `a`\n\nUSAGE: executable_path"
+        );
+    }
+
+    #[test]
+    fn display_usage_invalid_value() {
+        assert_eq!(
+            format!(
+                "{}",
+                Error::invalid_value(Unexpected::Char('a'), &"character between `b` and `d`")
+                    .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
+            ),
+            "invalid value: expected character between `b` and `d`, found character `a`\n\nUSAGE: executable_path"
         );
     }
 }

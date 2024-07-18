@@ -8,6 +8,7 @@ use std::{
 pub enum Kind {
     Custom(String),
     InvalidType(String, String),
+    InvalidValue(String, String),
 }
 
 impl Display for Kind {
@@ -17,6 +18,11 @@ impl Display for Kind {
             Self::InvalidType(unexpected, expected) => write!(
                 formatter,
                 "invalid type: expected {}, found {}",
+                expected, unexpected
+            ),
+            Self::InvalidValue(unexpected, expected) => write!(
+                formatter,
+                "invalid value: expected {}, found {}",
                 expected, unexpected
             ),
         }
@@ -64,6 +70,20 @@ mod tests {
     }
 
     #[test]
+    fn display_kind_invalid_value() {
+        assert_eq!(
+            format!(
+                "{}",
+                Kind::InvalidValue(
+                    "character `a`".to_owned(),
+                    "character between `b` and `d`".to_owned()
+                )
+            ),
+            "invalid value: expected character between `b` and `d`, found character `a`"
+        );
+    }
+
+    #[test]
     fn display_usage_custom() {
         assert_eq!(
             format!(
@@ -74,6 +94,34 @@ mod tests {
                 }
             ),
             "custom message\n\nUSAGE: executable_path"
+        );
+    }
+
+    #[test]
+    fn display_usage_invalid_type() {
+        assert_eq!(
+            format!(
+                "{}",
+                Usage {
+                    executable_path: "executable_path".to_owned().into(),
+                    kind: Kind::InvalidType("character `a`".to_owned(), "i8".to_owned()),
+                }
+            ),
+            "invalid type: expected i8, found character `a`\n\nUSAGE: executable_path"
+        );
+    }
+
+    #[test]
+    fn display_usage_invalid_value() {
+        assert_eq!(
+            format!(
+                "{}",
+                Usage {
+                    executable_path: "executable_path".to_owned().into(),
+                    kind: Kind::InvalidValue("character `a`".to_owned(), "character between `b` and `d`".to_owned()),
+                }
+            ),
+            "invalid value: expected character between `b` and `d`, found character `a`\n\nUSAGE: executable_path"
         );
     }
 }
