@@ -7,12 +7,18 @@ use std::{
 #[derive(Debug, Eq, PartialEq)]
 pub enum Kind {
     Custom(String),
+    InvalidType(String, String),
 }
 
 impl Display for Kind {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
             Self::Custom(message) => formatter.write_str(message),
+            Self::InvalidType(unexpected, expected) => write!(
+                formatter,
+                "invalid type: expected {}, found {}",
+                expected, unexpected
+            ),
         }
     }
 }
@@ -43,6 +49,17 @@ mod tests {
         assert_eq!(
             format!("{}", Kind::Custom("custom message".to_owned())),
             "custom message"
+        );
+    }
+
+    #[test]
+    fn display_kind_invalid_type() {
+        assert_eq!(
+            format!(
+                "{}",
+                Kind::InvalidType("character `a`".to_owned(), "i8".to_owned())
+            ),
+            "invalid type: expected i8, found character `a`"
         );
     }
 

@@ -3,7 +3,10 @@ mod usage;
 pub use usage::Usage;
 
 use super::Deserializer;
-use serde::de;
+use serde::{
+    de,
+    de::{Expected, Unexpected},
+};
 use std::{
     ffi::OsString,
     fmt,
@@ -15,7 +18,7 @@ pub enum Error {
     NotSelfDescribing,
     MissingExecutablePath,
     /// A usage error.
-    /// 
+    ///
     /// This indicates a user-facing error. Displaying this error will result in a "help" message.
     Usage(Usage),
     /// A usage error without context.
@@ -61,6 +64,13 @@ impl de::Error for Error {
     {
         Self::UsageNoContext(usage::Kind::Custom(msg.to_string()))
     }
+
+    fn invalid_type(unexpected: Unexpected, expected: &dyn Expected) -> Self {
+        Self::UsageNoContext(usage::Kind::InvalidType(
+            unexpected.to_string(),
+            expected.to_string(),
+        ))
+    }
 }
 
 impl de::StdError for Error {}
@@ -69,7 +79,7 @@ impl de::StdError for Error {}
 mod tests {
     use super::{super::Deserializer, Error};
     use claims::assert_ok;
-    use serde::de::Error as _;
+    use serde::de::{Error as _, Unexpected};
 
     #[test]
     fn display_not_self_describing() {
@@ -89,8 +99,6 @@ mod tests {
 
     #[test]
     fn display_usage_no_context_custom() {
-        let custom = Error::custom("custom message");
-
         assert_eq!(
             format!("{}", Error::custom("custom message")),
             "custom message"
@@ -98,13 +106,34 @@ mod tests {
     }
 
     #[test]
-    fn display_usage_custom() {
-        let mut custom = Error::custom("custom message")
-            .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])));
-
+    fn display_usage_no_context_invalid_type() {
         assert_eq!(
-            format!("{}", custom),
+            format!("{}", Error::invalid_type(Unexpected::Char('a'), &"i8")),
+            "invalid type: expected i8, found character `a`"
+        );
+    }
+
+    #[test]
+    fn display_usage_custom() {
+        assert_eq!(
+            format!(
+                "{}",
+                Error::custom("custom message")
+                    .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
+            ),
             "custom message\n\nUSAGE: executable_path"
+        );
+    }
+
+    #[test]
+    fn display_usage_invalid_type() {
+        assert_eq!(
+            format!(
+                "{}",
+                Error::invalid_type(Unexpected::Char('a'), &"i8")
+                    .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
+            ),
+            "invalid type: expected i8, found character `a`\n\nUSAGE: executable_path"
         );
     }
 }
