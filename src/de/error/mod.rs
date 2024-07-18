@@ -2,6 +2,7 @@ mod usage;
 
 pub use usage::Usage;
 
+use super::Deserializer;
 use serde::de;
 use std::{
     ffi::OsString,
@@ -13,14 +14,27 @@ use std::{
 pub enum Error {
     NotSelfDescribing,
     MissingExecutablePath,
+    /// A usage error.
+    /// 
+    /// This indicates a user-facing error. Displaying this error will result in a "help" message.
     Usage(Usage),
+    /// A usage error without context.
+    ///
+    /// Errors of this variant will not be able to print a full help message.
+    UsageNoContext(usage::Kind),
 }
 
 impl Error {
-    /// Sets the executable_path, if this is a `Usage` error.
-    pub(crate) fn set_executable_path(&mut self, executable_path: OsString) {
-        if let Self::Usage(usage) = self {
-            usage.executable_path = executable_path
+    /// Provides context for the error.
+    ///
+    /// This converts a `UsageNoContext` error into a `Usage` error.
+    pub(crate) fn with_context<Args>(self, context: &mut Deserializer<Args>) -> Self {
+        match self {
+            Self::UsageNoContext(kind) => Self::Usage(Usage {
+                executable_path: context.executable_path.clone(),
+                kind,
+            }),
+            error @ _ => error,
         }
     }
 }
@@ -35,6 +49,7 @@ impl Display for Error {
                 formatter.write_str("could not obtain executable path from provided arguments")
             }
             Self::Usage(usage) => Display::fmt(usage, formatter),
+            Self::UsageNoContext(kind) => Display::fmt(kind, formatter),
         }
     }
 }
@@ -44,11 +59,7 @@ impl de::Error for Error {
     where
         T: Display,
     {
-        Self::Usage(Usage {
-            // The executable_path will be populated later by the deserializer.
-            executable_path: OsString::new(),
-            kind: usage::Kind::Custom(msg.to_string()),
-        })
+        Self::UsageNoContext(usage::Kind::Custom(msg.to_string()))
     }
 }
 
@@ -56,7 +67,8 @@ impl de::StdError for Error {}
 
 #[cfg(test)]
 mod tests {
-    use super::Error;
+    use super::{super::Deserializer, Error};
+    use claims::assert_ok;
     use serde::de::Error as _;
 
     #[test]
@@ -76,9 +88,19 @@ mod tests {
     }
 
     #[test]
+    fn display_usage_no_context_custom() {
+        let custom = Error::custom("custom message");
+
+        assert_eq!(
+            format!("{}", Error::custom("custom message")),
+            "custom message"
+        );
+    }
+
+    #[test]
     fn display_usage_custom() {
-        let mut custom = Error::custom("custom message");
-        custom.set_executable_path("executable_path".to_owned().into());
+        let mut custom = Error::custom("custom message")
+            .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])));
 
         assert_eq!(
             format!("{}", custom),
