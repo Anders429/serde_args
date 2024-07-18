@@ -1,4 +1,4 @@
-mod usage;
+pub(crate) mod usage;
 
 pub use usage::Usage;
 
@@ -8,7 +8,6 @@ use serde::{
     de::{Expected, Unexpected},
 };
 use std::{
-    ffi::OsString,
     fmt,
     fmt::{Display, Formatter},
 };
@@ -31,7 +30,7 @@ impl Error {
     /// Provides context for the error.
     ///
     /// This converts a `UsageNoContext` error into a `Usage` error.
-    pub(crate) fn with_context<Args>(self, context: &mut Deserializer<Args>) -> Self {
+    pub(crate) fn with_context<Args>(self, context: &Deserializer<Args>) -> Self {
         match self {
             Self::UsageNoContext(kind) => Self::Usage(Usage {
                 executable_path: context.executable_path.clone(),
@@ -104,7 +103,7 @@ impl de::StdError for Error {}
 
 #[cfg(test)]
 mod tests {
-    use super::{super::Deserializer, Error};
+    use super::{super::Deserializer, usage, Error};
     use claims::assert_ok;
     use serde::de::{Error as _, Unexpected};
 
@@ -121,6 +120,14 @@ mod tests {
         assert_eq!(
             format!("{}", Error::MissingExecutablePath),
             "could not obtain executable path from provided arguments"
+        );
+    }
+
+    #[test]
+    fn display_usage_no_context_end_of_args() {
+        assert_eq!(
+            format!("{}", Error::UsageNoContext(usage::Kind::EndOfArgs)),
+            "unexpected end of arguments"
         );
     }
 
@@ -192,12 +199,24 @@ mod tests {
     }
 
     #[test]
+    fn display_usage_end_of_args() {
+        assert_eq!(
+            format!(
+                "{}",
+                Error::UsageNoContext(usage::Kind::EndOfArgs)
+                    .with_context(&assert_ok!(Deserializer::new(vec!["executable_path"])))
+            ),
+            "unexpected end of arguments\n\nUSAGE: executable_path"
+        );
+    }
+
+    #[test]
     fn display_usage_custom() {
         assert_eq!(
             format!(
                 "{}",
                 Error::custom("custom message")
-                    .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
+                    .with_context(&assert_ok!(Deserializer::new(vec!["executable_path"])))
             ),
             "custom message\n\nUSAGE: executable_path"
         );
@@ -209,7 +228,7 @@ mod tests {
             format!(
                 "{}",
                 Error::invalid_type(Unexpected::Char('a'), &"i8")
-                    .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
+                    .with_context(&assert_ok!(Deserializer::new(vec!["executable_path"])))
             ),
             "invalid type: expected i8, found character `a`\n\nUSAGE: executable_path"
         );
@@ -221,7 +240,7 @@ mod tests {
             format!(
                 "{}",
                 Error::invalid_value(Unexpected::Char('a'), &"character between `b` and `d`")
-                    .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
+                    .with_context(&assert_ok!(Deserializer::new(vec!["executable_path"])))
             ),
             "invalid value: expected character between `b` and `d`, found character `a`\n\nUSAGE: executable_path"
         );
@@ -233,7 +252,7 @@ mod tests {
             format!(
                 "{}",
                 Error::invalid_length(42, &"array with 100 values")
-                    .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
+                    .with_context(&assert_ok!(Deserializer::new(vec!["executable_path"])))
             ),
             "invalid length 42, expected array with 100 values\n\nUSAGE: executable_path"
         );
@@ -245,7 +264,7 @@ mod tests {
             format!(
                 "{}",
                 Error::unknown_variant("foo", &["bar", "baz"])
-                    .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
+                    .with_context(&assert_ok!(Deserializer::new(vec!["executable_path"])))
             ),
             "unknown command foo, expected one of [\"bar\", \"baz\"]\n\nUSAGE: executable_path"
         );
@@ -257,7 +276,7 @@ mod tests {
             format!(
                 "{}",
                 Error::unknown_field("foo", &["bar", "baz"])
-                    .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
+                    .with_context(&assert_ok!(Deserializer::new(vec!["executable_path"])))
             ),
             "unexpected argument --foo, expected one of [\"bar\", \"baz\"]\n\nUSAGE: executable_path"
         );
@@ -269,7 +288,7 @@ mod tests {
             format!(
                 "{}",
                 Error::missing_field("foo")
-                    .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
+                    .with_context(&assert_ok!(Deserializer::new(vec!["executable_path"])))
             ),
             "missing argument foo\n\nUSAGE: executable_path"
         );
@@ -281,7 +300,7 @@ mod tests {
             format!(
                 "{}",
                 Error::duplicate_field("foo")
-                    .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
+                    .with_context(&assert_ok!(Deserializer::new(vec!["executable_path"])))
             ),
             "the argument --foo cannot be used multiple times\n\nUSAGE: executable_path"
         );

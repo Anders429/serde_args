@@ -2,8 +2,11 @@ pub mod error;
 
 pub use error::Error;
 
-use serde::{de, de::Visitor};
-use std::{ffi::OsString, iter::Map};
+use serde::{
+    de,
+    de::{Error as _, Unexpected, Visitor},
+};
+use std::{ffi::OsString, iter::Map, num::IntErrorKind, str, str::FromStr};
 
 #[derive(Debug)]
 pub struct Deserializer<Args> {
@@ -29,6 +32,18 @@ impl Deserializer<()> {
             executable_path,
             args: args_iter.map(|arg| arg.into().into_encoded_bytes()),
         })
+    }
+}
+
+impl<Args> Deserializer<Args>
+where
+    Args: Iterator<Item = Vec<u8>>,
+{
+    fn next_arg(&mut self) -> Result<Vec<u8>, Error> {
+        self.args
+            .next()
+            .ok_or(Error::UsageNoContext(error::usage::Kind::EndOfArgs))
+            .map_err(|error| error.with_context(self))
     }
 }
 
@@ -67,11 +82,25 @@ where
         todo!()
     }
 
-    fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_i8<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        todo!()
+        let bytes = self.next_arg()?;
+        let arg = String::from_utf8_lossy(&bytes);
+        i8::from_str(&arg)
+            .map_err(|parse_int_error| match parse_int_error.kind() {
+                IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => {
+                    if let Ok(value) = i64::from_str(&arg) {
+                        Error::invalid_value(Unexpected::Signed(value), &visitor)
+                    } else {
+                        Error::invalid_value(Unexpected::Other(&arg), &visitor)
+                    }
+                }
+                _ => Error::invalid_type(Unexpected::Other(&arg), &visitor),
+            })
+            .and_then(|int| visitor.visit_i8(int))
+            .map_err(|error| error.with_context(&self))
     }
 
     fn deserialize_i16<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -293,19 +322,32 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{Deserializer, Error};
-    use claims::{assert_err_eq, assert_ok};
+    use super::{error, Deserializer, Error};
+    use claims::{assert_err_eq, assert_ok, assert_ok_eq};
     use serde::{
         de,
-        de::{Deserialize, IgnoredAny, Visitor},
+        de::{Deserialize, IgnoredAny, Unexpected, Visitor},
     };
-    use std::{fmt, fmt::Formatter};
+    use std::{ffi::OsString, fmt, fmt::Formatter, num::NonZeroI8};
 
     #[test]
     fn new_missing_executable_path() {
         assert_err_eq!(
             Deserializer::new(Vec::<String>::new()),
             Error::MissingExecutablePath,
+        );
+    }
+
+    #[test]
+    fn next_arg_end_of_args() {
+        let mut deserializer = assert_ok!(Deserializer::new(vec!["executable_path".to_owned()]));
+
+        assert_err_eq!(
+            deserializer.next_arg(),
+            Error::Usage(error::Usage {
+                kind: error::usage::Kind::EndOfArgs,
+                executable_path: "executable_path".to_owned().into(),
+            })
         );
     }
 
@@ -345,6 +387,115 @@ mod tests {
         assert_err_eq!(
             IgnoredAny::deserialize(deserializer),
             Error::NotSelfDescribing
+        );
+    }
+
+    #[test]
+    fn i8() {
+        let deserializer = assert_ok!(Deserializer::new(vec!["executable_path", "42"]));
+
+        assert_ok_eq!(i8::deserialize(deserializer), 42);
+    }
+
+    #[test]
+    fn i8_invalid_type() {
+        let deserializer = assert_ok!(Deserializer::new(vec!["executable_path", "a"]));
+
+        assert_err_eq!(
+            i8::deserialize(deserializer),
+            Error::Usage(error::Usage {
+                kind: error::usage::Kind::InvalidType(
+                    Unexpected::Other("a").to_string(),
+                    "i8".to_owned()
+                ),
+                executable_path: "executable_path".to_owned().into()
+            })
+        );
+    }
+
+    #[test]
+    fn i8_invalid_type_not_utf8() {
+        let deserializer = assert_ok!(Deserializer::new(vec![
+            OsString::from("executable_path"),
+            unsafe { OsString::from_encoded_bytes_unchecked(vec![255]) }
+        ]));
+
+        assert_err_eq!(
+            i8::deserialize(deserializer),
+            Error::Usage(error::Usage {
+                kind: error::usage::Kind::InvalidType(
+                    Unexpected::Other("\u{fffd}").to_string(),
+                    "i8".to_owned()
+                ),
+                executable_path: "executable_path".to_owned().into()
+            })
+        );
+    }
+
+    #[test]
+    fn i8_invalid_value_positive() {
+        let deserializer = assert_ok!(Deserializer::new(vec!["executable_path", "256"]));
+
+        assert_err_eq!(
+            i8::deserialize(deserializer),
+            Error::Usage(error::Usage {
+                kind: error::usage::Kind::InvalidValue(
+                    Unexpected::Signed(256).to_string(),
+                    "i8".to_owned()
+                ),
+                executable_path: "executable_path".to_owned().into()
+            })
+        );
+    }
+
+    #[test]
+    fn i8_invalid_value_negative() {
+        let deserializer = assert_ok!(Deserializer::new(vec!["executable_path", "-256"]));
+
+        assert_err_eq!(
+            i8::deserialize(deserializer),
+            Error::Usage(error::Usage {
+                kind: error::usage::Kind::InvalidValue(
+                    Unexpected::Signed(-256).to_string(),
+                    "i8".to_owned()
+                ),
+                executable_path: "executable_path".to_owned().into()
+            })
+        );
+    }
+
+    #[test]
+    fn i8_invalid_value_out_of_i64_range() {
+        let deserializer = assert_ok!(Deserializer::new(vec![
+            "executable_path",
+            "9223372036854775808"
+        ]));
+
+        assert_err_eq!(
+            i8::deserialize(deserializer),
+            Error::Usage(error::Usage {
+                kind: error::usage::Kind::InvalidValue(
+                    Unexpected::Other("9223372036854775808").to_string(),
+                    "i8".to_owned()
+                ),
+                executable_path: "executable_path".to_owned().into()
+            })
+        );
+    }
+
+    #[test]
+    fn i8_visitor_error_contains_context() {
+        let deserializer = assert_ok!(Deserializer::new(vec!["executable_path", "0"]));
+
+        assert_err_eq!(
+            NonZeroI8::deserialize(deserializer),
+            Error::Usage(error::Usage {
+                kind: error::usage::Kind::InvalidValue(
+                    Unexpected::Signed(0).to_string(),
+                    "a nonzero i8".to_owned()
+                ),
+                executable_path: "executable_path".to_owned().into()
+            })
         );
     }
 }

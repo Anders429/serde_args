@@ -6,6 +6,14 @@ use std::{
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Kind {
+    // --------------
+    // parsing errors
+    // --------------
+    EndOfArgs,
+
+    // --------------
+    // `serde` errors
+    // --------------
     Custom(String),
     InvalidType(String, String),
     InvalidValue(String, String),
@@ -19,6 +27,7 @@ pub enum Kind {
 impl Display for Kind {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
+            Self::EndOfArgs => formatter.write_str("unexpected end of arguments"),
             Self::Custom(message) => formatter.write_str(message),
             Self::InvalidType(unexpected, expected) => write!(
                 formatter,
@@ -57,8 +66,8 @@ impl Display for Kind {
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Usage {
-    pub(super) executable_path: OsString,
-    pub(super) kind: Kind,
+    pub(crate) executable_path: OsString,
+    pub(crate) kind: Kind,
 }
 
 impl Display for Usage {
@@ -75,6 +84,14 @@ impl Display for Usage {
 #[cfg(test)]
 mod tests {
     use super::{Kind, Usage};
+
+    #[test]
+    fn display_kind_end_of_args() {
+        assert_eq!(
+            format!("{}", Kind::EndOfArgs),
+            "unexpected end of arguments"
+        );
+    }
 
     #[test]
     fn display_kind_custom() {
@@ -153,6 +170,20 @@ mod tests {
             format!("{}", Kind::DuplicateField("foo")),
             "the argument --foo cannot be used multiple times"
         )
+    }
+
+    #[test]
+    fn display_usage_end_of_args() {
+        assert_eq!(
+            format!(
+                "{}",
+                Usage {
+                    executable_path: "executable_path".to_owned().into(),
+                    kind: Kind::EndOfArgs,
+                }
+            ),
+            "unexpected end of arguments\n\nUSAGE: executable_path"
+        );
     }
 
     #[test]
