@@ -7,7 +7,7 @@ use std::{ffi::OsString, iter::Map};
 
 #[derive(Debug)]
 pub struct Deserializer<Args> {
-    executable: OsString,
+    executable_path: OsString,
     args: Args,
 }
 
@@ -20,13 +20,13 @@ impl Deserializer<()> {
         Arg: Into<OsString>,
     {
         let mut args_iter = args.into_iter();
-        let executable = args_iter
+        let executable_path = args_iter
             .next()
             .map(|arg| arg.into())
-            .ok_or(Error::Usage(error::Usage::MissingExecutablePath))?;
+            .ok_or(Error::MissingExecutablePath)?;
 
         Ok(Deserializer {
-            executable,
+            executable_path,
             args: args_iter.map(|arg| arg.into().into_encoded_bytes()),
         })
     }
@@ -293,7 +293,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{error, Deserializer, Error};
+    use super::{Deserializer, Error};
     use claims::{assert_err_eq, assert_ok};
     use serde::{
         de,
@@ -305,7 +305,7 @@ mod tests {
     fn new_missing_executable_path() {
         assert_err_eq!(
             Deserializer::new(Vec::<String>::new()),
-            Error::Usage(error::Usage::MissingExecutablePath)
+            Error::MissingExecutablePath,
         );
     }
 
