@@ -127,6 +127,12 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "cannot display help without context")]
+    fn display_usage_no_context_help() {
+        format!("{}", Error::UsageNoContext(usage::Kind::Help));
+    }
+
+    #[test]
     fn display_usage_no_context_end_of_args() {
         assert_eq!(
             format!("{}", Error::UsageNoContext(usage::Kind::EndOfArgs)),
@@ -198,6 +204,18 @@ mod tests {
         assert_eq!(
             format!("{}", Error::duplicate_field("foo")),
             "the argument --foo cannot be used multiple times"
+        );
+    }
+
+    #[test]
+    fn display_usage_help() {
+        assert_eq!(
+            format!(
+                "{}",
+                Error::UsageNoContext(usage::Kind::Help)
+                    .with_context(&assert_ok!(Deserializer::new(vec!["executable_path"])))
+            ),
+            "USAGE: executable_path"
         );
     }
 

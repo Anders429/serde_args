@@ -48,6 +48,13 @@ where
         self.args
             .next()
             .ok_or(Error::UsageNoContext(error::usage::Kind::EndOfArgs))
+            .and_then(|arg| {
+                if arg == b"help" {
+                    Err(Error::UsageNoContext(error::usage::Kind::Help))
+                } else {
+                    Ok(arg)
+                }
+            })
             .map_err(|error| error.with_context(self))
     }
 }
@@ -331,7 +338,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::{context::Segment, error, Context, Deserializer, Error};
-    use claims::{assert_err_eq, assert_ok, assert_ok_eq};
+    use claims::{assert_err, assert_err_eq, assert_ok, assert_ok_eq};
     use serde::{
         de,
         de::{Deserialize, IgnoredAny, Unexpected, Visitor},
@@ -537,5 +544,14 @@ mod tests {
                 },
             })
         );
+    }
+
+    #[test]
+    fn i8_help() {
+        let deserializer = assert_ok!(Deserializer::new(vec!["executable_path", "help"]));
+
+        let help = assert_err!(i8::deserialize(deserializer));
+
+        assert_eq!(format!("{}", help), "USAGE: executable_path <i8>")
     }
 }

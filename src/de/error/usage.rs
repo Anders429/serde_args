@@ -6,6 +6,11 @@ use std::{
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Kind {
+    // -------------
+    // help requests
+    // -------------
+    Help,
+
     // --------------
     // parsing errors
     // --------------
@@ -27,6 +32,7 @@ pub enum Kind {
 impl Display for Kind {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
+            Self::Help => unimplemented!("cannot display help without context"),
             Self::EndOfArgs => formatter.write_str("unexpected end of arguments"),
             Self::Custom(message) => formatter.write_str(message),
             Self::InvalidType(unexpected, expected) => write!(
@@ -72,7 +78,11 @@ pub struct Usage {
 
 impl Display for Usage {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "{}\n\nUSAGE: {}", self.kind, self.context,)
+        if matches!(self.kind, Kind::Help) {
+            write!(formatter, "USAGE: {}", self.context)
+        } else {
+            write!(formatter, "{}\n\nUSAGE: {}", self.kind, self.context)
+        }
     }
 }
 
@@ -82,6 +92,12 @@ mod tests {
         super::super::{context::Segment, Context},
         Kind, Usage,
     };
+
+    #[test]
+    #[should_panic(expected = "cannot display help without context")]
+    fn display_kind_help() {
+        format!("{}", Kind::Help);
+    }
 
     #[test]
     fn display_kind_end_of_args() {
@@ -168,6 +184,24 @@ mod tests {
             format!("{}", Kind::DuplicateField("foo")),
             "the argument --foo cannot be used multiple times"
         )
+    }
+
+    #[test]
+    fn display_usage_help() {
+        assert_eq!(
+            format!(
+                "{}",
+                Usage {
+                    context: Context {
+                        segments: vec![Segment::ExecutablePath(
+                            "executable_path".to_owned().into()
+                        )]
+                    },
+                    kind: Kind::Help,
+                }
+            ),
+            "USAGE: executable_path",
+        );
     }
 
     #[test]
