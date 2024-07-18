@@ -86,6 +86,10 @@ impl de::Error for Error {
     fn unknown_variant(variant: &str, expected: &'static [&'static str]) -> Self {
         Self::UsageNoContext(usage::Kind::UnknownVariant(variant.to_owned(), expected))
     }
+
+    fn unknown_field(field: &str, expected: &'static [&'static str]) -> Self {
+        Self::UsageNoContext(usage::Kind::UnknownField(field.to_owned(), expected))
+    }
 }
 
 impl de::StdError for Error {}
@@ -156,6 +160,14 @@ mod tests {
     }
 
     #[test]
+    fn display_usage_no_context_unknown_field() {
+        assert_eq!(
+            format!("{}", Error::unknown_field("foo", &["bar", "baz"])),
+            "unknown field foo, expected one of [\"bar\", \"baz\"]"
+        );
+    }
+
+    #[test]
     fn display_usage_custom() {
         assert_eq!(
             format!(
@@ -212,6 +224,18 @@ mod tests {
                     .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
             ),
             "unknown variant foo, expected one of [\"bar\", \"baz\"]\n\nUSAGE: executable_path"
+        );
+    }
+
+    #[test]
+    fn display_usage_unknown_field() {
+        assert_eq!(
+            format!(
+                "{}",
+                Error::unknown_field("foo", &["bar", "baz"])
+                    .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
+            ),
+            "unknown field foo, expected one of [\"bar\", \"baz\"]\n\nUSAGE: executable_path"
         );
     }
 }

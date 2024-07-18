@@ -11,6 +11,7 @@ pub enum Kind {
     InvalidValue(String, String),
     InvalidLength(usize, String),
     UnknownVariant(String, &'static [&'static str]),
+    UnknownField(String, &'static [&'static str]),
 }
 
 impl Display for Kind {
@@ -36,6 +37,11 @@ impl Display for Kind {
                 formatter,
                 "unknown variant {}, expected one of {:?}",
                 variant, expected,
+            ),
+            Self::UnknownField(field, expected) => write!(
+                formatter,
+                "unknown field {}, expected one of {:?}",
+                field, expected,
             ),
         }
     }
@@ -118,6 +124,14 @@ mod tests {
     }
 
     #[test]
+    fn display_kind_unknown_field() {
+        assert_eq!(
+            format!("{}", Kind::UnknownField("foo".to_owned(), &["bar", "baz"]),),
+            "unknown field foo, expected one of [\"bar\", \"baz\"]"
+        )
+    }
+
+    #[test]
     fn display_usage_custom() {
         assert_eq!(
             format!(
@@ -184,6 +198,20 @@ mod tests {
                 }
             ),
             "unknown variant foo, expected one of [\"bar\", \"baz\"]\n\nUSAGE: executable_path",
+        );
+    }
+
+    #[test]
+    fn display_usage_unknown_field() {
+        assert_eq!(
+            format!(
+                "{}",
+                Usage {
+                    executable_path: "executable_path".to_owned().into(),
+                    kind: Kind::UnknownField("foo".to_owned(), &["bar", "baz"]),
+                }
+            ),
+            "unknown field foo, expected one of [\"bar\", \"baz\"]\n\nUSAGE: executable_path",
         );
     }
 }
