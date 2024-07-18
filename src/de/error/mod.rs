@@ -163,7 +163,7 @@ mod tests {
     fn display_usage_no_context_unknown_variant() {
         assert_eq!(
             format!("{}", Error::unknown_variant("foo", &["bar", "baz"])),
-            "unknown variant foo, expected one of [\"bar\", \"baz\"]"
+            "unknown command foo, expected one of [\"bar\", \"baz\"]"
         );
     }
 
@@ -171,7 +171,7 @@ mod tests {
     fn display_usage_no_context_unknown_field() {
         assert_eq!(
             format!("{}", Error::unknown_field("foo", &["bar", "baz"])),
-            "unknown field foo, expected one of [\"bar\", \"baz\"]"
+            "unexpected argument --foo, expected one of [\"bar\", \"baz\"]"
         );
     }
 
@@ -179,7 +179,7 @@ mod tests {
     fn display_usage_no_context_missing_field() {
         assert_eq!(
             format!("{}", Error::missing_field("foo")),
-            "missing field foo"
+            "missing argument foo"
         );
     }
 
@@ -187,7 +187,7 @@ mod tests {
     fn display_usage_no_context_duplicate_field() {
         assert_eq!(
             format!("{}", Error::duplicate_field("foo")),
-            "duplicate field foo"
+            "the argument --foo cannot be used multiple times"
         );
     }
 
@@ -247,7 +247,7 @@ mod tests {
                 Error::unknown_variant("foo", &["bar", "baz"])
                     .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
             ),
-            "unknown variant foo, expected one of [\"bar\", \"baz\"]\n\nUSAGE: executable_path"
+            "unknown command foo, expected one of [\"bar\", \"baz\"]\n\nUSAGE: executable_path"
         );
     }
 
@@ -259,7 +259,7 @@ mod tests {
                 Error::unknown_field("foo", &["bar", "baz"])
                     .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
             ),
-            "unknown field foo, expected one of [\"bar\", \"baz\"]\n\nUSAGE: executable_path"
+            "unexpected argument --foo, expected one of [\"bar\", \"baz\"]\n\nUSAGE: executable_path"
         );
     }
 
@@ -271,7 +271,7 @@ mod tests {
                 Error::missing_field("foo")
                     .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
             ),
-            "missing field foo\n\nUSAGE: executable_path"
+            "missing argument foo\n\nUSAGE: executable_path"
         );
     }
 
@@ -283,7 +283,7 @@ mod tests {
                 Error::duplicate_field("foo")
                     .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
             ),
-            "duplicate field foo\n\nUSAGE: executable_path"
+            "the argument --foo cannot be used multiple times\n\nUSAGE: executable_path"
         );
     }
 }

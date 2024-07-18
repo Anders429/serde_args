@@ -37,16 +37,20 @@ impl Display for Kind {
             ),
             Self::UnknownVariant(variant, expected) => write!(
                 formatter,
-                "unknown variant {}, expected one of {:?}",
+                "unknown command {}, expected one of {:?}",
                 variant, expected,
             ),
             Self::UnknownField(field, expected) => write!(
                 formatter,
-                "unknown field {}, expected one of {:?}",
+                "unexpected argument --{}, expected one of {:?}",
                 field, expected,
             ),
-            Self::MissingField(field) => write!(formatter, "missing field {}", field,),
-            Self::DuplicateField(field) => write!(formatter, "duplicate field {}", field),
+            Self::MissingField(field) => write!(formatter, "missing argument {}", field,),
+            Self::DuplicateField(field) => write!(
+                formatter,
+                "the argument --{} cannot be used multiple times",
+                field
+            ),
         }
     }
 }
@@ -123,7 +127,7 @@ mod tests {
                 "{}",
                 Kind::UnknownVariant("foo".to_owned(), &["bar", "baz"]),
             ),
-            "unknown variant foo, expected one of [\"bar\", \"baz\"]"
+            "unknown command foo, expected one of [\"bar\", \"baz\"]"
         )
     }
 
@@ -131,7 +135,7 @@ mod tests {
     fn display_kind_unknown_field() {
         assert_eq!(
             format!("{}", Kind::UnknownField("foo".to_owned(), &["bar", "baz"]),),
-            "unknown field foo, expected one of [\"bar\", \"baz\"]"
+            "unexpected argument --foo, expected one of [\"bar\", \"baz\"]"
         )
     }
 
@@ -139,7 +143,7 @@ mod tests {
     fn display_kind_missing_field() {
         assert_eq!(
             format!("{}", Kind::MissingField("foo")),
-            "missing field foo"
+            "missing argument foo"
         )
     }
 
@@ -147,7 +151,7 @@ mod tests {
     fn display_kind_duplicate_field() {
         assert_eq!(
             format!("{}", Kind::DuplicateField("foo")),
-            "duplicate field foo"
+            "the argument --foo cannot be used multiple times"
         )
     }
 
@@ -217,7 +221,7 @@ mod tests {
                     kind: Kind::UnknownVariant("foo".to_owned(), &["bar", "baz"]),
                 }
             ),
-            "unknown variant foo, expected one of [\"bar\", \"baz\"]\n\nUSAGE: executable_path",
+            "unknown command foo, expected one of [\"bar\", \"baz\"]\n\nUSAGE: executable_path",
         );
     }
 
@@ -231,7 +235,7 @@ mod tests {
                     kind: Kind::UnknownField("foo".to_owned(), &["bar", "baz"]),
                 }
             ),
-            "unknown field foo, expected one of [\"bar\", \"baz\"]\n\nUSAGE: executable_path",
+            "unexpected argument --foo, expected one of [\"bar\", \"baz\"]\n\nUSAGE: executable_path",
         );
     }
 
@@ -245,7 +249,7 @@ mod tests {
                     kind: Kind::MissingField("foo"),
                 }
             ),
-            "missing field foo\n\nUSAGE: executable_path",
+            "missing argument foo\n\nUSAGE: executable_path",
         );
     }
 
@@ -259,7 +263,7 @@ mod tests {
                     kind: Kind::DuplicateField("foo"),
                 }
             ),
-            "duplicate field foo\n\nUSAGE: executable_path",
+            "the argument --foo cannot be used multiple times\n\nUSAGE: executable_path",
         );
     }
 }
