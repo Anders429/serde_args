@@ -7,7 +7,7 @@ pub use error::Error;
 use context::{Context, Segment};
 use serde::{
     de,
-    de::{Error as _, Expected, Unexpected, Visitor},
+    de::{Error as _, Unexpected, Visitor},
 };
 use std::{ffi::OsString, iter::Map, num::IntErrorKind, str, str::FromStr};
 
@@ -62,14 +62,14 @@ where
     // Self-describing
     // ---------------
 
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
         Err(Error::NotSelfDescribing)
     }
 
-    fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_ignored_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {

@@ -1,6 +1,5 @@
 use super::super::Context;
 use std::{
-    ffi::OsString,
     fmt,
     fmt::{Display, Formatter},
 };
