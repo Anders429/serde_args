@@ -10,6 +10,7 @@ pub enum Kind {
     InvalidType(String, String),
     InvalidValue(String, String),
     InvalidLength(usize, String),
+    UnknownVariant(String, &'static [&'static str]),
 }
 
 impl Display for Kind {
@@ -30,6 +31,11 @@ impl Display for Kind {
                 formatter,
                 "invalid length {}, expected {}",
                 length, expected
+            ),
+            Self::UnknownVariant(variant, expected) => write!(
+                formatter,
+                "unknown variant {}, expected one of {:?}",
+                variant, expected,
             ),
         }
     }
@@ -101,6 +107,17 @@ mod tests {
     }
 
     #[test]
+    fn display_kind_unknown_variant() {
+        assert_eq!(
+            format!(
+                "{}",
+                Kind::UnknownVariant("foo".to_owned(), &["bar", "baz"]),
+            ),
+            "unknown variant foo, expected one of [\"bar\", \"baz\"]"
+        )
+    }
+
+    #[test]
     fn display_usage_custom() {
         assert_eq!(
             format!(
@@ -153,6 +170,20 @@ mod tests {
                 }
             ),
             "invalid length 42, expected array with 100 values\n\nUSAGE: executable_path",
+        );
+    }
+
+    #[test]
+    fn display_usage_unknown_variant() {
+        assert_eq!(
+            format!(
+                "{}",
+                Usage {
+                    executable_path: "executable_path".to_owned().into(),
+                    kind: Kind::UnknownVariant("foo".to_owned(), &["bar", "baz"]),
+                }
+            ),
+            "unknown variant foo, expected one of [\"bar\", \"baz\"]\n\nUSAGE: executable_path",
         );
     }
 }

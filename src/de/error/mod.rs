@@ -82,6 +82,10 @@ impl de::Error for Error {
     fn invalid_length(len: usize, expected: &dyn Expected) -> Self {
         Self::UsageNoContext(usage::Kind::InvalidLength(len, expected.to_string()))
     }
+
+    fn unknown_variant(variant: &str, expected: &'static [&'static str]) -> Self {
+        Self::UsageNoContext(usage::Kind::UnknownVariant(variant.to_owned(), expected))
+    }
 }
 
 impl de::StdError for Error {}
@@ -144,6 +148,14 @@ mod tests {
     }
 
     #[test]
+    fn display_usage_no_context_unknown_variant() {
+        assert_eq!(
+            format!("{}", Error::unknown_variant("foo", &["bar", "baz"])),
+            "unknown variant foo, expected one of [\"bar\", \"baz\"]"
+        );
+    }
+
+    #[test]
     fn display_usage_custom() {
         assert_eq!(
             format!(
@@ -188,6 +200,18 @@ mod tests {
                     .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
             ),
             "invalid length 42, expected array with 100 values\n\nUSAGE: executable_path"
+        );
+    }
+
+    #[test]
+    fn display_usage_unknown_variant() {
+        assert_eq!(
+            format!(
+                "{}",
+                Error::unknown_variant("foo", &["bar", "baz"])
+                    .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
+            ),
+            "unknown variant foo, expected one of [\"bar\", \"baz\"]\n\nUSAGE: executable_path"
         );
     }
 }
