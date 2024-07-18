@@ -1,16 +1,19 @@
 pub mod error;
 
+mod context;
+
 pub use error::Error;
 
+use context::{Context, Segment};
 use serde::{
     de,
-    de::{Error as _, Unexpected, Visitor},
+    de::{Error as _, Expected, Unexpected, Visitor},
 };
 use std::{ffi::OsString, iter::Map, num::IntErrorKind, str, str::FromStr};
 
 #[derive(Debug)]
 pub struct Deserializer<Args> {
-    executable_path: OsString,
+    context: Context,
     args: Args,
 }
 
@@ -29,7 +32,9 @@ impl Deserializer<()> {
             .ok_or(Error::MissingExecutablePath)?;
 
         Ok(Deserializer {
-            executable_path,
+            context: Context {
+                segments: vec![Segment::ExecutablePath(executable_path)],
+            },
             args: args_iter.map(|arg| arg.into().into_encoded_bytes()),
         })
     }
@@ -86,6 +91,9 @@ where
     where
         V: Visitor<'de>,
     {
+        self.context
+            .segments
+            .push(Segment::primitive_arg_name(&visitor));
         let bytes = self.next_arg()?;
         let arg = String::from_utf8_lossy(&bytes);
         i8::from_str(&arg)
@@ -322,7 +330,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{error, Deserializer, Error};
+    use super::{context::Segment, error, Context, Deserializer, Error};
     use claims::{assert_err_eq, assert_ok, assert_ok_eq};
     use serde::{
         de,
@@ -346,7 +354,9 @@ mod tests {
             deserializer.next_arg(),
             Error::Usage(error::Usage {
                 kind: error::usage::Kind::EndOfArgs,
-                executable_path: "executable_path".to_owned().into(),
+                context: Context {
+                    segments: vec![Segment::ExecutablePath("executable_path".to_owned().into())]
+                },
             })
         );
     }
@@ -408,7 +418,12 @@ mod tests {
                     Unexpected::Other("a").to_string(),
                     "i8".to_owned()
                 ),
-                executable_path: "executable_path".to_owned().into()
+                context: Context {
+                    segments: vec![
+                        Segment::ExecutablePath("executable_path".to_owned().into()),
+                        Segment::ArgName("i8".to_owned())
+                    ]
+                },
             })
         );
     }
@@ -427,7 +442,12 @@ mod tests {
                     Unexpected::Other("\u{fffd}").to_string(),
                     "i8".to_owned()
                 ),
-                executable_path: "executable_path".to_owned().into()
+                context: Context {
+                    segments: vec![
+                        Segment::ExecutablePath("executable_path".to_owned().into()),
+                        Segment::ArgName("i8".to_owned())
+                    ]
+                },
             })
         );
     }
@@ -443,7 +463,12 @@ mod tests {
                     Unexpected::Signed(256).to_string(),
                     "i8".to_owned()
                 ),
-                executable_path: "executable_path".to_owned().into()
+                context: Context {
+                    segments: vec![
+                        Segment::ExecutablePath("executable_path".to_owned().into()),
+                        Segment::ArgName("i8".to_owned())
+                    ]
+                },
             })
         );
     }
@@ -459,7 +484,12 @@ mod tests {
                     Unexpected::Signed(-256).to_string(),
                     "i8".to_owned()
                 ),
-                executable_path: "executable_path".to_owned().into()
+                context: Context {
+                    segments: vec![
+                        Segment::ExecutablePath("executable_path".to_owned().into()),
+                        Segment::ArgName("i8".to_owned())
+                    ]
+                },
             })
         );
     }
@@ -478,7 +508,12 @@ mod tests {
                     Unexpected::Other("9223372036854775808").to_string(),
                     "i8".to_owned()
                 ),
-                executable_path: "executable_path".to_owned().into()
+                context: Context {
+                    segments: vec![
+                        Segment::ExecutablePath("executable_path".to_owned().into()),
+                        Segment::ArgName("i8".to_owned())
+                    ]
+                },
             })
         );
     }
@@ -494,7 +529,12 @@ mod tests {
                     Unexpected::Signed(0).to_string(),
                     "a nonzero i8".to_owned()
                 ),
-                executable_path: "executable_path".to_owned().into()
+                context: Context {
+                    segments: vec![
+                        Segment::ExecutablePath("executable_path".to_owned().into()),
+                        Segment::ArgName("a nonzero i8".to_owned())
+                    ]
+                },
             })
         );
     }

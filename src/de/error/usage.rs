@@ -1,3 +1,4 @@
+use super::super::Context;
 use std::{
     ffi::OsString,
     fmt,
@@ -66,24 +67,22 @@ impl Display for Kind {
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Usage {
-    pub(crate) executable_path: OsString,
+    pub(crate) context: Context,
     pub(crate) kind: Kind,
 }
 
 impl Display for Usage {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(
-            formatter,
-            "{}\n\nUSAGE: {}",
-            self.kind,
-            self.executable_path.to_string_lossy()
-        )
+        write!(formatter, "{}\n\nUSAGE: {}", self.kind, self.context,)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Kind, Usage};
+    use super::{
+        super::super::{context::Segment, Context},
+        Kind, Usage,
+    };
 
     #[test]
     fn display_kind_end_of_args() {
@@ -178,7 +177,11 @@ mod tests {
             format!(
                 "{}",
                 Usage {
-                    executable_path: "executable_path".to_owned().into(),
+                    context: Context {
+                        segments: vec![Segment::ExecutablePath(
+                            "executable_path".to_owned().into()
+                        )]
+                    },
                     kind: Kind::EndOfArgs,
                 }
             ),
@@ -192,7 +195,11 @@ mod tests {
             format!(
                 "{}",
                 Usage {
-                    executable_path: "executable_path".to_owned().into(),
+                    context: Context {
+                        segments: vec![Segment::ExecutablePath(
+                            "executable_path".to_owned().into()
+                        )]
+                    },
                     kind: Kind::Custom("custom message".to_owned()),
                 }
             ),
@@ -206,7 +213,11 @@ mod tests {
             format!(
                 "{}",
                 Usage {
-                    executable_path: "executable_path".to_owned().into(),
+                    context: Context {
+                        segments: vec![Segment::ExecutablePath(
+                            "executable_path".to_owned().into()
+                        )]
+                    },
                     kind: Kind::InvalidType("character `a`".to_owned(), "i8".to_owned()),
                 }
             ),
@@ -220,7 +231,7 @@ mod tests {
             format!(
                 "{}",
                 Usage {
-                    executable_path: "executable_path".to_owned().into(),
+                    context: Context {segments: vec![Segment::ExecutablePath("executable_path".to_owned().into())]},
                     kind: Kind::InvalidValue("character `a`".to_owned(), "character between `b` and `d`".to_owned()),
                 }
             ),
@@ -234,7 +245,11 @@ mod tests {
             format!(
                 "{}",
                 Usage {
-                    executable_path: "executable_path".to_owned().into(),
+                    context: Context {
+                        segments: vec![Segment::ExecutablePath(
+                            "executable_path".to_owned().into()
+                        )]
+                    },
                     kind: Kind::InvalidLength(42, "array with 100 values".to_owned()),
                 }
             ),
@@ -248,7 +263,11 @@ mod tests {
             format!(
                 "{}",
                 Usage {
-                    executable_path: "executable_path".to_owned().into(),
+                    context: Context {
+                        segments: vec![Segment::ExecutablePath(
+                            "executable_path".to_owned().into()
+                        )]
+                    },
                     kind: Kind::UnknownVariant("foo".to_owned(), &["bar", "baz"]),
                 }
             ),
@@ -262,7 +281,7 @@ mod tests {
             format!(
                 "{}",
                 Usage {
-                    executable_path: "executable_path".to_owned().into(),
+                    context: Context {segments: vec![Segment::ExecutablePath("executable_path".to_owned().into())]},
                     kind: Kind::UnknownField("foo".to_owned(), &["bar", "baz"]),
                 }
             ),
@@ -276,7 +295,11 @@ mod tests {
             format!(
                 "{}",
                 Usage {
-                    executable_path: "executable_path".to_owned().into(),
+                    context: Context {
+                        segments: vec![Segment::ExecutablePath(
+                            "executable_path".to_owned().into()
+                        )]
+                    },
                     kind: Kind::MissingField("foo"),
                 }
             ),
@@ -290,7 +313,11 @@ mod tests {
             format!(
                 "{}",
                 Usage {
-                    executable_path: "executable_path".to_owned().into(),
+                    context: Context {
+                        segments: vec![Segment::ExecutablePath(
+                            "executable_path".to_owned().into()
+                        )]
+                    },
                     kind: Kind::DuplicateField("foo"),
                 }
             ),

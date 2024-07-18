@@ -33,7 +33,7 @@ impl Error {
     pub(crate) fn with_context<Args>(self, context: &Deserializer<Args>) -> Self {
         match self {
             Self::UsageNoContext(kind) => Self::Usage(Usage {
-                executable_path: context.executable_path.clone(),
+                context: context.context.clone(),
                 kind,
             }),
             error @ _ => error,
@@ -103,7 +103,10 @@ impl de::StdError for Error {}
 
 #[cfg(test)]
 mod tests {
-    use super::{super::Deserializer, usage, Error};
+    use super::{
+        super::{Context, Deserializer, Segment},
+        usage, Error,
+    };
     use claims::assert_ok;
     use serde::de::{Error as _, Unexpected};
 
@@ -303,6 +306,26 @@ mod tests {
                     .with_context(&assert_ok!(Deserializer::new(vec!["executable_path"])))
             ),
             "the argument --foo cannot be used multiple times\n\nUSAGE: executable_path"
+        );
+    }
+
+    #[test]
+    fn display_usage_multiple_context_segments() {
+        assert_eq!(
+            format!(
+                "{}",
+                Error::custom("custom message").with_context(&Deserializer {
+                    args: Vec::<Vec<u8>>::new().into_iter(),
+                    context: Context {
+                        segments: vec![
+                            Segment::ExecutablePath("executable_path".to_owned().into()),
+                            Segment::ArgName("i8".to_owned()),
+                            Segment::ArgName("foo".to_owned())
+                        ],
+                    },
+                })
+            ),
+            "custom message\n\nUSAGE: executable_path <i8> <foo>"
         );
     }
 }
