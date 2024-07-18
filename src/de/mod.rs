@@ -1,4 +1,4 @@
-mod error;
+pub mod error;
 
 pub use error::Error;
 
@@ -7,20 +7,28 @@ use std::{ffi::OsString, iter::Map};
 
 #[derive(Debug)]
 pub struct Deserializer<Args> {
+    executable: OsString,
     args: Args,
 }
 
 impl Deserializer<()> {
     pub fn new<Args, Arg>(
         args: Args,
-    ) -> Deserializer<Map<Args::IntoIter, impl FnMut(Arg) -> Vec<u8>>>
+    ) -> Result<Deserializer<Map<Args::IntoIter, impl FnMut(Arg) -> Vec<u8>>>, Error>
     where
         Args: IntoIterator<Item = Arg>,
         Arg: Into<OsString>,
     {
-        Deserializer {
-            args: args.into_iter().map(|arg| arg.into().into_encoded_bytes()),
-        }
+        let mut args_iter = args.into_iter();
+        let executable = args_iter
+            .next()
+            .map(|arg| arg.into())
+            .ok_or(Error::Usage(error::Usage::MissingExecutablePath))?;
+
+        Ok(Deserializer {
+            executable,
+            args: args_iter.map(|arg| arg.into().into_encoded_bytes()),
+        })
     }
 }
 
@@ -285,13 +293,21 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{Deserializer, Error};
-    use claims::assert_err_eq;
+    use super::{error, Deserializer, Error};
+    use claims::{assert_err_eq, assert_ok};
     use serde::{
         de,
         de::{Deserialize, IgnoredAny, Visitor},
     };
     use std::{fmt, fmt::Formatter};
+
+    #[test]
+    fn new_missing_executable_path() {
+        assert_err_eq!(
+            Deserializer::new(Vec::<String>::new()),
+            Error::Usage(error::Usage::MissingExecutablePath)
+        );
+    }
 
     #[test]
     fn any() {
@@ -317,14 +333,14 @@ mod tests {
             }
         }
 
-        let deserializer = Deserializer::new(vec!["".to_owned()]);
+        let deserializer = assert_ok!(Deserializer::new(vec!["".to_owned()]));
 
         assert_err_eq!(Any::deserialize(deserializer), Error::NotSelfDescribing);
     }
 
     #[test]
     fn ignored_any() {
-        let deserializer = Deserializer::new(vec!["".to_owned()]);
+        let deserializer = assert_ok!(Deserializer::new(vec!["".to_owned()]));
 
         assert_err_eq!(
             IgnoredAny::deserialize(deserializer),
