@@ -101,6 +101,7 @@ where
         self.context
             .segments
             .push(Segment::primitive_arg_name(&visitor));
+
         let bytes = self.next_arg()?;
         let arg = String::from_utf8_lossy(&bytes);
         i8::from_str(&arg)
@@ -118,18 +119,54 @@ where
             .map_err(|error| error.with_context(&self))
     }
 
-    fn deserialize_i16<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_i16<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        todo!()
+        self.context
+            .segments
+            .push(Segment::primitive_arg_name(&visitor));
+
+        let bytes = self.next_arg()?;
+        let arg = String::from_utf8_lossy(&bytes);
+        i16::from_str(&arg)
+            .map_err(|parse_int_error| match parse_int_error.kind() {
+                IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => {
+                    if let Ok(value) = i64::from_str(&arg) {
+                        Error::invalid_value(Unexpected::Signed(value), &visitor)
+                    } else {
+                        Error::invalid_value(Unexpected::Other(&arg), &visitor)
+                    }
+                }
+                _ => Error::invalid_type(Unexpected::Other(&arg), &visitor),
+            })
+            .and_then(|int| visitor.visit_i16(int))
+            .map_err(|error| error.with_context(&self))
     }
 
-    fn deserialize_i32<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_i32<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        todo!()
+        self.context
+            .segments
+            .push(Segment::primitive_arg_name(&visitor));
+
+        let bytes = self.next_arg()?;
+        let arg = String::from_utf8_lossy(&bytes);
+        i32::from_str(&arg)
+            .map_err(|parse_int_error| match parse_int_error.kind() {
+                IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => {
+                    if let Ok(value) = i64::from_str(&arg) {
+                        Error::invalid_value(Unexpected::Signed(value), &visitor)
+                    } else {
+                        Error::invalid_value(Unexpected::Other(&arg), &visitor)
+                    }
+                }
+                _ => Error::invalid_type(Unexpected::Other(&arg), &visitor),
+            })
+            .and_then(|int| visitor.visit_i32(int))
+            .map_err(|error| error.with_context(&self))
     }
 
     fn deserialize_i64<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -343,7 +380,12 @@ mod tests {
         de,
         de::{Deserialize, IgnoredAny, Unexpected, Visitor},
     };
-    use std::{ffi::OsString, fmt, fmt::Formatter, num::NonZeroI8};
+    use std::{
+        ffi::OsString,
+        fmt,
+        fmt::Formatter,
+        num::{NonZeroI16, NonZeroI32, NonZeroI8},
+    };
 
     #[test]
     fn new_missing_executable_path() {
@@ -553,5 +595,301 @@ mod tests {
         let help = assert_err!(i8::deserialize(deserializer));
 
         assert_eq!(format!("{}", help), "USAGE: executable_path <i8>")
+    }
+
+    #[test]
+    fn i16() {
+        let deserializer = assert_ok!(Deserializer::new(vec!["executable_path", "42"]));
+
+        assert_ok_eq!(i16::deserialize(deserializer), 42);
+    }
+
+    #[test]
+    fn i16_invalid_type() {
+        let deserializer = assert_ok!(Deserializer::new(vec!["executable_path", "a"]));
+
+        assert_err_eq!(
+            i16::deserialize(deserializer),
+            Error::Usage(error::Usage {
+                kind: error::usage::Kind::InvalidType(
+                    Unexpected::Other("a").to_string(),
+                    "i16".to_owned()
+                ),
+                context: Context {
+                    segments: vec![
+                        Segment::ExecutablePath("executable_path".to_owned().into()),
+                        Segment::ArgName("i16".to_owned())
+                    ]
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn i16_invalid_type_not_utf8() {
+        let deserializer = assert_ok!(Deserializer::new(vec![
+            OsString::from("executable_path"),
+            unsafe { OsString::from_encoded_bytes_unchecked(vec![255]) }
+        ]));
+
+        assert_err_eq!(
+            i16::deserialize(deserializer),
+            Error::Usage(error::Usage {
+                kind: error::usage::Kind::InvalidType(
+                    Unexpected::Other("\u{fffd}").to_string(),
+                    "i16".to_owned()
+                ),
+                context: Context {
+                    segments: vec![
+                        Segment::ExecutablePath("executable_path".to_owned().into()),
+                        Segment::ArgName("i16".to_owned())
+                    ]
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn i16_invalid_value_positive() {
+        let deserializer = assert_ok!(Deserializer::new(vec!["executable_path", "32768"]));
+
+        assert_err_eq!(
+            i16::deserialize(deserializer),
+            Error::Usage(error::Usage {
+                kind: error::usage::Kind::InvalidValue(
+                    Unexpected::Signed(32768).to_string(),
+                    "i16".to_owned()
+                ),
+                context: Context {
+                    segments: vec![
+                        Segment::ExecutablePath("executable_path".to_owned().into()),
+                        Segment::ArgName("i16".to_owned())
+                    ]
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn i16_invalid_value_negative() {
+        let deserializer = assert_ok!(Deserializer::new(vec!["executable_path", "-32769"]));
+
+        assert_err_eq!(
+            i16::deserialize(deserializer),
+            Error::Usage(error::Usage {
+                kind: error::usage::Kind::InvalidValue(
+                    Unexpected::Signed(-32769).to_string(),
+                    "i16".to_owned()
+                ),
+                context: Context {
+                    segments: vec![
+                        Segment::ExecutablePath("executable_path".to_owned().into()),
+                        Segment::ArgName("i16".to_owned())
+                    ]
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn i16_invalid_value_out_of_i64_range() {
+        let deserializer = assert_ok!(Deserializer::new(vec![
+            "executable_path",
+            "9223372036854775808"
+        ]));
+
+        assert_err_eq!(
+            i16::deserialize(deserializer),
+            Error::Usage(error::Usage {
+                kind: error::usage::Kind::InvalidValue(
+                    Unexpected::Other("9223372036854775808").to_string(),
+                    "i16".to_owned()
+                ),
+                context: Context {
+                    segments: vec![
+                        Segment::ExecutablePath("executable_path".to_owned().into()),
+                        Segment::ArgName("i16".to_owned())
+                    ]
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn i16_visitor_error_contains_context() {
+        let deserializer = assert_ok!(Deserializer::new(vec!["executable_path", "0"]));
+
+        assert_err_eq!(
+            NonZeroI16::deserialize(deserializer),
+            Error::Usage(error::Usage {
+                kind: error::usage::Kind::InvalidValue(
+                    Unexpected::Signed(0).to_string(),
+                    "a nonzero i16".to_owned()
+                ),
+                context: Context {
+                    segments: vec![
+                        Segment::ExecutablePath("executable_path".to_owned().into()),
+                        Segment::ArgName("a nonzero i16".to_owned())
+                    ]
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn i16_help() {
+        let deserializer = assert_ok!(Deserializer::new(vec!["executable_path", "help"]));
+
+        let help = assert_err!(i16::deserialize(deserializer));
+
+        assert_eq!(format!("{}", help), "USAGE: executable_path <i16>")
+    }
+
+    #[test]
+    fn i32() {
+        let deserializer = assert_ok!(Deserializer::new(vec!["executable_path", "42"]));
+
+        assert_ok_eq!(i32::deserialize(deserializer), 42);
+    }
+
+    #[test]
+    fn i32_invalid_type() {
+        let deserializer = assert_ok!(Deserializer::new(vec!["executable_path", "a"]));
+
+        assert_err_eq!(
+            i32::deserialize(deserializer),
+            Error::Usage(error::Usage {
+                kind: error::usage::Kind::InvalidType(
+                    Unexpected::Other("a").to_string(),
+                    "i32".to_owned()
+                ),
+                context: Context {
+                    segments: vec![
+                        Segment::ExecutablePath("executable_path".to_owned().into()),
+                        Segment::ArgName("i32".to_owned())
+                    ]
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn i32_invalid_type_not_utf8() {
+        let deserializer = assert_ok!(Deserializer::new(vec![
+            OsString::from("executable_path"),
+            unsafe { OsString::from_encoded_bytes_unchecked(vec![255]) }
+        ]));
+
+        assert_err_eq!(
+            i32::deserialize(deserializer),
+            Error::Usage(error::Usage {
+                kind: error::usage::Kind::InvalidType(
+                    Unexpected::Other("\u{fffd}").to_string(),
+                    "i32".to_owned()
+                ),
+                context: Context {
+                    segments: vec![
+                        Segment::ExecutablePath("executable_path".to_owned().into()),
+                        Segment::ArgName("i32".to_owned())
+                    ]
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn i32_invalid_value_positive() {
+        let deserializer = assert_ok!(Deserializer::new(vec!["executable_path", "2147483648"]));
+
+        assert_err_eq!(
+            i32::deserialize(deserializer),
+            Error::Usage(error::Usage {
+                kind: error::usage::Kind::InvalidValue(
+                    Unexpected::Signed(2147483648).to_string(),
+                    "i32".to_owned()
+                ),
+                context: Context {
+                    segments: vec![
+                        Segment::ExecutablePath("executable_path".to_owned().into()),
+                        Segment::ArgName("i32".to_owned())
+                    ]
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn i32_invalid_value_negative() {
+        let deserializer = assert_ok!(Deserializer::new(vec!["executable_path", "-2147483649"]));
+
+        assert_err_eq!(
+            i32::deserialize(deserializer),
+            Error::Usage(error::Usage {
+                kind: error::usage::Kind::InvalidValue(
+                    Unexpected::Signed(-2147483649).to_string(),
+                    "i32".to_owned()
+                ),
+                context: Context {
+                    segments: vec![
+                        Segment::ExecutablePath("executable_path".to_owned().into()),
+                        Segment::ArgName("i32".to_owned())
+                    ]
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn i32_invalid_value_out_of_i64_range() {
+        let deserializer = assert_ok!(Deserializer::new(vec![
+            "executable_path",
+            "9223372036854775808"
+        ]));
+
+        assert_err_eq!(
+            i32::deserialize(deserializer),
+            Error::Usage(error::Usage {
+                kind: error::usage::Kind::InvalidValue(
+                    Unexpected::Other("9223372036854775808").to_string(),
+                    "i32".to_owned()
+                ),
+                context: Context {
+                    segments: vec![
+                        Segment::ExecutablePath("executable_path".to_owned().into()),
+                        Segment::ArgName("i32".to_owned())
+                    ]
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn i32_visitor_error_contains_context() {
+        let deserializer = assert_ok!(Deserializer::new(vec!["executable_path", "0"]));
+
+        assert_err_eq!(
+            NonZeroI32::deserialize(deserializer),
+            Error::Usage(error::Usage {
+                kind: error::usage::Kind::InvalidValue(
+                    Unexpected::Signed(0).to_string(),
+                    "a nonzero i32".to_owned()
+                ),
+                context: Context {
+                    segments: vec![
+                        Segment::ExecutablePath("executable_path".to_owned().into()),
+                        Segment::ArgName("a nonzero i32".to_owned())
+                    ]
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn i32_help() {
+        let deserializer = assert_ok!(Deserializer::new(vec!["executable_path", "help"]));
+
+        let help = assert_err!(i32::deserialize(deserializer));
+
+        assert_eq!(format!("{}", help), "USAGE: executable_path <i32>")
     }
 }
