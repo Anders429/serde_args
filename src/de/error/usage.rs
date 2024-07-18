@@ -12,6 +12,7 @@ pub enum Kind {
     InvalidLength(usize, String),
     UnknownVariant(String, &'static [&'static str]),
     UnknownField(String, &'static [&'static str]),
+    MissingField(&'static str),
 }
 
 impl Display for Kind {
@@ -43,6 +44,7 @@ impl Display for Kind {
                 "unknown field {}, expected one of {:?}",
                 field, expected,
             ),
+            Self::MissingField(field) => write!(formatter, "missing field {}", field,),
         }
     }
 }
@@ -132,6 +134,14 @@ mod tests {
     }
 
     #[test]
+    fn display_kind_missing_field() {
+        assert_eq!(
+            format!("{}", Kind::MissingField("foo")),
+            "missing field foo"
+        )
+    }
+
+    #[test]
     fn display_usage_custom() {
         assert_eq!(
             format!(
@@ -212,6 +222,20 @@ mod tests {
                 }
             ),
             "unknown field foo, expected one of [\"bar\", \"baz\"]\n\nUSAGE: executable_path",
+        );
+    }
+
+    #[test]
+    fn display_usage_missing_field() {
+        assert_eq!(
+            format!(
+                "{}",
+                Usage {
+                    executable_path: "executable_path".to_owned().into(),
+                    kind: Kind::MissingField("foo"),
+                }
+            ),
+            "missing field foo\n\nUSAGE: executable_path",
         );
     }
 }
