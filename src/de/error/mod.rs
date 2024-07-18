@@ -94,6 +94,10 @@ impl de::Error for Error {
     fn missing_field(field: &'static str) -> Self {
         Self::UsageNoContext(usage::Kind::MissingField(field))
     }
+
+    fn duplicate_field(field: &'static str) -> Self {
+        Self::UsageNoContext(usage::Kind::DuplicateField(field))
+    }
 }
 
 impl de::StdError for Error {}
@@ -180,6 +184,14 @@ mod tests {
     }
 
     #[test]
+    fn display_usage_no_context_duplicate_field() {
+        assert_eq!(
+            format!("{}", Error::duplicate_field("foo")),
+            "duplicate field foo"
+        );
+    }
+
+    #[test]
     fn display_usage_custom() {
         assert_eq!(
             format!(
@@ -260,6 +272,18 @@ mod tests {
                     .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
             ),
             "missing field foo\n\nUSAGE: executable_path"
+        );
+    }
+
+    #[test]
+    fn display_usage_duplicate_field() {
+        assert_eq!(
+            format!(
+                "{}",
+                Error::duplicate_field("foo")
+                    .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
+            ),
+            "duplicate field foo\n\nUSAGE: executable_path"
         );
     }
 }

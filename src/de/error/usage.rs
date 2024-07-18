@@ -13,6 +13,7 @@ pub enum Kind {
     UnknownVariant(String, &'static [&'static str]),
     UnknownField(String, &'static [&'static str]),
     MissingField(&'static str),
+    DuplicateField(&'static str),
 }
 
 impl Display for Kind {
@@ -45,6 +46,7 @@ impl Display for Kind {
                 field, expected,
             ),
             Self::MissingField(field) => write!(formatter, "missing field {}", field,),
+            Self::DuplicateField(field) => write!(formatter, "duplicate field {}", field),
         }
     }
 }
@@ -138,6 +140,14 @@ mod tests {
         assert_eq!(
             format!("{}", Kind::MissingField("foo")),
             "missing field foo"
+        )
+    }
+
+    #[test]
+    fn display_kind_duplicate_field() {
+        assert_eq!(
+            format!("{}", Kind::DuplicateField("foo")),
+            "duplicate field foo"
         )
     }
 
@@ -236,6 +246,20 @@ mod tests {
                 }
             ),
             "missing field foo\n\nUSAGE: executable_path",
+        );
+    }
+
+    #[test]
+    fn display_usage_duplicate_field() {
+        assert_eq!(
+            format!(
+                "{}",
+                Usage {
+                    executable_path: "executable_path".to_owned().into(),
+                    kind: Kind::DuplicateField("foo"),
+                }
+            ),
+            "duplicate field foo\n\nUSAGE: executable_path",
         );
     }
 }
