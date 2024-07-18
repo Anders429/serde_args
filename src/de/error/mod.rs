@@ -78,6 +78,10 @@ impl de::Error for Error {
             expected.to_string(),
         ))
     }
+
+    fn invalid_length(len: usize, expected: &dyn Expected) -> Self {
+        Self::UsageNoContext(usage::Kind::InvalidLength(len, expected.to_string()))
+    }
 }
 
 impl de::StdError for Error {}
@@ -132,6 +136,14 @@ mod tests {
     }
 
     #[test]
+    fn display_usage_no_context_invalid_length() {
+        assert_eq!(
+            format!("{}", Error::invalid_length(42, &"array with 100 values")),
+            "invalid length 42, expected array with 100 values"
+        );
+    }
+
+    #[test]
     fn display_usage_custom() {
         assert_eq!(
             format!(
@@ -164,6 +176,18 @@ mod tests {
                     .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
             ),
             "invalid value: expected character between `b` and `d`, found character `a`\n\nUSAGE: executable_path"
+        );
+    }
+
+    #[test]
+    fn display_usage_invalid_length() {
+        assert_eq!(
+            format!(
+                "{}",
+                Error::invalid_length(42, &"array with 100 values")
+                    .with_context(&mut assert_ok!(Deserializer::new(vec!["executable_path"])))
+            ),
+            "invalid length 42, expected array with 100 values\n\nUSAGE: executable_path"
         );
     }
 }

@@ -9,6 +9,7 @@ pub enum Kind {
     Custom(String),
     InvalidType(String, String),
     InvalidValue(String, String),
+    InvalidLength(usize, String),
 }
 
 impl Display for Kind {
@@ -24,6 +25,11 @@ impl Display for Kind {
                 formatter,
                 "invalid value: expected {}, found {}",
                 expected, unexpected
+            ),
+            Self::InvalidLength(length, expected) => write!(
+                formatter,
+                "invalid length {}, expected {}",
+                length, expected
             ),
         }
     }
@@ -84,6 +90,17 @@ mod tests {
     }
 
     #[test]
+    fn display_kind_invalid_length() {
+        assert_eq!(
+            format!(
+                "{}",
+                Kind::InvalidLength(42, "array with 100 values".to_owned())
+            ),
+            "invalid length 42, expected array with 100 values",
+        );
+    }
+
+    #[test]
     fn display_usage_custom() {
         assert_eq!(
             format!(
@@ -122,6 +139,20 @@ mod tests {
                 }
             ),
             "invalid value: expected character between `b` and `d`, found character `a`\n\nUSAGE: executable_path"
+        );
+    }
+
+    #[test]
+    fn display_usage_invalid_length() {
+        assert_eq!(
+            format!(
+                "{}",
+                Usage {
+                    executable_path: "executable_path".to_owned().into(),
+                    kind: Kind::InvalidLength(42, "array with 100 values".to_owned()),
+                }
+            ),
+            "invalid length 42, expected array with 100 values\n\nUSAGE: executable_path",
         );
     }
 }
