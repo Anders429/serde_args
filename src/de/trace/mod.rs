@@ -91,11 +91,11 @@ impl Deserializer {
         }
     }
 
-    fn required_primitive<'de, V>(&mut self, visitor: V) -> Result<V::Value, Error>
+    fn required_primitive<'de, V>(&mut self, visitor: &V) -> Result<V::Value, Error>
     where
         V: Visitor<'de>,
     {
-        self.shape.required.push(Arg::from_visitor(&visitor));
+        self.shape.required.push(Arg::from_visitor(visitor));
         Err(Error::Success)
     }
 }
@@ -107,7 +107,7 @@ macro_rules! deserialize_as_primitive {
             where
                 V: Visitor<'de>,
             {
-                self.required_primitive(visitor)
+                self.required_primitive(&visitor)
             }
         )*
     }
@@ -203,7 +203,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     where
         V: Visitor<'de>,
     {
-        todo!()
+        visitor.visit_newtype_struct(self)
     }
 
     fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -304,7 +304,7 @@ mod tests {
     fn deserializer_required_primitive() {
         let mut deserializer = Deserializer::new();
 
-        assert_err_eq!(deserializer.required_primitive(IgnoredAny), Error::Success);
+        assert_err_eq!(deserializer.required_primitive(&IgnoredAny), Error::Success);
 
         assert_eq!(
             deserializer.shape,
@@ -690,7 +690,7 @@ mod tests {
     }
 
     #[test]
-    fn deserialize_unit() {
+    fn deserializer_unit() {
         let mut deserializer = Deserializer::new();
 
         assert_err_eq!(<()>::deserialize(&mut deserializer), Error::Success);
@@ -705,7 +705,7 @@ mod tests {
     }
 
     #[test]
-    fn deserialize_unit_struct() {
+    fn deserializer_unit_struct() {
         #[derive(Debug, Deserialize)]
         struct Unit;
 
@@ -717,6 +717,27 @@ mod tests {
             deserializer.shape,
             Shape {
                 required: Vec::new(),
+                optional: Vec::new(),
+            }
+        )
+    }
+
+    #[test]
+    fn deserializer_newtype_struct() {
+        #[derive(Debug, Deserialize)]
+        #[allow(dead_code)] // Internal type is needed for its `Visitor`.
+        struct Newtype(i32);
+
+        let mut deserializer = Deserializer::new();
+
+        assert_err_eq!(<Newtype>::deserialize(&mut deserializer), Error::Success);
+
+        assert_eq!(
+            deserializer.shape,
+            Shape {
+                required: vec![Arg::Primitive {
+                    name: "i32".to_owned(),
+                }],
                 optional: Vec::new(),
             }
         )
