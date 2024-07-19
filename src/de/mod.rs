@@ -328,11 +328,20 @@ where
             .map_err(|error| error.with_context(&self))
     }
 
-    fn deserialize_f32<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_f32<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        todo!()
+        self.context
+            .segments
+            .push(Segment::primitive_arg_name(&visitor));
+
+        let bytes = self.next_arg()?;
+        let arg = String::from_utf8_lossy(&bytes);
+        f32::from_str(&arg)
+            .map_err(|_| Error::invalid_type(Unexpected::Other(&arg), &visitor))
+            .and_then(|float| visitor.visit_f32(float))
+            .map_err(|error| error.with_context(&self))
     }
 
     fn deserialize_f64<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -1962,5 +1971,116 @@ mod tests {
         let help = assert_err!(u128::deserialize(deserializer));
 
         assert_eq!(format!("{}", help), "USAGE: executable_path <u128>")
+    }
+
+    #[test]
+    fn f32() {
+        let deserializer = assert_ok!(Deserializer::new(vec!["executable_path", "42.9"]));
+
+        assert_ok_eq!(f32::deserialize(deserializer), 42.9);
+    }
+
+    #[test]
+    fn f32_invalid_type() {
+        let deserializer = assert_ok!(Deserializer::new(vec!["executable_path", "a"]));
+
+        assert_err_eq!(
+            f32::deserialize(deserializer),
+            Error::Usage(error::Usage {
+                kind: error::usage::Kind::InvalidType(
+                    Unexpected::Other("a").to_string(),
+                    "f32".to_owned()
+                ),
+                context: Context {
+                    segments: vec![
+                        Segment::ExecutablePath("executable_path".to_owned().into()),
+                        Segment::ArgName("f32".to_owned())
+                    ]
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn f32_invalid_type_not_utf8() {
+        let deserializer = assert_ok!(Deserializer::new(vec![
+            OsString::from("executable_path"),
+            unsafe { OsString::from_encoded_bytes_unchecked(vec![255]) }
+        ]));
+
+        assert_err_eq!(
+            f32::deserialize(deserializer),
+            Error::Usage(error::Usage {
+                kind: error::usage::Kind::InvalidType(
+                    Unexpected::Other("\u{fffd}").to_string(),
+                    "f32".to_owned()
+                ),
+                context: Context {
+                    segments: vec![
+                        Segment::ExecutablePath("executable_path".to_owned().into()),
+                        Segment::ArgName("f32".to_owned())
+                    ]
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn f32_visitor_error_contains_context() {
+        #[derive(Debug)]
+        struct NonZeroF32;
+
+        impl<'de> Deserialize<'de> for NonZeroF32 {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct NonZeroF32Visitor;
+
+                impl<'de> Visitor<'de> for NonZeroF32Visitor {
+                    type Value = NonZeroF32;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        formatter.write_str("a nonzero f32")
+                    }
+
+                    fn visit_f32<E>(self, v: f32) -> Result<Self::Value, E>
+                    where
+                        E: de::Error,
+                    {
+                        Err(E::invalid_value(Unexpected::Float(v.into()), &self))
+                    }
+                }
+
+                deserializer.deserialize_f32(NonZeroF32Visitor)
+            }
+        }
+
+        let deserializer = assert_ok!(Deserializer::new(vec!["executable_path", "0"]));
+
+        assert_err_eq!(
+            NonZeroF32::deserialize(deserializer),
+            Error::Usage(error::Usage {
+                kind: error::usage::Kind::InvalidValue(
+                    Unexpected::Float(0.).to_string(),
+                    "a nonzero f32".to_owned()
+                ),
+                context: Context {
+                    segments: vec![
+                        Segment::ExecutablePath("executable_path".to_owned().into()),
+                        Segment::ArgName("a nonzero f32".to_owned())
+                    ]
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn f32_help() {
+        let deserializer = assert_ok!(Deserializer::new(vec!["executable_path", "help"]));
+
+        let help = assert_err!(f32::deserialize(deserializer));
+
+        assert_eq!(format!("{}", help), "USAGE: executable_path <f32>")
     }
 }
