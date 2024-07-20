@@ -275,7 +275,12 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     where
         V: Visitor<'de>,
     {
-        todo!()
+        visitor.visit_some(self).map_err(|trace| {
+            Trace(trace.0.map(|status| match status {
+                Status::Continue => todo!(),
+                Status::Success(shape) => Status::Success(Shape::Optional(Box::new(shape))),
+            }))
+        })
     }
 
     fn deserialize_newtype_struct<V>(
@@ -338,7 +343,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
         self,
         name: &'static str,
         variants: &'static [&'static str],
-        visitor: V,
+        _visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -1028,6 +1033,18 @@ mod tests {
         assert_ok_eq!(
             assert_err!(Unit::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Empty)
+        );
+    }
+
+    #[test]
+    fn deserializer_option() {
+        let mut deserializer = Deserializer::new();
+
+        assert_ok_eq!(
+            assert_err!(Option::<i32>::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Optional(Box::new(Shape::Primitive {
+                name: "i32".to_owned()
+            })))
         );
     }
 
