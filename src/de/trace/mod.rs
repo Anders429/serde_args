@@ -350,7 +350,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
 #[cfg(test)]
 mod tests {
     use super::{Deserializer, Error, Field, Shape, Status, Trace};
-    use claims::{assert_err, assert_err_eq, assert_ok, assert_ok_eq};
+    use claims::{assert_err, assert_err_eq, assert_ok_eq};
     use serde::{
         de,
         de::{Deserialize, Error as _, IgnoredAny, Visitor},
@@ -678,6 +678,48 @@ mod tests {
             Status::Success(Shape::Primitive {
                 name: "anything at all".to_owned()
             })
+        );
+    }
+
+    #[test]
+    fn deserializer_any() {
+        #[derive(Debug)]
+        struct Any;
+
+        impl<'de> Deserialize<'de> for Any {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct AnyVisitor;
+
+                impl<'de> Visitor<'de> for AnyVisitor {
+                    type Value = Any;
+
+                    fn expecting(&self, _formatter: &mut Formatter) -> fmt::Result {
+                        unimplemented!()
+                    }
+                }
+
+                deserializer.deserialize_any(AnyVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::new();
+
+        assert_err_eq!(
+            assert_err!(Any::deserialize(&mut deserializer)).0,
+            Error::NotSelfDescribing,
+        );
+    }
+
+    #[test]
+    fn deserializer_ignored_any() {
+        let mut deserializer = Deserializer::new();
+
+        assert_err_eq!(
+            assert_err!(IgnoredAny::deserialize(&mut deserializer)).0,
+            Error::NotSelfDescribing,
         );
     }
 
