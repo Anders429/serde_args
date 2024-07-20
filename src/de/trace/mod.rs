@@ -343,7 +343,10 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     where
         V: Visitor<'de>,
     {
-        todo!()
+        Err(Trace(Ok(Status::Success(Shape::Command {
+            name,
+            variants,
+        }))))
     }
 }
 
@@ -1040,6 +1043,19 @@ mod tests {
             assert_err!(Newtype::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Primitive {
                 name: "i32".to_owned()
+            })
+        );
+    }
+
+    #[test]
+    fn deserialize_enum() {
+        let mut deserializer = Deserializer::new();
+
+        assert_ok_eq!(
+            assert_err!(Result::<(), ()>::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Command {
+                name: "Result",
+                variants: &["Ok", "Err"],
             })
         );
     }
