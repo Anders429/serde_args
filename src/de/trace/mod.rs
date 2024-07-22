@@ -2,14 +2,19 @@
 
 use serde::{
     de,
-    de::{Deserialize, Expected, Visitor},
+    de::{Deserialize, DeserializeSeed, Expected, MapAccess, Visitor},
+    forward_to_deserialize_any,
 };
 use std::{
+    collections::HashMap,
     fmt,
     fmt::{Display, Formatter, Write},
+    hash::{Hash, Hasher},
+    marker::PhantomData,
+    mem, slice,
 };
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, Hash, PartialEq)]
 pub(crate) struct Field {
     name: &'static str,
     aliases: Vec<&'static str>,
@@ -45,7 +50,7 @@ impl Display for Field {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, Hash, PartialEq)]
 pub(crate) enum Shape {
     Empty,
     Primitive {
@@ -99,22 +104,41 @@ impl Display for Shape {
     }
 }
 
-pub(crate) struct Tracer {
-    deserializer: Deserializer,
-}
-
-impl Tracer {
-    pub(crate) fn new() -> Self {
-        Self {
-            deserializer: Deserializer::new(),
+pub(crate) fn trace_seed_copy<'de, D>(seed: D) -> Result<Shape, Error>
+where
+    D: Copy + DeserializeSeed<'de>,
+{
+    let mut deserializer = Deserializer::new();
+    loop {
+        let trace = match seed.deserialize(&mut deserializer) {
+            Ok(_) => unreachable!("tracing unexpectedly succeeded in deserializing"),
+            Err(trace) => trace,
+        };
+        match trace.0? {
+            Status::Success(shape) => return Ok(shape),
+            Status::Continue => {}
         }
     }
+}
 
-    pub(crate) fn trace<'de, D>(&mut self) -> Shape
-    where
-        D: Deserialize<'de>,
-    {
-        todo!()
+pub(crate) fn trace<'de, D>() -> Result<Shape, Error>
+where
+    D: Deserialize<'de>,
+{
+    trace_seed_copy(PhantomData::<D>)
+}
+
+pub(crate) fn trace_seed<'de, D>(seed: D) -> Result<Shape, Error>
+where
+    D: DeserializeSeed<'de>,
+{
+    let trace = match seed.deserialize(&mut Deserializer::new()) {
+        Ok(_) => unreachable!("tracing unexpectedly succeeded in deserializing"),
+        Err(trace) => trace,
+    };
+    match trace.0? {
+        Status::Success(shape) => Ok(shape),
+        Status::Continue => Err(Error::CannotDeserializeStructFromNonCopySeed),
     }
 }
 
@@ -134,14 +158,18 @@ impl Display for Status {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-enum Error {
+pub(crate) enum Error {
     NotSelfDescribing,
+    UnsupportedIdentifierDeserialization,
+    CannotDeserializeStructFromNonCopySeed,
 }
 
 impl Display for Error {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
             Self::NotSelfDescribing => formatter.write_str("cannot deserialize as self-describing; use of `Deserializer::deserialize_any()` or `Deserializer::deserialize_ignored_any()` is not allowed"),
+            Self::UnsupportedIdentifierDeserialization => formatter.write_str("identifiers must be deserialized with `deserialize_identifier()`"),
+            Self::CannotDeserializeStructFromNonCopySeed => formatter.write_str("cannot deserialize struct with multiple fields from non-copy seed"),
         }
     }
 }
@@ -166,13 +194,45 @@ impl de::Error for Trace {
 
 impl de::StdError for Trace {}
 
+#[derive(Debug, Eq, Hash, PartialEq)]
+struct FieldInfo {
+    /// Type-erased discriminant of the field's key.
+    discriminant: u64,
+    shape: Shape,
+}
+
+#[derive(Debug)]
+struct Fields {
+    iter: slice::Iter<'static, &'static str>,
+    identified_fields: HashMap<FieldInfo, Vec<&'static str>>,
+}
+
+impl From<Fields> for Shape {
+    fn from(fields: Fields) -> Self {
+        Shape::Struct {
+            fields: fields
+                .identified_fields
+                .into_iter()
+                .map(|(info, mut names)| {
+                    let first = names.remove(0);
+                    Field {
+                        name: first,
+                        aliases: names,
+                        shape: info.shape,
+                    }
+                })
+                .collect(),
+        }
+    }
+}
+
 struct Deserializer {
-    shape: Option<Shape>,
+    fields: Option<Fields>,
 }
 
 impl Deserializer {
     fn new() -> Deserializer {
-        Deserializer { shape: None }
+        Deserializer { fields: None }
     }
 
     fn trace_required_primitive<'de, V>(&mut self, visitor: &V) -> Trace
@@ -329,14 +389,43 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
 
     fn deserialize_struct<V>(
         self,
-        name: &'static str,
+        _name: &'static str,
         fields: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        todo!()
+        let fields = self.fields.get_or_insert(Fields {
+            iter: fields.iter(),
+            identified_fields: HashMap::new(),
+        });
+        if let Some(field) = fields.iter.next() {
+            let mut struct_access = StructAccess {
+                field,
+                discriminant: None,
+            };
+            let shape = match visitor.visit_map(&mut struct_access) {
+                Ok(value) => return Ok(value),
+                Err(full_trace) => full_trace.0.map_err(|error| Trace(Err(error)))?,
+            };
+            // TODO: These fields should remember the order they were inserted in.
+            fields
+                .identified_fields
+                .entry(FieldInfo {
+                    // If the trace was successful, we should always have a discriminant.
+                    discriminant: struct_access
+                        .discriminant
+                        .expect("discriminant was not created for struct field"),
+                    shape,
+                })
+                .or_insert(Vec::new())
+                .push(field);
+            Err(Trace(Ok(Status::Continue)))
+        } else {
+            let fields = self.fields.take().expect("no fields to take");
+            Err(Trace(Ok(Status::Success(fields.into()))))
+        }
     }
 
     fn deserialize_enum<V>(
@@ -355,16 +444,135 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     }
 }
 
+#[derive(Debug)]
+struct FullTrace(Result<Shape, Error>);
+
+impl Display for FullTrace {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        match &self.0 {
+            Ok(shape) => write!(formatter, "shape: {}", shape),
+            Err(error) => write!(formatter, "error: {}", error),
+        }
+    }
+}
+
+impl de::Error for FullTrace {
+    fn custom<T>(msg: T) -> Self {
+        todo!()
+    }
+}
+
+impl de::StdError for FullTrace {}
+
+struct StructAccess {
+    field: &'static str,
+    discriminant: Option<u64>,
+}
+
+impl<'de> MapAccess<'de> for StructAccess {
+    type Error = FullTrace;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
+    where
+        K: DeserializeSeed<'de>,
+    {
+        struct KeyDeserializer {
+            field: &'static str,
+        }
+
+        impl<'de> de::Deserializer<'de> for KeyDeserializer {
+            type Error = FullTrace;
+
+            fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+            where
+                V: Visitor<'de>,
+            {
+                Err(FullTrace(Err(Error::UnsupportedIdentifierDeserialization)))
+            }
+
+            forward_to_deserialize_any! {
+                bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
+                bytes byte_buf option unit unit_struct newtype_struct seq tuple
+                tuple_struct map struct enum ignored_any
+            }
+
+            fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+            where
+                V: Visitor<'de>,
+            {
+                visitor.visit_str(self.field)
+            }
+        }
+
+        struct IdentityHasher(u64);
+
+        impl Hasher for IdentityHasher {
+            fn finish(&self) -> u64 {
+                self.0
+            }
+
+            fn write(&mut self, bytes: &[u8]) {
+                for &byte in bytes.into_iter().rev() {
+                    self.0 <<= 8;
+                    self.0 |= u64::from(byte);
+                }
+            }
+        }
+
+        let key = seed.deserialize(KeyDeserializer { field: self.field })?;
+        let mut hasher = IdentityHasher(0);
+        mem::discriminant(&key).hash(&mut hasher);
+        self.discriminant = Some(hasher.finish());
+        Ok(Some(key))
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Self::Error>
+    where
+        V: DeserializeSeed<'de>,
+    {
+        Err(FullTrace(trace_seed(seed)))
+    }
+
+    fn next_value<V>(&mut self) -> Result<V, Self::Error>
+    where
+        V: Deserialize<'de>,
+    {
+        Err(FullTrace(trace::<V>()))
+    }
+
+    fn next_entry<K, V>(&mut self) -> Result<Option<(K, V)>, Self::Error>
+    where
+        K: Deserialize<'de>,
+        V: Deserialize<'de>,
+    {
+        match self.next_key_seed(PhantomData)? {
+            Some(key) => {
+                let value = self.next_value()?;
+                Ok(Some((key, value)))
+            }
+            None => Ok(None),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{Deserializer, Error, Field, Shape, Status, Trace};
-    use claims::{assert_err, assert_err_eq, assert_ok_eq};
+    use super::{
+        Deserializer, Error, Field, FieldInfo, Fields, FullTrace, Shape, Status, StructAccess,
+        Trace,
+    };
+    use claims::{assert_err, assert_err_eq, assert_ok, assert_ok_eq, assert_some_eq};
     use serde::{
         de,
-        de::{Deserialize, Error as _, IgnoredAny, Visitor},
+        de::{Deserialize, Error as _, IgnoredAny, MapAccess, Unexpected, Visitor},
     };
     use serde_derive::Deserialize;
-    use std::{fmt, fmt::Formatter};
+    use std::{
+        collections::{HashMap, HashSet},
+        fmt,
+        fmt::Formatter,
+        marker::PhantomData,
+    };
 
     #[test]
     fn field_display_empty() {
@@ -644,6 +852,140 @@ mod tests {
     }
 
     #[test]
+    fn shape_from_fields_empty() {
+        assert_eq!(
+            Shape::from(Fields {
+                iter: [].iter(),
+                identified_fields: HashMap::new(),
+            }),
+            Shape::Struct { fields: Vec::new() }
+        );
+    }
+
+    #[test]
+    fn shape_from_fields_single() {
+        assert_eq!(
+            Shape::from(Fields {
+                iter: [].iter(),
+                identified_fields: {
+                    let mut fields = HashMap::new();
+                    fields.insert(
+                        FieldInfo {
+                            discriminant: 0,
+                            shape: Shape::Primitive {
+                                name: "foo".to_owned(),
+                            },
+                        },
+                        vec!["bar"],
+                    );
+                    fields
+                },
+            }),
+            Shape::Struct {
+                fields: vec![Field {
+                    name: "bar",
+                    aliases: Vec::new(),
+                    shape: Shape::Primitive {
+                        name: "foo".to_owned(),
+                    },
+                },],
+            }
+        );
+    }
+
+    #[test]
+    fn shape_from_fields_multiple() {
+        let shape: Shape = Fields {
+            iter: [].iter(),
+            identified_fields: {
+                let mut fields = HashMap::new();
+                fields.insert(
+                    FieldInfo {
+                        discriminant: 0,
+                        shape: Shape::Primitive {
+                            name: "foo".to_owned(),
+                        },
+                    },
+                    vec!["bar"],
+                );
+                fields.insert(
+                    FieldInfo {
+                        discriminant: 1,
+                        shape: Shape::Primitive {
+                            name: "baz".to_owned(),
+                        },
+                    },
+                    vec!["qux"],
+                );
+                fields
+            },
+        }
+        .into();
+
+        if let Shape::Struct { fields } = shape {
+            // Compare the fields in an unordered way.
+            //
+            // This ensures the test isn't flaky, as the data is at one point stored in a HashMap
+            // and therefore can be obtained in any order.
+            let fields = fields.into_iter().collect::<HashSet<_>>();
+            assert_eq!(
+                fields,
+                vec![
+                    Field {
+                        name: "bar",
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "foo".to_owned(),
+                        },
+                    },
+                    Field {
+                        name: "qux",
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "baz".to_owned(),
+                        },
+                    },
+                ]
+                .into_iter()
+                .collect::<HashSet<_>>()
+            );
+        } else {
+            panic!("result is not a `Shape::Struct`");
+        }
+    }
+
+    #[test]
+    fn shape_from_fields_aliases() {
+        assert_eq!(
+            Shape::from(Fields {
+                iter: [].iter(),
+                identified_fields: {
+                    let mut fields = HashMap::new();
+                    fields.insert(
+                        FieldInfo {
+                            discriminant: 0,
+                            shape: Shape::Primitive {
+                                name: "foo".to_owned(),
+                            },
+                        },
+                        vec!["bar", "baz", "qux"],
+                    );
+                    fields
+                },
+            }),
+            Shape::Struct {
+                fields: vec![Field {
+                    name: "bar",
+                    aliases: vec!["baz", "qux"],
+                    shape: Shape::Primitive {
+                        name: "foo".to_owned(),
+                    },
+                },],
+            }
+        );
+    }
+
+    #[test]
     fn status_display_success() {
         assert_eq!(format!("{}", Status::Success(Shape::Empty)), "success: ")
     }
@@ -656,6 +998,22 @@ mod tests {
     #[test]
     fn error_display_not_self_describing() {
         assert_eq!(format!("{}", Error::NotSelfDescribing), "cannot deserialize as self-describing; use of `Deserializer::deserialize_any()` or `Deserializer::deserialize_ignored_any()` is not allowed");
+    }
+
+    #[test]
+    fn error_display_unsupported_identifier_deserialization() {
+        assert_eq!(
+            format!("{}", Error::UnsupportedIdentifierDeserialization),
+            "identifiers must be deserialized with `deserialize_identifier()`"
+        );
+    }
+
+    #[test]
+    fn error_display_cannot_deserialize_struct_from_non_copy_seed() {
+        assert_eq!(
+            format!("{}", Error::CannotDeserializeStructFromNonCopySeed),
+            "cannot deserialize struct with multiple fields from non-copy seed"
+        );
     }
 
     #[test]
@@ -1065,7 +1423,282 @@ mod tests {
     }
 
     #[test]
-    fn deserialize_enum() {
+    fn deserializer_struct() {
+        #[derive(Debug, Deserialize)]
+        #[allow(dead_code)]
+        struct Struct {
+            foo: usize,
+            bar: String,
+        }
+
+        let mut deserializer = Deserializer::new();
+
+        // Obtain information about both fields.
+        assert_ok_eq!(
+            assert_err!(Struct::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        assert_ok_eq!(
+            assert_err!(Struct::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        // Get deserialization result.
+        let result = assert_ok!(assert_err!(Struct::deserialize(&mut deserializer)).0);
+        if let Status::Success(Shape::Struct { fields }) = result {
+            // Compare the fields in an unordered way.
+            //
+            // This ensures the test isn't flaky, as the data is at one point stored in a HashMap
+            // and therefore can be obtained in any order.
+            let fields = fields.into_iter().collect::<HashSet<_>>();
+            assert_eq!(
+                fields,
+                vec![
+                    Field {
+                        name: "foo",
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "usize".to_owned(),
+                        },
+                    },
+                    Field {
+                        name: "bar",
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "a string".to_owned(),
+                        },
+                    },
+                ]
+                .into_iter()
+                .collect::<HashSet<_>>()
+            );
+        } else {
+            panic!("deserialization failed: {}", result);
+        }
+    }
+
+    #[test]
+    fn deserializer_struct_empty() {
+        #[derive(Debug)]
+        struct Struct;
+
+        impl<'de> Deserialize<'de> for Struct {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct StructVisitor;
+
+                impl<'de> Visitor<'de> for StructVisitor {
+                    type Value = Struct;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        formatter.write_str("empty struct")
+                    }
+                }
+
+                deserializer.deserialize_struct("Struct", &[], StructVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::new();
+
+        assert_ok_eq!(
+            assert_err!(Struct::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Struct { fields: vec![] })
+        );
+    }
+
+    #[test]
+    fn deserializer_struct_with_aliases() {
+        #[derive(Debug, Deserialize)]
+        #[allow(dead_code)]
+        struct Struct {
+            #[serde(alias = "f")]
+            foo: usize,
+            #[serde(alias = "b")]
+            #[serde(alias = "baz")]
+            bar: String,
+        }
+
+        let mut deserializer = Deserializer::new();
+
+        // Obtain information about all 5 fields (including aliases).
+        assert_ok_eq!(
+            assert_err!(Struct::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        assert_ok_eq!(
+            assert_err!(Struct::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        assert_ok_eq!(
+            assert_err!(Struct::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        assert_ok_eq!(
+            assert_err!(Struct::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        assert_ok_eq!(
+            assert_err!(Struct::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        // Get deserialization result.
+        let result = assert_ok!(assert_err!(Struct::deserialize(&mut deserializer)).0);
+        if let Status::Success(Shape::Struct { fields }) = result {
+            // Compare the fields in an unordered way.
+            //
+            // This ensures the test isn't flaky, as the data is at one point stored in a HashMap
+            // and therefore can be obtained in any order.
+            let fields = fields.into_iter().collect::<HashSet<_>>();
+            assert_eq!(
+                fields,
+                vec![
+                    Field {
+                        name: "f",
+                        aliases: vec!["foo"],
+                        shape: Shape::Primitive {
+                            name: "usize".to_owned(),
+                        },
+                    },
+                    Field {
+                        name: "b",
+                        aliases: vec!["bar", "baz"],
+                        shape: Shape::Primitive {
+                            name: "a string".to_owned(),
+                        },
+                    },
+                ]
+                .into_iter()
+                .collect::<HashSet<_>>()
+            );
+        } else {
+            panic!("deserialization failed: {}", result);
+        }
+    }
+
+    #[test]
+    fn deserializer_struct_with_optional_field() {
+        #[derive(Debug, Deserialize)]
+        #[allow(dead_code)]
+        struct Struct {
+            foo: Option<usize>,
+            bar: String,
+        }
+
+        let mut deserializer = Deserializer::new();
+
+        // Obtain information about both fields.
+        assert_ok_eq!(
+            assert_err!(Struct::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        assert_ok_eq!(
+            assert_err!(Struct::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        // Get deserialization result.
+        let result = assert_ok!(assert_err!(Struct::deserialize(&mut deserializer)).0);
+        if let Status::Success(Shape::Struct { fields }) = result {
+            // Compare the fields in an unordered way.
+            //
+            // This ensures the test isn't flaky, as the data is at one point stored in a HashMap
+            // and therefore can be obtained in any order.
+            let fields = fields.into_iter().collect::<HashSet<_>>();
+            assert_eq!(
+                fields,
+                vec![
+                    Field {
+                        name: "foo",
+                        aliases: Vec::new(),
+                        shape: Shape::Optional(Box::new(Shape::Primitive {
+                            name: "usize".to_owned(),
+                        })),
+                    },
+                    Field {
+                        name: "bar",
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "a string".to_owned(),
+                        },
+                    },
+                ]
+                .into_iter()
+                .collect::<HashSet<_>>()
+            );
+        } else {
+            panic!("deserialization failed: {}", result);
+        }
+    }
+
+    #[test]
+    fn deserializer_struct_nested() {
+        #[derive(Debug, Deserialize)]
+        #[allow(dead_code)]
+        struct Struct {
+            foo: usize,
+        }
+
+        #[derive(Debug, Deserialize)]
+        #[allow(dead_code)]
+        struct Nested {
+            r#struct: Struct,
+            bar: isize,
+        }
+
+        let mut deserializer = Deserializer::new();
+
+        // Obtain information about both fields.
+        assert_ok_eq!(
+            assert_err!(Nested::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        assert_ok_eq!(
+            assert_err!(Nested::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        // Get deserialization result.
+        let result = assert_ok!(assert_err!(Nested::deserialize(&mut deserializer)).0);
+        if let Status::Success(Shape::Struct { fields }) = result {
+            // Compare the fields in an unordered way.
+            //
+            // This ensures the test isn't flaky, as the data is at one point stored in a HashMap
+            // and therefore can be obtained in any order.
+            let fields = fields.into_iter().collect::<HashSet<_>>();
+            assert_eq!(
+                fields,
+                vec![
+                    Field {
+                        name: "struct",
+                        aliases: Vec::new(),
+                        shape: Shape::Struct {
+                            fields: vec![Field {
+                                name: "foo",
+                                aliases: Vec::new(),
+                                shape: Shape::Primitive {
+                                    name: "usize".to_owned(),
+                                },
+                            },],
+                        }
+                    },
+                    Field {
+                        name: "bar",
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "isize".to_owned(),
+                        }
+                    }
+                ]
+                .into_iter()
+                .collect::<HashSet<_>>()
+            );
+        } else {
+            panic!("deserialization failed: {}", result);
+        }
+    }
+
+    #[test]
+    fn deserializer_enum() {
         let mut deserializer = Deserializer::new();
 
         assert_ok_eq!(
@@ -1075,5 +1708,232 @@ mod tests {
                 variants: &["Ok", "Err"],
             })
         );
+    }
+
+    #[test]
+    fn full_trace_display_shape() {
+        assert_eq!(
+            format!(
+                "{}",
+                FullTrace(Ok(Shape::Primitive {
+                    name: "foo".to_owned()
+                }))
+            ),
+            "shape: <foo>"
+        );
+    }
+
+    #[test]
+    fn full_trace_display_error() {
+        assert_eq!(
+            format!(
+                "{}",
+                FullTrace(Err(Error::NotSelfDescribing))
+            ),
+            "error: cannot deserialize as self-describing; use of `Deserializer::deserialize_any()` or `Deserializer::deserialize_ignored_any()` is not allowed"
+        );
+    }
+
+    #[test]
+    fn struct_access_next_key() {
+        #[derive(Debug, Eq, PartialEq)]
+        enum Key {
+            Foo,
+            Bar,
+        }
+
+        impl<'de> Deserialize<'de> for Key {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct KeyVisitor;
+
+                impl<'de> Visitor<'de> for KeyVisitor {
+                    type Value = Key;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        formatter.write_str("`foo` or `bar`")
+                    }
+
+                    fn visit_str<E>(self, string: &str) -> Result<Self::Value, E>
+                    where
+                        E: de::Error,
+                    {
+                        match string {
+                            "foo" => Ok(Key::Foo),
+                            "bar" => Ok(Key::Bar),
+                            _ => Err(E::invalid_value(Unexpected::Str(string), &self)),
+                        }
+                    }
+                }
+
+                deserializer.deserialize_identifier(KeyVisitor)
+            }
+        }
+
+        let mut struct_access = StructAccess {
+            field: "bar",
+            discriminant: None,
+        };
+
+        assert_some_eq!(assert_ok!(struct_access.next_key::<Key>()), Key::Bar);
+        assert_some_eq!(struct_access.discriminant, 1);
+    }
+
+    #[test]
+    fn struct_access_next_value() {
+        #[derive(Debug, Eq, PartialEq)]
+        enum Key {
+            Foo,
+            Bar,
+        }
+
+        impl<'de> Deserialize<'de> for Key {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct KeyVisitor;
+
+                impl<'de> Visitor<'de> for KeyVisitor {
+                    type Value = Key;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        formatter.write_str("`foo` or `bar`")
+                    }
+
+                    fn visit_str<E>(self, string: &str) -> Result<Self::Value, E>
+                    where
+                        E: de::Error,
+                    {
+                        match string {
+                            "foo" => Ok(Key::Foo),
+                            "bar" => Ok(Key::Bar),
+                            _ => Err(E::invalid_value(Unexpected::Str(string), &self)),
+                        }
+                    }
+                }
+
+                deserializer.deserialize_identifier(KeyVisitor)
+            }
+        }
+
+        let mut struct_access = StructAccess {
+            field: "bar",
+            discriminant: None,
+        };
+
+        assert_some_eq!(assert_ok!(struct_access.next_key::<Key>()), Key::Bar);
+        assert_ok_eq!(
+            assert_err!(struct_access.next_value::<i32>()).0,
+            Shape::Primitive {
+                name: "i32".to_owned()
+            }
+        );
+    }
+
+    #[test]
+    fn struct_access_next_value_seed() {
+        #[derive(Debug, Eq, PartialEq)]
+        enum Key {
+            Foo,
+            Bar,
+        }
+
+        impl<'de> Deserialize<'de> for Key {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct KeyVisitor;
+
+                impl<'de> Visitor<'de> for KeyVisitor {
+                    type Value = Key;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        formatter.write_str("`foo` or `bar`")
+                    }
+
+                    fn visit_str<E>(self, string: &str) -> Result<Self::Value, E>
+                    where
+                        E: de::Error,
+                    {
+                        match string {
+                            "foo" => Ok(Key::Foo),
+                            "bar" => Ok(Key::Bar),
+                            _ => Err(E::invalid_value(Unexpected::Str(string), &self)),
+                        }
+                    }
+                }
+
+                deserializer.deserialize_identifier(KeyVisitor)
+            }
+        }
+
+        let mut struct_access = StructAccess {
+            field: "bar",
+            discriminant: None,
+        };
+
+        assert_some_eq!(assert_ok!(struct_access.next_key::<Key>()), Key::Bar);
+        assert_ok_eq!(
+            assert_err!(struct_access.next_value_seed(PhantomData::<i32>)).0,
+            Shape::Primitive {
+                name: "i32".to_owned()
+            }
+        );
+    }
+
+    #[test]
+    fn struct_access_next_entry() {
+        #[derive(Debug, Eq, PartialEq)]
+        enum Key {
+            Foo,
+            Bar,
+        }
+
+        impl<'de> Deserialize<'de> for Key {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct KeyVisitor;
+
+                impl<'de> Visitor<'de> for KeyVisitor {
+                    type Value = Key;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        formatter.write_str("`foo` or `bar`")
+                    }
+
+                    fn visit_str<E>(self, string: &str) -> Result<Self::Value, E>
+                    where
+                        E: de::Error,
+                    {
+                        match string {
+                            "foo" => Ok(Key::Foo),
+                            "bar" => Ok(Key::Bar),
+                            _ => Err(E::invalid_value(Unexpected::Str(string), &self)),
+                        }
+                    }
+                }
+
+                deserializer.deserialize_identifier(KeyVisitor)
+            }
+        }
+
+        let mut struct_access = StructAccess {
+            field: "bar",
+            discriminant: None,
+        };
+
+        assert_ok_eq!(
+            assert_err!(struct_access.next_entry::<Key, i32>()).0,
+            Shape::Primitive {
+                name: "i32".to_owned(),
+            }
+        );
+        assert_some_eq!(struct_access.discriminant, 1);
     }
 }
