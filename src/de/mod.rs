@@ -1,5 +1,4 @@
 pub mod error;
-pub mod trace;
 
 mod context;
 
