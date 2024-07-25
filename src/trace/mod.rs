@@ -14,11 +14,11 @@ use std::{
     mem, slice,
 };
 
-#[derive(Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub(crate) struct Field {
-    name: &'static str,
-    aliases: Vec<&'static str>,
-    shape: Shape,
+    pub(crate) name: &'static str,
+    pub(crate) aliases: Vec<&'static str>,
+    pub(crate) shape: Shape,
 }
 
 impl Display for Field {
@@ -50,7 +50,7 @@ impl Display for Field {
     }
 }
 
-#[derive(Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum Shape {
     Empty,
     Primitive {
