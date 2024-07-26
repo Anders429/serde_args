@@ -1,5 +1,6 @@
 mod de;
 mod error;
+mod parse;
 mod trace;
 
 pub use error::Error;
