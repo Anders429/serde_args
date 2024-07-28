@@ -35,14 +35,29 @@ impl Display for Field {
                     write!(formatter, "[--{} {}]", self.name, shape)
                 }
             }
-            Shape::Struct { fields } => {
-                let mut fields_iter = fields.iter();
-                if let Some(field) = fields_iter.next() {
+            Shape::Struct { required, optional } => {
+                let mut required_iter = required.iter();
+                let mut had_required = false;
+                if let Some(field) = required_iter.next() {
+                    had_required = true;
                     Display::fmt(field, formatter)?;
-                    for field in fields_iter {
+                    for field in required_iter {
                         formatter.write_char(' ')?;
                         Display::fmt(field, formatter)?;
                     }
+                }
+                let mut optional_iter = optional.iter();
+                if let Some(field) = optional_iter.next() {
+                    if had_required {
+                        formatter.write_char(' ')?;
+                    }
+                    formatter.write_char('[')?;
+                    Display::fmt(field, formatter)?;
+                    for field in optional_iter {
+                        formatter.write_char(' ')?;
+                        Display::fmt(field, formatter)?;
+                    }
+                    formatter.write_char(']')?;
                 }
                 Ok(())
             }
@@ -58,7 +73,8 @@ pub(crate) enum Shape {
     },
     Optional(Box<Shape>),
     Struct {
-        fields: Vec<Field>,
+        required: Vec<Field>,
+        optional: Vec<Field>,
     },
     Command {
         name: &'static str,
@@ -86,14 +102,29 @@ impl Display for Shape {
                     write!(formatter, "[--{}]", shape)
                 }
             }
-            Self::Struct { fields } => {
-                let mut fields_iter = fields.iter();
-                if let Some(field) = fields_iter.next() {
+            Self::Struct { required, optional } => {
+                let mut required_iter = required.iter();
+                let mut had_required = false;
+                if let Some(field) = required_iter.next() {
+                    had_required = true;
                     Display::fmt(field, formatter)?;
-                    for field in fields_iter {
+                    for field in required_iter {
                         formatter.write_char(' ')?;
                         Display::fmt(field, formatter)?;
                     }
+                }
+                let mut optional_iter = optional.iter();
+                if let Some(field) = optional_iter.next() {
+                    if had_required {
+                        formatter.write_char(' ')?;
+                    }
+                    formatter.write_char('[')?;
+                    Display::fmt(field, formatter)?;
+                    for field in optional_iter {
+                        formatter.write_char(' ')?;
+                        Display::fmt(field, formatter)?;
+                    }
+                    formatter.write_char(']')?;
                 }
                 Ok(())
             }
@@ -204,14 +235,27 @@ struct FieldInfo {
 #[derive(Debug)]
 struct Fields {
     iter: slice::Iter<'static, &'static str>,
-    identified_fields: HashMap<FieldInfo, Vec<&'static str>>,
+    required_fields: Vec<(FieldInfo, Vec<&'static str>)>,
+    optional_fields: Vec<(FieldInfo, Vec<&'static str>)>,
 }
 
 impl From<Fields> for Shape {
     fn from(fields: Fields) -> Self {
         Shape::Struct {
-            fields: fields
-                .identified_fields
+            required: fields
+                .required_fields
+                .into_iter()
+                .map(|(info, mut names)| {
+                    let first = names.remove(0);
+                    Field {
+                        name: first,
+                        aliases: names,
+                        shape: info.shape,
+                    }
+                })
+                .collect(),
+            optional: fields
+                .optional_fields
                 .into_iter()
                 .map(|(info, mut names)| {
                     let first = names.remove(0);
@@ -398,7 +442,8 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let fields = self.fields.get_or_insert(Fields {
             iter: fields.iter(),
-            identified_fields: HashMap::new(),
+            required_fields: Vec::new(),
+            optional_fields: Vec::new(),
         });
         if let Some(field) = fields.iter.next() {
             let mut struct_access = StructAccess {
@@ -409,18 +454,48 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 Ok(value) => return Ok(value),
                 Err(full_trace) => full_trace.0.map_err(|error| Trace(Err(error)))?,
             };
-            // TODO: These fields should remember the order they were inserted in.
-            fields
-                .identified_fields
-                .entry(FieldInfo {
-                    // If the trace was successful, we should always have a discriminant.
-                    discriminant: struct_access
-                        .discriminant
-                        .expect("discriminant was not created for struct field"),
-                    shape,
-                })
-                .or_insert(Vec::new())
-                .push(field);
+            match shape {
+                Shape::Optional(shape) => {
+                    // Optional fields.
+                    let field_info = FieldInfo {
+                        discriminant: struct_access
+                            .discriminant
+                            .expect("discriminant was not created for struct field"),
+                        shape: *shape,
+                    };
+                    let mut found = false;
+                    for (info, names) in fields.optional_fields.iter_mut() {
+                        if *info == field_info {
+                            found = true;
+                            names.push(field);
+                            break;
+                        }
+                    }
+                    if !found {
+                        fields.optional_fields.push((field_info, vec![field]));
+                    }
+                }
+                shape @ _ => {
+                    // Required fields.
+                    let field_info = FieldInfo {
+                        discriminant: struct_access
+                            .discriminant
+                            .expect("discriminant was not created for struct field"),
+                        shape,
+                    };
+                    let mut found = false;
+                    for (info, names) in fields.required_fields.iter_mut() {
+                        if *info == field_info {
+                            found = true;
+                            names.push(field);
+                            break;
+                        }
+                    }
+                    if !found {
+                        fields.required_fields.push((field_info, vec![field]));
+                    }
+                }
+            }
             Err(Trace(Ok(Status::Continue)))
         } else {
             let fields = self.fields.take().expect("no fields to take");
@@ -664,7 +739,7 @@ mod tests {
                     name: "foo",
                     aliases: Vec::new(),
                     shape: Shape::Optional(Box::new(Shape::Struct {
-                        fields: vec![
+                        required: vec![
                             Field {
                                 name: "bar",
                                 aliases: Vec::new(),
@@ -680,6 +755,7 @@ mod tests {
                                 },
                             },
                         ],
+                        optional: vec![],
                     })),
                 }
             ),
@@ -773,7 +849,7 @@ mod tests {
             format!(
                 "{}",
                 Shape::Optional(Box::new(Shape::Struct {
-                    fields: vec![
+                    required: vec![
                         Field {
                             name: "foo",
                             aliases: Vec::new(),
@@ -789,6 +865,7 @@ mod tests {
                             },
                         },
                     ],
+                    optional: vec![],
                 }))
             ),
             "[--<foo> <baz>]"
@@ -815,7 +892,37 @@ mod tests {
             format!(
                 "{}",
                 Shape::Struct {
-                    fields: vec![
+                    required: vec![
+                        Field {
+                            name: "foo",
+                            aliases: Vec::new(),
+                            shape: Shape::Primitive {
+                                name: "bar".to_owned()
+                            },
+                        },
+                        Field {
+                            name: "baz",
+                            aliases: Vec::new(),
+                            shape: Shape::Primitive {
+                                name: "qux".to_owned()
+                            },
+                        },
+                    ],
+                    optional: vec![],
+                }
+            ),
+            "<foo> <baz>"
+        )
+    }
+
+    #[test]
+    fn shape_display_struct_only_optional_fields() {
+        assert_eq!(
+            format!(
+                "{}",
+                Shape::Struct {
+                    required: vec![],
+                    optional: vec![
                         Field {
                             name: "foo",
                             aliases: Vec::new(),
@@ -833,7 +940,7 @@ mod tests {
                     ],
                 }
             ),
-            "<foo> <baz>"
+            "[<foo> <baz>]"
         )
     }
 
@@ -856,9 +963,13 @@ mod tests {
         assert_eq!(
             Shape::from(Fields {
                 iter: [].iter(),
-                identified_fields: HashMap::new(),
+                required_fields: vec![],
+                optional_fields: vec![],
             }),
-            Shape::Struct { fields: Vec::new() }
+            Shape::Struct {
+                required: vec![],
+                optional: vec![],
+            }
         );
     }
 
@@ -867,9 +978,37 @@ mod tests {
         assert_eq!(
             Shape::from(Fields {
                 iter: [].iter(),
-                identified_fields: {
-                    let mut fields = HashMap::new();
-                    fields.insert(
+                required_fields: vec![(
+                    FieldInfo {
+                        discriminant: 0,
+                        shape: Shape::Primitive {
+                            name: "foo".to_owned(),
+                        },
+                    },
+                    vec!["bar"]
+                ),],
+                optional_fields: vec![],
+            }),
+            Shape::Struct {
+                required: vec![Field {
+                    name: "bar",
+                    aliases: Vec::new(),
+                    shape: Shape::Primitive {
+                        name: "foo".to_owned(),
+                    },
+                },],
+                optional: vec![],
+            }
+        );
+    }
+
+    #[test]
+    fn shape_from_fields_multiple() {
+        assert_eq!(
+            Shape::from(Fields {
+                iter: [].iter(),
+                required_fields: vec![
+                    (
                         FieldInfo {
                             discriminant: 0,
                             shape: Shape::Primitive {
@@ -877,60 +1016,21 @@ mod tests {
                             },
                         },
                         vec!["bar"],
-                    );
-                    fields
-                },
+                    ),
+                    (
+                        FieldInfo {
+                            discriminant: 1,
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned(),
+                            },
+                        },
+                        vec!["qux"],
+                    ),
+                ],
+                optional_fields: vec![],
             }),
             Shape::Struct {
-                fields: vec![Field {
-                    name: "bar",
-                    aliases: Vec::new(),
-                    shape: Shape::Primitive {
-                        name: "foo".to_owned(),
-                    },
-                },],
-            }
-        );
-    }
-
-    #[test]
-    fn shape_from_fields_multiple() {
-        let shape: Shape = Fields {
-            iter: [].iter(),
-            identified_fields: {
-                let mut fields = HashMap::new();
-                fields.insert(
-                    FieldInfo {
-                        discriminant: 0,
-                        shape: Shape::Primitive {
-                            name: "foo".to_owned(),
-                        },
-                    },
-                    vec!["bar"],
-                );
-                fields.insert(
-                    FieldInfo {
-                        discriminant: 1,
-                        shape: Shape::Primitive {
-                            name: "baz".to_owned(),
-                        },
-                    },
-                    vec!["qux"],
-                );
-                fields
-            },
-        }
-        .into();
-
-        if let Shape::Struct { fields } = shape {
-            // Compare the fields in an unordered way.
-            //
-            // This ensures the test isn't flaky, as the data is at one point stored in a HashMap
-            // and therefore can be obtained in any order.
-            let fields = fields.into_iter().collect::<HashSet<_>>();
-            assert_eq!(
-                fields,
-                vec![
+                required: vec![
                     Field {
                         name: "bar",
                         aliases: Vec::new(),
@@ -945,13 +1045,10 @@ mod tests {
                             name: "baz".to_owned(),
                         },
                     },
-                ]
-                .into_iter()
-                .collect::<HashSet<_>>()
-            );
-        } else {
-            panic!("result is not a `Shape::Struct`");
-        }
+                ],
+                optional: vec![],
+            }
+        );
     }
 
     #[test]
@@ -959,28 +1056,26 @@ mod tests {
         assert_eq!(
             Shape::from(Fields {
                 iter: [].iter(),
-                identified_fields: {
-                    let mut fields = HashMap::new();
-                    fields.insert(
-                        FieldInfo {
-                            discriminant: 0,
-                            shape: Shape::Primitive {
-                                name: "foo".to_owned(),
-                            },
+                required_fields: vec![(
+                    FieldInfo {
+                        discriminant: 0,
+                        shape: Shape::Primitive {
+                            name: "foo".to_owned(),
                         },
-                        vec!["bar", "baz", "qux"],
-                    );
-                    fields
-                },
+                    },
+                    vec!["bar", "baz", "qux"],
+                ),],
+                optional_fields: vec![],
             }),
             Shape::Struct {
-                fields: vec![Field {
+                required: vec![Field {
                     name: "bar",
                     aliases: vec!["baz", "qux"],
                     shape: Shape::Primitive {
                         name: "foo".to_owned(),
                     },
                 },],
+                optional: vec![],
             }
         );
     }
@@ -1443,16 +1538,10 @@ mod tests {
             Status::Continue
         );
         // Get deserialization result.
-        let result = assert_ok!(assert_err!(Struct::deserialize(&mut deserializer)).0);
-        if let Status::Success(Shape::Struct { fields }) = result {
-            // Compare the fields in an unordered way.
-            //
-            // This ensures the test isn't flaky, as the data is at one point stored in a HashMap
-            // and therefore can be obtained in any order.
-            let fields = fields.into_iter().collect::<HashSet<_>>();
-            assert_eq!(
-                fields,
-                vec![
+        assert_ok_eq!(
+            assert_err!(Struct::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Struct {
+                required: vec![
                     Field {
                         name: "foo",
                         aliases: Vec::new(),
@@ -1467,13 +1556,10 @@ mod tests {
                             name: "a string".to_owned(),
                         },
                     },
-                ]
-                .into_iter()
-                .collect::<HashSet<_>>()
-            );
-        } else {
-            panic!("deserialization failed: {}", result);
-        }
+                ],
+                optional: vec![],
+            })
+        );
     }
 
     #[test]
@@ -1504,7 +1590,10 @@ mod tests {
 
         assert_ok_eq!(
             assert_err!(Struct::deserialize(&mut deserializer)).0,
-            Status::Success(Shape::Struct { fields: vec![] })
+            Status::Success(Shape::Struct {
+                required: vec![],
+                optional: vec![]
+            })
         );
     }
 
@@ -1544,16 +1633,10 @@ mod tests {
             Status::Continue
         );
         // Get deserialization result.
-        let result = assert_ok!(assert_err!(Struct::deserialize(&mut deserializer)).0);
-        if let Status::Success(Shape::Struct { fields }) = result {
-            // Compare the fields in an unordered way.
-            //
-            // This ensures the test isn't flaky, as the data is at one point stored in a HashMap
-            // and therefore can be obtained in any order.
-            let fields = fields.into_iter().collect::<HashSet<_>>();
-            assert_eq!(
-                fields,
-                vec![
+        assert_ok_eq!(
+            assert_err!(Struct::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Struct {
+                required: vec![
                     Field {
                         name: "f",
                         aliases: vec!["foo"],
@@ -1568,13 +1651,10 @@ mod tests {
                             name: "a string".to_owned(),
                         },
                     },
-                ]
-                .into_iter()
-                .collect::<HashSet<_>>()
-            );
-        } else {
-            panic!("deserialization failed: {}", result);
-        }
+                ],
+                optional: vec![],
+            })
+        );
     }
 
     #[test]
@@ -1598,37 +1678,25 @@ mod tests {
             Status::Continue
         );
         // Get deserialization result.
-        let result = assert_ok!(assert_err!(Struct::deserialize(&mut deserializer)).0);
-        if let Status::Success(Shape::Struct { fields }) = result {
-            // Compare the fields in an unordered way.
-            //
-            // This ensures the test isn't flaky, as the data is at one point stored in a HashMap
-            // and therefore can be obtained in any order.
-            let fields = fields.into_iter().collect::<HashSet<_>>();
-            assert_eq!(
-                fields,
-                vec![
-                    Field {
-                        name: "foo",
-                        aliases: Vec::new(),
-                        shape: Shape::Optional(Box::new(Shape::Primitive {
-                            name: "usize".to_owned(),
-                        })),
+        assert_ok_eq!(
+            assert_err!(Struct::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Struct {
+                required: vec![Field {
+                    name: "bar",
+                    aliases: Vec::new(),
+                    shape: Shape::Primitive {
+                        name: "a string".to_owned(),
                     },
-                    Field {
-                        name: "bar",
-                        aliases: Vec::new(),
-                        shape: Shape::Primitive {
-                            name: "a string".to_owned(),
-                        },
+                },],
+                optional: vec![Field {
+                    name: "foo",
+                    aliases: Vec::new(),
+                    shape: Shape::Primitive {
+                        name: "usize".to_owned(),
                     },
-                ]
-                .into_iter()
-                .collect::<HashSet<_>>()
-            );
-        } else {
-            panic!("deserialization failed: {}", result);
-        }
+                },],
+            })
+        );
     }
 
     #[test]
@@ -1658,27 +1726,22 @@ mod tests {
             Status::Continue
         );
         // Get deserialization result.
-        let result = assert_ok!(assert_err!(Nested::deserialize(&mut deserializer)).0);
-        if let Status::Success(Shape::Struct { fields }) = result {
-            // Compare the fields in an unordered way.
-            //
-            // This ensures the test isn't flaky, as the data is at one point stored in a HashMap
-            // and therefore can be obtained in any order.
-            let fields = fields.into_iter().collect::<HashSet<_>>();
-            assert_eq!(
-                fields,
-                vec![
+        assert_ok_eq!(
+            assert_err!(Struct::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Struct {
+                required: vec![
                     Field {
                         name: "struct",
                         aliases: Vec::new(),
                         shape: Shape::Struct {
-                            fields: vec![Field {
+                            required: vec![Field {
                                 name: "foo",
                                 aliases: Vec::new(),
                                 shape: Shape::Primitive {
                                     name: "usize".to_owned(),
                                 },
                             },],
+                            optional: vec![],
                         }
                     },
                     Field {
@@ -1688,13 +1751,10 @@ mod tests {
                             name: "isize".to_owned(),
                         }
                     }
-                ]
-                .into_iter()
-                .collect::<HashSet<_>>()
-            );
-        } else {
-            panic!("deserialization failed: {}", result);
-        }
+                ],
+                optional: vec![],
+            })
+        );
     }
 
     #[test]

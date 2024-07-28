@@ -47,12 +47,13 @@ impl Display for Usage {
                 Shape::Primitive { .. } | Shape::Command { .. } => {
                     write!(formatter, "missing required argument: {}", shape)
                 }
-                Shape::Struct { fields } => {
+                Shape::Struct { required, .. } => {
                     write!(
                         formatter,
                         "missing required arguments: {}",
                         Shape::Struct {
-                            fields: fields[*index..].to_vec()
+                            required: required[*index..].to_vec(),
+                            optional: vec![],
                         }
                     )
                 }
@@ -229,7 +230,7 @@ mod tests {
                 Usage::MissingArgs {
                     index: 0,
                     shape: Shape::Struct {
-                        fields: vec![
+                        required: vec![
                             Field {
                                 name: "foo",
                                 aliases: Vec::new(),
@@ -244,7 +245,8 @@ mod tests {
                                     name: "qux".to_owned()
                                 },
                             },
-                        ]
+                        ],
+                        optional: vec![],
                     }
                 }
             ),
@@ -260,7 +262,7 @@ mod tests {
                 Usage::MissingArgs {
                     index: 1,
                     shape: Shape::Struct {
-                        fields: vec![
+                        required: vec![
                             Field {
                                 name: "foo",
                                 aliases: Vec::new(),
@@ -275,7 +277,8 @@ mod tests {
                                     name: "qux".to_owned()
                                 },
                             },
-                        ]
+                        ],
+                        optional: vec![],
                     }
                 }
             ),

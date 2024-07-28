@@ -112,23 +112,17 @@ where
         Shape::Optional(shape) => {
             todo!()
         }
-        Shape::Struct { fields } => {
+        Shape::Struct { required, optional } => {
             // Compile optional fields.
             let optional_shapes = {
                 let mut optional_shapes = options.cloned().unwrap_or(HashMap::new());
                 optional_shapes.extend(
-                    fields
+                    optional
                         .iter()
                         .map(|field| {
                             iter::once(field.name)
                                 .chain(field.aliases.iter().copied())
-                                .filter_map(|name| {
-                                    if let Shape::Optional(shape) = &field.shape {
-                                        Some((name, shape.as_ref()))
-                                    } else {
-                                        None
-                                    }
-                                })
+                                .map(|name| (name, &field.shape))
                         })
                         .flatten(),
                 );
@@ -139,10 +133,7 @@ where
             let mut struct_context = Context {
                 segments: Vec::new(),
             };
-            for field in fields
-                .iter()
-                .filter(|field| !matches!(field.shape, Shape::Optional(_)))
-            {
+            for field in required {
                 let (context, options) =
                     parse_inner_context(args, &field.shape, Some(&optional_shapes))?;
                 struct_context.segments.push(Segment::Context(context));
@@ -160,10 +151,7 @@ where
                 }
             }
             // Handle all found options.
-            for optional_field in fields
-                .iter()
-                .filter(|field| matches!(field.shape, Shape::Optional(_)))
-            {
+            for optional_field in optional {
                 // Get all options corresponding to the field name and any aliases.
                 let mut found = None;
                 for name in
@@ -262,7 +250,13 @@ mod tests {
     #[test]
     fn parse_struct_empty() {
         assert_ok_eq!(
-            parse(Vec::<&str>::new(), &Shape::Struct { fields: vec![] }),
+            parse(
+                Vec::<&str>::new(),
+                &Shape::Struct {
+                    required: vec![],
+                    optional: vec![],
+                }
+            ),
             Context { segments: vec![] }
         );
     }
@@ -273,13 +267,14 @@ mod tests {
             parse(
                 vec!["foo"],
                 &Shape::Struct {
-                    fields: vec![Field {
+                    required: vec![Field {
                         name: "bar",
                         aliases: vec![],
                         shape: Shape::Primitive {
                             name: "baz".to_owned()
                         }
-                    }]
+                    }],
+                    optional: vec![],
                 }
             ),
             Context {
@@ -296,7 +291,7 @@ mod tests {
             parse(
                 vec!["foo", "bar"],
                 &Shape::Struct {
-                    fields: vec![
+                    required: vec![
                         Field {
                             name: "baz",
                             aliases: vec![],
@@ -311,7 +306,8 @@ mod tests {
                                 name: "string".to_owned()
                             }
                         }
-                    ]
+                    ],
+                    optional: vec![],
                 }
             ),
             Context {
@@ -333,13 +329,14 @@ mod tests {
             parse(
                 Vec::<&str>::new(),
                 &Shape::Struct {
-                    fields: vec![Field {
+                    required: vec![],
+                    optional: vec![Field {
                         name: "bar",
                         aliases: vec![],
-                        shape: Shape::Optional(Box::new(Shape::Primitive {
+                        shape: Shape::Primitive {
                             name: "baz".to_owned()
-                        })),
-                    }]
+                        },
+                    }],
                 }
             ),
             Context { segments: vec![] }
@@ -352,13 +349,14 @@ mod tests {
             parse(
                 vec!["--bar", "foo"],
                 &Shape::Struct {
-                    fields: vec![Field {
+                    required: vec![],
+                    optional: vec![Field {
                         name: "bar",
                         aliases: vec![],
-                        shape: Shape::Optional(Box::new(Shape::Primitive {
+                        shape: Shape::Primitive {
                             name: "baz".to_owned()
-                        })),
-                    }]
+                        },
+                    }],
                 }
             ),
             Context {
@@ -375,13 +373,14 @@ mod tests {
             parse(
                 vec!["--qux", "foo"],
                 &Shape::Struct {
-                    fields: vec![Field {
+                    required: vec![],
+                    optional: vec![Field {
                         name: "bar",
                         aliases: vec!["qux"],
-                        shape: Shape::Optional(Box::new(Shape::Primitive {
+                        shape: Shape::Primitive {
                             name: "baz".to_owned()
-                        })),
-                    }]
+                        },
+                    }],
                 }
             ),
             Context {
@@ -398,13 +397,14 @@ mod tests {
             parse(
                 vec!["--qux", "foo", "--bar", "baz"],
                 &Shape::Struct {
-                    fields: vec![Field {
+                    required: vec![],
+                    optional: vec![Field {
                         name: "bar",
                         aliases: vec!["qux"],
-                        shape: Shape::Optional(Box::new(Shape::Primitive {
+                        shape: Shape::Primitive {
                             name: "baz".to_owned()
-                        })),
-                    }]
+                        },
+                    }],
                 }
             ),
             Error::DuplicateOption,
@@ -417,14 +417,7 @@ mod tests {
             parse(
                 vec!["123", "--bar", "foo", "456", "--qux", "789"],
                 &Shape::Struct {
-                    fields: vec![
-                        Field {
-                            name: "bar",
-                            aliases: vec![],
-                            shape: Shape::Optional(Box::new(Shape::Primitive {
-                                name: "baz".to_owned()
-                            })),
-                        },
+                    required: vec![
                         Field {
                             name: "foo",
                             aliases: vec![],
@@ -433,25 +426,34 @@ mod tests {
                             },
                         },
                         Field {
-                            name: "qux",
-                            aliases: vec![],
-                            shape: Shape::Optional(Box::new(Shape::Primitive {
-                                name: "baz".to_owned()
-                            })),
-                        },
-                        Field {
-                            name: "missing",
-                            aliases: vec![],
-                            shape: Shape::Optional(Box::new(Shape::Primitive {
-                                name: "baz".to_owned()
-                            }))
-                        },
-                        Field {
                             name: "quux",
                             aliases: vec![],
                             shape: Shape::Primitive {
                                 name: "baz".to_owned()
                             },
+                        },
+                    ],
+                    optional: vec![
+                        Field {
+                            name: "bar",
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned()
+                            },
+                        },
+                        Field {
+                            name: "qux",
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned()
+                            },
+                        },
+                        Field {
+                            name: "missing",
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned()
+                            }
                         },
                     ]
                 }
@@ -481,42 +483,26 @@ mod tests {
             parse(
                 vec!["123", "--bar", "foo", "--qux", "789", "456"],
                 &Shape::Struct {
-                    fields: vec![
+                    required: vec![
                         Field {
                             name: "inner_struct",
                             aliases: vec![],
                             shape: Shape::Struct {
-                                fields: vec![
-                                    Field {
-                                        name: "foo",
-                                        aliases: vec![],
-                                        shape: Shape::Primitive {
-                                            name: "baz".to_owned()
-                                        },
+                                required: vec![Field {
+                                    name: "foo",
+                                    aliases: vec![],
+                                    shape: Shape::Primitive {
+                                        name: "baz".to_owned()
                                     },
-                                    Field {
-                                        name: "bar",
-                                        aliases: vec![],
-                                        shape: Shape::Optional(Box::new(Shape::Primitive {
-                                            name: "baz".to_owned()
-                                        })),
+                                },],
+                                optional: vec![Field {
+                                    name: "bar",
+                                    aliases: vec![],
+                                    shape: Shape::Primitive {
+                                        name: "baz".to_owned()
                                     },
-                                ],
+                                },],
                             }
-                        },
-                        Field {
-                            name: "qux",
-                            aliases: vec![],
-                            shape: Shape::Optional(Box::new(Shape::Primitive {
-                                name: "baz".to_owned()
-                            })),
-                        },
-                        Field {
-                            name: "missing",
-                            aliases: vec![],
-                            shape: Shape::Optional(Box::new(Shape::Primitive {
-                                name: "baz".to_owned()
-                            }))
                         },
                         Field {
                             name: "quux",
@@ -525,7 +511,23 @@ mod tests {
                                 name: "baz".to_owned()
                             },
                         },
-                    ]
+                    ],
+                    optional: vec![
+                        Field {
+                            name: "qux",
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned()
+                            },
+                        },
+                        Field {
+                            name: "missing",
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned()
+                            },
+                        },
+                    ],
                 }
             ),
             Context {
