@@ -35,31 +35,27 @@ impl Display for Field {
                     write!(formatter, "[--{} {}]", self.name, shape)
                 }
             }
-            Shape::Struct { required, optional } => {
-                let mut required_iter = required.iter();
-                let mut had_required = false;
-                if let Some(field) = required_iter.next() {
-                    had_required = true;
-                    Display::fmt(field, formatter)?;
-                    for field in required_iter {
-                        formatter.write_char(' ')?;
-                        Display::fmt(field, formatter)?;
-                    }
-                }
-                let mut optional_iter = optional.iter();
-                if let Some(field) = optional_iter.next() {
-                    if had_required {
-                        formatter.write_char(' ')?;
-                    }
-                    formatter.write_char('[')?;
-                    Display::fmt(field, formatter)?;
-                    for field in optional_iter {
-                        formatter.write_char(' ')?;
-                        Display::fmt(field, formatter)?;
-                    }
-                    formatter.write_char(']')?;
-                }
-                Ok(())
+            Shape::Struct { .. } => Display::fmt(&self.shape, formatter),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub(crate) struct Variant {
+    pub(crate) name: &'static str,
+    pub(crate) aliases: Vec<&'static str>,
+    pub(crate) shape: Shape,
+}
+
+impl Display for Variant {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        match &self.shape {
+            Shape::Empty => write!(formatter, "{}", self.name),
+            Shape::Primitive { .. }
+            | Shape::Optional(_)
+            | Shape::Enum { .. }
+            | Shape::Struct { .. } => {
+                write!(formatter, "{} {}", self.name, self.shape)
             }
         }
     }
@@ -118,13 +114,11 @@ impl Display for Shape {
                     if had_required {
                         formatter.write_char(' ')?;
                     }
-                    formatter.write_char('[')?;
-                    Display::fmt(field, formatter)?;
+                    write!(formatter, "[--{} {}]", field.name, field.shape)?;
                     for field in optional_iter {
                         formatter.write_char(' ')?;
-                        Display::fmt(field, formatter)?;
+                        write!(formatter, "[--{} {}]", field.name, field.shape)?;
                     }
-                    formatter.write_char(']')?;
                 }
                 Ok(())
             }
@@ -631,7 +625,7 @@ impl<'de> MapAccess<'de> for StructAccess {
 mod tests {
     use super::{
         Deserializer, Error, Field, FieldInfo, Fields, FullTrace, Shape, Status, StructAccess,
-        Trace,
+        Trace, Variant,
     };
     use claims::{assert_err, assert_err_eq, assert_ok, assert_ok_eq, assert_some_eq};
     use serde::{
@@ -775,6 +769,103 @@ mod tests {
                 }
             ),
             "[--foo <bar>]"
+        );
+    }
+
+    #[test]
+    fn variant_display_empty() {
+        assert_eq!(
+            format!(
+                "{}",
+                Variant {
+                    name: "foo",
+                    aliases: Vec::new(),
+                    shape: Shape::Empty,
+                }
+            ),
+            "foo"
+        );
+    }
+
+    #[test]
+    fn variant_display_primitive() {
+        assert_eq!(
+            format!(
+                "{}",
+                Variant {
+                    name: "foo",
+                    aliases: Vec::new(),
+                    shape: Shape::Primitive {
+                        name: "bar".to_owned()
+                    },
+                }
+            ),
+            "foo <bar>"
+        );
+    }
+
+    #[test]
+    fn variant_display_optional() {
+        assert_eq!(
+            format!(
+                "{}",
+                Variant {
+                    name: "foo",
+                    aliases: Vec::new(),
+                    shape: Shape::Optional(Box::new(Shape::Primitive {
+                        name: "bar".to_owned()
+                    })),
+                }
+            ),
+            "foo [--<bar>]"
+        );
+    }
+
+    #[test]
+    fn variant_display_struct() {
+        assert_eq!(
+            format!(
+                "{}",
+                Variant {
+                    name: "foo",
+                    aliases: Vec::new(),
+                    shape: Shape::Struct {
+                        required: vec![Field {
+                            name: "bar",
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned()
+                            }
+                        },],
+                        optional: vec![Field {
+                            name: "qux",
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "quux".to_owned()
+                            }
+                        },],
+                    },
+                }
+            ),
+            "foo <bar> [--qux <quux>]"
+        );
+    }
+
+    #[test]
+    fn variant_display_enum() {
+        assert_eq!(
+            format!(
+                "{}",
+                Variant {
+                    name: "foo",
+                    aliases: Vec::new(),
+                    shape: Shape::Enum {
+                        name: "bar",
+                        variants: &["baz", "qux",],
+                    },
+                }
+            ),
+            "foo <bar>"
         );
     }
 
@@ -937,7 +1028,7 @@ mod tests {
                     ],
                 }
             ),
-            "[<foo> <baz>]"
+            "[--foo <bar>] [--baz <qux>]"
         )
     }
 
