@@ -25,7 +25,7 @@ impl Display for Field {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match &self.shape {
             Shape::Empty => Ok(()),
-            Shape::Primitive { .. } | Shape::Command { .. } => {
+            Shape::Primitive { .. } | Shape::Enum { .. } => {
                 write!(formatter, "<{}>", self.name)
             }
             Shape::Optional(shape) => {
@@ -76,7 +76,7 @@ pub(crate) enum Shape {
         required: Vec<Field>,
         optional: Vec<Field>,
     },
-    Command {
+    Enum {
         name: &'static str,
         variants: &'static [&'static str],
     },
@@ -128,7 +128,7 @@ impl Display for Shape {
                 }
                 Ok(())
             }
-            Self::Command { name, .. } => {
+            Self::Enum { name, .. } => {
                 write!(formatter, "<{}>", name)
             }
         }
@@ -512,10 +512,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     where
         V: Visitor<'de>,
     {
-        Err(Trace(Ok(Status::Success(Shape::Command {
-            name,
-            variants,
-        }))))
+        Err(Trace(Ok(Status::Success(Shape::Enum { name, variants }))))
     }
 }
 
@@ -764,14 +761,14 @@ mod tests {
     }
 
     #[test]
-    fn field_display_optional_command() {
+    fn field_display_optional_enum() {
         assert_eq!(
             format!(
                 "{}",
                 Field {
                     name: "foo",
                     aliases: Vec::new(),
-                    shape: Shape::Optional(Box::new(Shape::Command {
+                    shape: Shape::Optional(Box::new(Shape::Enum {
                         name: "bar",
                         variants: &[],
                     })),
@@ -873,11 +870,11 @@ mod tests {
     }
 
     #[test]
-    fn shape_display_optional_command() {
+    fn shape_display_optional_enum() {
         assert_eq!(
             format!(
                 "{}",
-                Shape::Optional(Box::new(Shape::Command {
+                Shape::Optional(Box::new(Shape::Enum {
                     name: "foo",
                     variants: &[],
                 }))
@@ -945,11 +942,11 @@ mod tests {
     }
 
     #[test]
-    fn shape_display_command() {
+    fn shape_display_enum() {
         assert_eq!(
             format!(
                 "{}",
-                Shape::Command {
+                Shape::Enum {
                     name: "foo",
                     variants: &[],
                 }
@@ -1763,7 +1760,7 @@ mod tests {
 
         assert_ok_eq!(
             assert_err!(Result::<(), ()>::deserialize(&mut deserializer)).0,
-            Status::Success(Shape::Command {
+            Status::Success(Shape::Enum {
                 name: "Result",
                 variants: &["Ok", "Err"],
             })

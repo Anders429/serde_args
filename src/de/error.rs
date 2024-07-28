@@ -44,7 +44,7 @@ impl Display for Usage {
             Self::MissingArgs { index, shape } => match shape {
                 Shape::Empty => unimplemented!("cannot be missing an empty shape"),
                 Shape::Optional(_) => unimplemented!("cannot be missing an optional flag"),
-                Shape::Primitive { .. } | Shape::Command { .. } => {
+                Shape::Primitive { .. } | Shape::Enum { .. } => {
                     write!(formatter, "missing required argument: {}", shape)
                 }
                 Shape::Struct { required, .. } => {
@@ -206,13 +206,13 @@ mod tests {
     }
 
     #[test]
-    fn usage_display_missing_args_command() {
+    fn usage_display_missing_args_enum() {
         assert_eq!(
             format!(
                 "{}",
                 Usage::MissingArgs {
                     index: 0,
-                    shape: Shape::Command {
+                    shape: Shape::Enum {
                         name: "foo",
                         variants: &["bar", "baz"]
                     }
