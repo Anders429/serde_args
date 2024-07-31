@@ -775,7 +775,13 @@ impl<'de> de::VariantAccess<'de> for VariantAccess<'_> {
     where
         T: DeserializeSeed<'de>,
     {
-        seed.deserialize(&mut Deserializer::new())
+        let mut deserializer = Deserializer {
+            fields: self.fields.take(),
+            variants: None,
+        };
+        let result = seed.deserialize(&mut deserializer);
+        *self.fields = deserializer.fields.take();
+        result
     }
 
     fn tuple_variant<V>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error>
@@ -2109,6 +2115,55 @@ mod tests {
     }
 
     #[test]
+    fn deserializer_newtype_struct_containing_struct() {
+        #[derive(Debug, Deserialize)]
+        #[allow(dead_code)]
+        struct Struct {
+            foo: usize,
+            bar: String,
+        }
+
+        #[derive(Debug, Deserialize)]
+        #[allow(dead_code)]
+        struct Newtype(Struct);
+
+        let mut deserializer = Deserializer::new();
+
+        // Obtain information about both fields.
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        // Get deserialization result.
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Struct {
+                required: vec![
+                    Field {
+                        name: "foo",
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "usize".to_owned(),
+                        },
+                    },
+                    Field {
+                        name: "bar",
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "a string".to_owned(),
+                        },
+                    },
+                ],
+                optional: vec![],
+            })
+        );
+    }
+
+    #[test]
     fn deserializer_enum() {
         let mut deserializer = Deserializer::new();
 
@@ -2131,6 +2186,70 @@ mod tests {
                         name: "Ok",
                         aliases: vec![],
                         shape: Shape::Empty,
+                    },
+                    Variant {
+                        name: "Err",
+                        aliases: vec![],
+                        shape: Shape::Empty,
+                    },
+                ],
+            })
+        );
+    }
+
+    #[test]
+    fn deserializer_enum_containing_struct() {
+        #[derive(Debug, Deserialize)]
+        #[allow(dead_code)]
+        struct Struct {
+            foo: Option<usize>,
+            bar: String,
+        }
+
+        let mut deserializer = Deserializer::new();
+
+        // Obtain information about both variants and their fields.
+        assert_ok_eq!(
+            assert_err!(Result::<Struct, ()>::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        assert_ok_eq!(
+            assert_err!(Result::<Struct, ()>::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        assert_ok_eq!(
+            assert_err!(Result::<Struct, ()>::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        assert_ok_eq!(
+            assert_err!(Result::<Struct, ()>::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+
+        assert_ok_eq!(
+            assert_err!(Result::<Struct, ()>::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Enum {
+                name: "Result",
+                variants: vec![
+                    Variant {
+                        name: "Ok",
+                        aliases: vec![],
+                        shape: Shape::Struct {
+                            required: vec![Field {
+                                name: "bar",
+                                aliases: Vec::new(),
+                                shape: Shape::Primitive {
+                                    name: "a string".to_owned(),
+                                },
+                            },],
+                            optional: vec![Field {
+                                name: "foo",
+                                aliases: Vec::new(),
+                                shape: Shape::Primitive {
+                                    name: "usize".to_owned(),
+                                },
+                            },],
+                        },
                     },
                     Variant {
                         name: "Err",
