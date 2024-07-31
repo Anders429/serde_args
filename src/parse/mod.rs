@@ -29,9 +29,11 @@ where
 {
     let mut args = args.into_iter().peekable();
     let context = match shape {
-        Shape::Empty | Shape::Primitive { .. } | Shape::Enum { .. } | Shape::Struct { .. } => {
-            parse_inner_context(&mut args, shape, None)?.0
-        }
+        Shape::Empty
+        | Shape::Primitive { .. }
+        | Shape::Enum { .. }
+        | Shape::Struct { .. }
+        | Shape::Variant { .. } => parse_inner_context(&mut args, shape, None)?.0,
         Shape::Optional(shape) => match shape.as_ref() {
             Shape::Empty | Shape::Optional(_) => Context {
                 segments: if let Some(arg) = args.next() {
@@ -46,7 +48,10 @@ where
                     vec![]
                 },
             },
-            Shape::Primitive { .. } | Shape::Struct { .. } | Shape::Enum { .. } => Context {
+            Shape::Primitive { .. }
+            | Shape::Struct { .. }
+            | Shape::Enum { .. }
+            | Shape::Variant { .. } => Context {
                 segments: if args.peek().is_some() {
                     vec![Segment::Context(
                         parse_inner_context(&mut args, shape, None)?.0,
@@ -178,7 +183,7 @@ where
 
             struct_context
         }
-        Shape::Enum { .. } => {
+        Shape::Enum { .. } | Shape::Variant { .. } => {
             todo!()
         }
     };

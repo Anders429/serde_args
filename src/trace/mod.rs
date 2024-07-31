@@ -35,7 +35,7 @@ impl Display for Field {
                     write!(formatter, "[--{} {}]", self.name, shape)
                 }
             }
-            Shape::Struct { .. } => Display::fmt(&self.shape, formatter),
+            Shape::Struct { .. } | Shape::Variant { .. } => Display::fmt(&self.shape, formatter),
         }
     }
 }
@@ -54,7 +54,8 @@ impl Display for Variant {
             Shape::Primitive { .. }
             | Shape::Optional(_)
             | Shape::Enum { .. }
-            | Shape::Struct { .. } => {
+            | Shape::Struct { .. }
+            | Shape::Variant { .. } => {
                 write!(formatter, "{} {}", self.name, self.shape)
             }
         }
@@ -75,6 +76,10 @@ pub(crate) enum Shape {
     Enum {
         name: &'static str,
         variants: Vec<Variant>,
+    },
+    Variant {
+        name: &'static str,
+        shape: Box<Shape>,
     },
 }
 
@@ -124,6 +129,9 @@ impl Display for Shape {
             }
             Self::Enum { name, .. } => {
                 write!(formatter, "<{}>", name)
+            }
+            Self::Variant { name, shape } => {
+                write!(formatter, "{} {}", name, shape)
             }
         }
     }
@@ -1283,6 +1291,22 @@ mod tests {
             ),
             "<foo>"
         );
+    }
+
+    #[test]
+    fn shape_display_variant() {
+        assert_eq!(
+            format!(
+                "{}",
+                Shape::Variant {
+                    name: "foo",
+                    shape: Box::new(Shape::Primitive {
+                        name: "bar".to_owned()
+                    }),
+                },
+            ),
+            "foo <bar>",
+        )
     }
 
     #[test]

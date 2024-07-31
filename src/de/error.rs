@@ -57,6 +57,9 @@ impl Display for Usage {
                         }
                     )
                 }
+                Shape::Variant { shape, .. } => {
+                    write!(formatter, "missing required arguments: {}", shape)
+                }
             },
             Self::Custom(message) => formatter.write_str(message),
             Self::InvalidType(unexpected, expected) => write!(
