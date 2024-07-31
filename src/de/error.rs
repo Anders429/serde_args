@@ -157,7 +157,7 @@ impl de::Error for Error {
 #[cfg(test)]
 mod tests {
     use super::{Development, Error, Usage};
-    use crate::trace::{Field, Shape};
+    use crate::trace::{Field, Shape, Variant};
     use serde::de::{Error as _, Unexpected};
 
     #[test]
@@ -214,7 +214,18 @@ mod tests {
                     index: 0,
                     shape: Shape::Enum {
                         name: "foo",
-                        variants: &["bar", "baz"]
+                        variants: vec![
+                            Variant {
+                                name: "bar",
+                                aliases: vec![],
+                                shape: Shape::Empty,
+                            },
+                            Variant {
+                                name: "baz",
+                                aliases: vec![],
+                                shape: Shape::Empty,
+                            },
+                        ],
                     }
                 }
             ),

@@ -74,7 +74,7 @@ pub(crate) enum Shape {
     },
     Enum {
         name: &'static str,
-        variants: &'static [&'static str],
+        variants: Vec<Variant>,
     },
 }
 
@@ -264,13 +264,53 @@ impl From<Fields> for Shape {
     }
 }
 
+#[derive(Debug, Eq, PartialEq)]
+struct VariantInfo {
+    discriminant: u64,
+    shape: Shape,
+}
+
+#[derive(Debug)]
+struct Variants {
+    name: &'static str,
+    iter: slice::Iter<'static, &'static str>,
+    // When this is set, we are currently deserializing a struct variant. We must continue tracing
+    // this variant until we obtain a `Success` response.
+    fields: Option<(&'static str, Fields)>,
+    variants: Vec<(VariantInfo, Vec<&'static str>)>,
+}
+
+impl From<Variants> for Shape {
+    fn from(variants: Variants) -> Self {
+        Shape::Enum {
+            name: variants.name,
+            variants: variants
+                .variants
+                .into_iter()
+                .map(|(info, mut names)| {
+                    let first = names.remove(0);
+                    Variant {
+                        name: first,
+                        aliases: names,
+                        shape: info.shape,
+                    }
+                })
+                .collect(),
+        }
+    }
+}
+
 struct Deserializer {
     fields: Option<Fields>,
+    variants: Option<Variants>,
 }
 
 impl Deserializer {
     fn new() -> Deserializer {
-        Deserializer { fields: None }
+        Deserializer {
+            fields: None,
+            variants: None,
+        }
     }
 
     fn trace_required_primitive<'de, V>(&mut self, visitor: &V) -> Trace
@@ -501,12 +541,69 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
         self,
         name: &'static str,
         variants: &'static [&'static str],
-        _visitor: V,
+        visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        Err(Trace(Ok(Status::Success(Shape::Enum { name, variants }))))
+        let variants = self.variants.get_or_insert(Variants {
+            name,
+            iter: variants.iter(),
+            fields: None,
+            variants: Vec::new(),
+        });
+        if let Some((variant, mut fields)) = if let Some((variant, fields)) = variants.fields.take()
+        {
+            Some((variant, Some(fields)))
+        } else {
+            variants.iter.next().map(|variant| (*variant, None))
+        } {
+            // Process the current variant.
+            let mut enum_access = EnumAccess {
+                variant,
+                fields: &mut fields,
+                discriminant: None,
+            };
+            match visitor.visit_enum(&mut enum_access) {
+                Ok(value) => Ok(value),
+                Err(trace) => {
+                    match trace.0 {
+                        Ok(status) => {
+                            match status {
+                                Status::Success(shape) => {
+                                    let variant_info = VariantInfo {
+                                        discriminant: enum_access.discriminant.expect(
+                                            "discriminant was not created for enum variant",
+                                        ),
+                                        shape,
+                                    };
+                                    let mut found = false;
+                                    for (info, names) in variants.variants.iter_mut() {
+                                        if *info == variant_info {
+                                            found = true;
+                                            names.push(variant);
+                                            break;
+                                        }
+                                    }
+                                    if !found {
+                                        variants.variants.push((variant_info, vec![variant]));
+                                    }
+                                }
+                                Status::Continue => {
+                                    variants.fields = Some((variant, fields.expect("no fields present when continuing enum deserialization")));
+                                }
+                            }
+                            Err(Trace(Ok(Status::Continue)))
+                        }
+                        Err(_) => Err(trace),
+                    }
+                }
+            }
+        } else {
+            // No more variants to process.
+            let variants = self.variants.take().expect("no variants to take");
+            Err(Trace(Ok(Status::Success(variants.into()))))
+        }
     }
 }
 
@@ -530,6 +627,56 @@ impl de::Error for FullTrace {
 
 impl de::StdError for FullTrace {}
 
+impl From<FullTrace> for Trace {
+    fn from(full_trace: FullTrace) -> Self {
+        Self(full_trace.0.map(|shape| Status::Success(shape)))
+    }
+}
+
+/// Only used to deserialize serde identifiers.
+struct KeyDeserializer {
+    key: &'static str,
+}
+
+impl<'de> de::Deserializer<'de> for KeyDeserializer {
+    type Error = FullTrace;
+
+    fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Err(FullTrace(Err(Error::UnsupportedIdentifierDeserialization)))
+    }
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
+        bytes byte_buf option unit unit_struct newtype_struct seq tuple
+        tuple_struct map struct enum ignored_any
+    }
+
+    fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        visitor.visit_str(self.key)
+    }
+}
+
+struct IdentityHasher(u64);
+
+impl Hasher for IdentityHasher {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        for &byte in bytes.into_iter().rev() {
+            self.0 <<= 8;
+            self.0 |= u64::from(byte);
+        }
+    }
+}
+
 struct StructAccess {
     field: &'static str,
     discriminant: Option<u64>,
@@ -542,50 +689,7 @@ impl<'de> MapAccess<'de> for StructAccess {
     where
         K: DeserializeSeed<'de>,
     {
-        struct KeyDeserializer {
-            field: &'static str,
-        }
-
-        impl<'de> de::Deserializer<'de> for KeyDeserializer {
-            type Error = FullTrace;
-
-            fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
-            where
-                V: Visitor<'de>,
-            {
-                Err(FullTrace(Err(Error::UnsupportedIdentifierDeserialization)))
-            }
-
-            forward_to_deserialize_any! {
-                bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
-                bytes byte_buf option unit unit_struct newtype_struct seq tuple
-                tuple_struct map struct enum ignored_any
-            }
-
-            fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-            where
-                V: Visitor<'de>,
-            {
-                visitor.visit_str(self.field)
-            }
-        }
-
-        struct IdentityHasher(u64);
-
-        impl Hasher for IdentityHasher {
-            fn finish(&self) -> u64 {
-                self.0
-            }
-
-            fn write(&mut self, bytes: &[u8]) {
-                for &byte in bytes.into_iter().rev() {
-                    self.0 <<= 8;
-                    self.0 |= u64::from(byte);
-                }
-            }
-        }
-
-        let key = seed.deserialize(KeyDeserializer { field: self.field })?;
+        let key = seed.deserialize(KeyDeserializer { key: self.field })?;
         let mut hasher = IdentityHasher(0);
         mem::discriminant(&key).hash(&mut hasher);
         self.discriminant = Some(hasher.finish());
@@ -617,6 +721,130 @@ impl<'de> MapAccess<'de> for StructAccess {
                 Ok(Some((key, value)))
             }
             None => Ok(None),
+        }
+    }
+}
+
+struct EnumAccess<'a> {
+    variant: &'static str,
+    fields: &'a mut Option<Fields>,
+    discriminant: Option<u64>,
+}
+
+impl<'a, 'b, 'de> de::EnumAccess<'de> for &'b mut EnumAccess<'a> {
+    type Error = Trace;
+    type Variant = VariantAccess<'b>;
+
+    fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant), Self::Error>
+    where
+        V: DeserializeSeed<'de>,
+    {
+        let key = seed.deserialize(KeyDeserializer { key: self.variant })?;
+        let mut hasher = IdentityHasher(0);
+        mem::discriminant(&key).hash(&mut hasher);
+        self.discriminant = Some(hasher.finish());
+        Ok((
+            key,
+            VariantAccess {
+                fields: self.fields,
+            },
+        ))
+    }
+}
+
+struct VariantAccess<'a> {
+    fields: &'a mut Option<Fields>,
+}
+
+impl<'de> de::VariantAccess<'de> for VariantAccess<'_> {
+    type Error = Trace;
+
+    fn unit_variant(self) -> Result<(), Self::Error> {
+        Err(Trace(Ok(Status::Success(Shape::Empty))))
+    }
+
+    fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value, Self::Error>
+    where
+        T: DeserializeSeed<'de>,
+    {
+        seed.deserialize(&mut Deserializer::new())
+    }
+
+    fn tuple_variant<V>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        todo!()
+    }
+
+    fn struct_variant<V>(
+        self,
+        fields: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        let fields = self.fields.get_or_insert(Fields {
+            iter: fields.iter(),
+            required_fields: Vec::new(),
+            optional_fields: Vec::new(),
+        });
+        if let Some(field) = fields.iter.next() {
+            let mut struct_access = StructAccess {
+                field,
+                discriminant: None,
+            };
+            let shape = match visitor.visit_map(&mut struct_access) {
+                Ok(value) => return Ok(value),
+                Err(full_trace) => full_trace.0.map_err(|error| Trace(Err(error)))?,
+            };
+            match shape {
+                Shape::Optional(shape) => {
+                    // Optional fields.
+                    let field_info = FieldInfo {
+                        discriminant: struct_access
+                            .discriminant
+                            .expect("discriminant was not created for struct field"),
+                        shape: *shape,
+                    };
+                    let mut found = false;
+                    for (info, names) in fields.optional_fields.iter_mut() {
+                        if *info == field_info {
+                            found = true;
+                            names.push(field);
+                            break;
+                        }
+                    }
+                    if !found {
+                        fields.optional_fields.push((field_info, vec![field]));
+                    }
+                }
+                shape @ _ => {
+                    // Required fields.
+                    let field_info = FieldInfo {
+                        discriminant: struct_access
+                            .discriminant
+                            .expect("discriminant was not created for struct field"),
+                        shape,
+                    };
+                    let mut found = false;
+                    for (info, names) in fields.required_fields.iter_mut() {
+                        if *info == field_info {
+                            found = true;
+                            names.push(field);
+                            break;
+                        }
+                    }
+                    if !found {
+                        fields.required_fields.push((field_info, vec![field]));
+                    }
+                }
+            }
+            Err(Trace(Ok(Status::Continue)))
+        } else {
+            let fields = self.fields.take().expect("no fields to take");
+            Err(Trace(Ok(Status::Success(fields.into()))))
         }
     }
 }
@@ -764,7 +992,7 @@ mod tests {
                     aliases: Vec::new(),
                     shape: Shape::Optional(Box::new(Shape::Enum {
                         name: "bar",
-                        variants: &[],
+                        variants: vec![],
                     })),
                 }
             ),
@@ -861,7 +1089,18 @@ mod tests {
                     aliases: Vec::new(),
                     shape: Shape::Enum {
                         name: "bar",
-                        variants: &["baz", "qux",],
+                        variants: vec![
+                            Variant {
+                                name: "baz",
+                                aliases: vec![],
+                                shape: Shape::Empty,
+                            },
+                            Variant {
+                                name: "qux",
+                                aliases: vec![],
+                                shape: Shape::Empty,
+                            }
+                        ],
                     },
                 }
             ),
@@ -967,7 +1206,7 @@ mod tests {
                 "{}",
                 Shape::Optional(Box::new(Shape::Enum {
                     name: "foo",
-                    variants: &[],
+                    variants: vec![],
                 }))
             ),
             "[--<foo>]"
@@ -1039,7 +1278,7 @@ mod tests {
                 "{}",
                 Shape::Enum {
                     name: "foo",
-                    variants: &[],
+                    variants: vec![],
                 }
             ),
             "<foo>"
@@ -1849,11 +2088,32 @@ mod tests {
     fn deserializer_enum() {
         let mut deserializer = Deserializer::new();
 
+        // Obtain information about both variants.
+        assert_ok_eq!(
+            assert_err!(Result::<(), ()>::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        assert_ok_eq!(
+            assert_err!(Result::<(), ()>::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+
         assert_ok_eq!(
             assert_err!(Result::<(), ()>::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Enum {
                 name: "Result",
-                variants: &["Ok", "Err"],
+                variants: vec![
+                    Variant {
+                        name: "Ok",
+                        aliases: vec![],
+                        shape: Shape::Empty,
+                    },
+                    Variant {
+                        name: "Err",
+                        aliases: vec![],
+                        shape: Shape::Empty,
+                    },
+                ],
             })
         );
     }
