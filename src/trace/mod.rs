@@ -161,20 +161,6 @@ where
     trace_seed_copy(PhantomData::<D>)
 }
 
-pub(crate) fn trace_seed<'de, D>(seed: D) -> Result<Shape, Error>
-where
-    D: DeserializeSeed<'de>,
-{
-    let trace = match seed.deserialize(&mut Deserializer::new()) {
-        Ok(_) => unreachable!("tracing unexpectedly succeeded in deserializing"),
-        Err(trace) => trace,
-    };
-    match trace.0? {
-        Status::Success(shape) => Ok(shape),
-        Status::Continue => Err(Error::CannotDeserializeStructFromNonCopySeed),
-    }
-}
-
 #[derive(Debug, PartialEq, Eq)]
 enum Status {
     Success(Shape),
@@ -194,7 +180,6 @@ impl Display for Status {
 pub(crate) enum Error {
     NotSelfDescribing,
     UnsupportedIdentifierDeserialization,
-    CannotDeserializeStructFromNonCopySeed,
     CannotMixDeserializeStructAndDeserializeEnum,
 }
 
@@ -203,7 +188,6 @@ impl Display for Error {
         match self {
             Self::NotSelfDescribing => formatter.write_str("cannot deserialize as self-describing; use of `Deserializer::deserialize_any()` or `Deserializer::deserialize_ignored_any()` is not allowed"),
             Self::UnsupportedIdentifierDeserialization => formatter.write_str("identifiers must be deserialized with `deserialize_identifier()`"),
-            Self::CannotDeserializeStructFromNonCopySeed => formatter.write_str("cannot deserialize struct with multiple fields from non-copy seed"),
             Self::CannotMixDeserializeStructAndDeserializeEnum => formatter.write_str("cannot deserialize using both `deserialize_struct()` and `deserialize_enum()` on same type on seperate calls"),
         }
     }
@@ -1449,14 +1433,6 @@ mod tests {
         assert_eq!(
             format!("{}", Error::UnsupportedIdentifierDeserialization),
             "identifiers must be deserialized with `deserialize_identifier()`"
-        );
-    }
-
-    #[test]
-    fn error_display_cannot_deserialize_struct_from_non_copy_seed() {
-        assert_eq!(
-            format!("{}", Error::CannotDeserializeStructFromNonCopySeed),
-            "cannot deserialize struct with multiple fields from non-copy seed"
         );
     }
 
