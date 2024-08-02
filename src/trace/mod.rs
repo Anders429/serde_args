@@ -239,6 +239,7 @@ struct KeyInfo {
 #[derive(Debug)]
 struct Fields {
     iter: slice::Iter<'static, &'static str>,
+    revisit: Option<&'static str>,
     required_fields: Vec<(KeyInfo, Vec<&'static str>)>,
     optional_fields: Vec<(KeyInfo, Vec<&'static str>)>,
 }
@@ -302,6 +303,7 @@ impl From<Variants> for Shape {
     }
 }
 
+#[derive(Debug)]
 enum Keys {
     None,
     Fields(Fields),
@@ -346,6 +348,7 @@ impl From<Keys> for Shape {
     }
 }
 
+#[derive(Debug)]
 struct Deserializer {
     keys: Keys,
     recursive_deserializer: Option<Box<Deserializer>>,
@@ -524,62 +527,80 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             .keys
             .get_fields_or_insert(Fields {
                 iter: fields.iter(),
+                revisit: None,
                 required_fields: Vec::new(),
                 optional_fields: Vec::new(),
             })
             .map_err(|error| Trace(Err(error)))?;
-        if let Some(field) = fields.iter.next() {
+        if let Some(field) = fields
+            .revisit
+            .take()
+            .or_else(|| fields.iter.next().copied())
+        {
             let mut struct_access = StructAccess {
                 field,
                 discriminant: None,
+                recursive_deserializer: &mut self.recursive_deserializer,
             };
-            let shape = match visitor.visit_map(&mut struct_access) {
-                Ok(value) => return Ok(value),
-                Err(full_trace) => full_trace.0.map_err(|error| Trace(Err(error)))?,
-            };
-            match shape {
-                Shape::Optional(shape) => {
-                    // Optional fields.
-                    let key_info = KeyInfo {
-                        discriminant: struct_access
-                            .discriminant
-                            .expect("discriminant was not created for struct field"),
-                        shape: *shape,
-                    };
-                    let mut found = false;
-                    for (info, names) in fields.optional_fields.iter_mut() {
-                        if *info == key_info {
-                            found = true;
-                            names.push(field);
-                            break;
+            match visitor.visit_map(&mut struct_access) {
+                Ok(value) => Ok(value),
+                Err(trace) => match trace.0 {
+                    Ok(status) => {
+                        match status {
+                            Status::Success(shape) => {
+                                match shape {
+                                    Shape::Optional(shape) => {
+                                        // Optional fields.
+                                        let key_info = KeyInfo {
+                                            discriminant: struct_access.discriminant.expect(
+                                                "discriminant was not created for struct field",
+                                            ),
+                                            shape: *shape,
+                                        };
+                                        let mut found = false;
+                                        for (info, names) in fields.optional_fields.iter_mut() {
+                                            if *info == key_info {
+                                                found = true;
+                                                names.push(field);
+                                                break;
+                                            }
+                                        }
+                                        if !found {
+                                            fields.optional_fields.push((key_info, vec![field]));
+                                        }
+                                    }
+                                    shape @ _ => {
+                                        // Required fields.
+                                        let key_info = KeyInfo {
+                                            discriminant: struct_access.discriminant.expect(
+                                                "discriminant was not created for struct field",
+                                            ),
+                                            shape,
+                                        };
+                                        let mut found = false;
+                                        for (info, names) in fields.required_fields.iter_mut() {
+                                            if *info == key_info {
+                                                found = true;
+                                                names.push(field);
+                                                break;
+                                            }
+                                        }
+                                        if !found {
+                                            fields.required_fields.push((key_info, vec![field]));
+                                        }
+                                    }
+                                }
+                                self.recursive_deserializer = None;
+                            }
+                            Status::Continue => {
+                                fields.revisit = Some(field);
+                            }
                         }
+                        Err(Trace(Ok(Status::Continue)))
                     }
-                    if !found {
-                        fields.optional_fields.push((key_info, vec![field]));
-                    }
-                }
-                shape @ _ => {
-                    // Required fields.
-                    let key_info = KeyInfo {
-                        discriminant: struct_access
-                            .discriminant
-                            .expect("discriminant was not created for struct field"),
-                        shape,
-                    };
-                    let mut found = false;
-                    for (info, names) in fields.required_fields.iter_mut() {
-                        if *info == key_info {
-                            found = true;
-                            names.push(field);
-                            break;
-                        }
-                    }
-                    if !found {
-                        fields.required_fields.push((key_info, vec![field]));
-                    }
-                }
+                    Err(_) => Err(trace),
+                },
             }
-            Err(Trace(Ok(Status::Continue)))
         } else {
             Err(Trace(Ok(Status::Success(
                 mem::replace(&mut self.keys, Keys::None).into(),
@@ -639,6 +660,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                 if !found {
                                     variants.variants.push((key_info, vec![variant]));
                                 }
+                                self.recursive_deserializer = None;
                             }
                             Status::Continue => {
                                 variants.revisit = Some(variant);
@@ -728,13 +750,14 @@ impl Hasher for IdentityHasher {
     }
 }
 
-struct StructAccess {
+struct StructAccess<'a> {
     field: &'static str,
     discriminant: Option<u64>,
+    recursive_deserializer: &'a mut Option<Box<Deserializer>>,
 }
 
-impl<'de> MapAccess<'de> for StructAccess {
-    type Error = FullTrace;
+impl<'de> MapAccess<'de> for StructAccess<'_> {
+    type Error = Trace;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
     where
@@ -751,28 +774,14 @@ impl<'de> MapAccess<'de> for StructAccess {
     where
         V: DeserializeSeed<'de>,
     {
-        Err(FullTrace(trace_seed(seed)))
-    }
-
-    fn next_value<V>(&mut self) -> Result<V, Self::Error>
-    where
-        V: Deserialize<'de>,
-    {
-        Err(FullTrace(trace::<V>()))
-    }
-
-    fn next_entry<K, V>(&mut self) -> Result<Option<(K, V)>, Self::Error>
-    where
-        K: Deserialize<'de>,
-        V: Deserialize<'de>,
-    {
-        match self.next_key_seed(PhantomData)? {
-            Some(key) => {
-                let value = self.next_value()?;
-                Ok(Some((key, value)))
-            }
-            None => Ok(None),
-        }
+        // We can only hit one field at a time here, so we have to use the recursive deserializer.
+        // This is because seed values are not guaranteed to implement `Copy` or `Clone`, and
+        // therefore cannot be reused.
+        seed.deserialize(
+            self.recursive_deserializer
+                .get_or_insert(Box::new(Deserializer::new()))
+                .as_mut(),
+        )
     }
 }
 
@@ -782,9 +791,9 @@ struct EnumAccess<'a> {
     recursive_deserializer: &'a mut Option<Box<Deserializer>>,
 }
 
-impl<'a, 'b, 'de> de::EnumAccess<'de> for &'b mut EnumAccess<'a> {
+impl<'a, 'de> de::EnumAccess<'de> for &'a mut EnumAccess<'_> {
     type Error = Trace;
-    type Variant = VariantAccess<'b>;
+    type Variant = VariantAccess<'a>;
 
     fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant), Self::Error>
     where
@@ -1303,6 +1312,7 @@ mod tests {
         assert_eq!(
             Shape::from(Fields {
                 iter: [].iter(),
+                revisit: None,
                 required_fields: vec![],
                 optional_fields: vec![],
             }),
@@ -1318,6 +1328,7 @@ mod tests {
         assert_eq!(
             Shape::from(Fields {
                 iter: [].iter(),
+                revisit: None,
                 required_fields: vec![(
                     KeyInfo {
                         discriminant: 0,
@@ -1347,6 +1358,7 @@ mod tests {
         assert_eq!(
             Shape::from(Fields {
                 iter: [].iter(),
+                revisit: None,
                 required_fields: vec![
                     (
                         KeyInfo {
@@ -1396,6 +1408,7 @@ mod tests {
         assert_eq!(
             Shape::from(Fields {
                 iter: [].iter(),
+                revisit: None,
                 required_fields: vec![(
                     KeyInfo {
                         discriminant: 0,
@@ -2056,7 +2069,11 @@ mod tests {
 
         let mut deserializer = Deserializer::new();
 
-        // Obtain information about both fields.
+        // Obtain information about both fields and the nested subfield.
+        assert_ok_eq!(
+            assert_err!(Nested::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
         assert_ok_eq!(
             assert_err!(Nested::deserialize(&mut deserializer)).0,
             Status::Continue
@@ -2067,7 +2084,7 @@ mod tests {
         );
         // Get deserialization result.
         assert_ok_eq!(
-            assert_err!(Struct::deserialize(&mut deserializer)).0,
+            assert_err!(Nested::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Struct {
                 required: vec![
                     Field {
@@ -2464,6 +2481,7 @@ mod tests {
         let mut struct_access = StructAccess {
             field: "bar",
             discriminant: None,
+            recursive_deserializer: &mut None,
         };
 
         assert_some_eq!(assert_ok!(struct_access.next_key::<Key>()), Key::Bar);
@@ -2511,14 +2529,15 @@ mod tests {
         let mut struct_access = StructAccess {
             field: "bar",
             discriminant: None,
+            recursive_deserializer: &mut None,
         };
 
         assert_some_eq!(assert_ok!(struct_access.next_key::<Key>()), Key::Bar);
         assert_ok_eq!(
             assert_err!(struct_access.next_value::<i32>()).0,
-            Shape::Primitive {
+            Status::Success(Shape::Primitive {
                 name: "i32".to_owned()
-            }
+            })
         );
     }
 
@@ -2563,14 +2582,15 @@ mod tests {
         let mut struct_access = StructAccess {
             field: "bar",
             discriminant: None,
+            recursive_deserializer: &mut None,
         };
 
         assert_some_eq!(assert_ok!(struct_access.next_key::<Key>()), Key::Bar);
         assert_ok_eq!(
             assert_err!(struct_access.next_value_seed(PhantomData::<i32>)).0,
-            Shape::Primitive {
+            Status::Success(Shape::Primitive {
                 name: "i32".to_owned()
-            }
+            })
         );
     }
 
@@ -2615,13 +2635,14 @@ mod tests {
         let mut struct_access = StructAccess {
             field: "bar",
             discriminant: None,
+            recursive_deserializer: &mut None,
         };
 
         assert_ok_eq!(
             assert_err!(struct_access.next_entry::<Key, i32>()).0,
-            Shape::Primitive {
+            Status::Success(Shape::Primitive {
                 name: "i32".to_owned(),
-            }
+            })
         );
         assert_some_eq!(struct_access.discriminant, 1);
     }
