@@ -537,9 +537,10 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             .take()
             .or_else(|| fields.iter.next().copied())
         {
+            let mut discriminant = 0;
             let mut struct_access = StructAccess {
                 field,
-                discriminant: None,
+                discriminant: &mut discriminant,
                 recursive_deserializer: &mut self.recursive_deserializer,
             };
             match visitor.visit_map(&mut struct_access) {
@@ -552,9 +553,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                     Shape::Optional(shape) => {
                                         // Optional fields.
                                         let key_info = KeyInfo {
-                                            discriminant: struct_access.discriminant.expect(
-                                                "discriminant was not created for struct field",
-                                            ),
+                                            discriminant,
                                             shape: *shape,
                                         };
                                         let mut found = false;
@@ -572,9 +571,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                     shape @ _ => {
                                         // Required fields.
                                         let key_info = KeyInfo {
-                                            discriminant: struct_access.discriminant.expect(
-                                                "discriminant was not created for struct field",
-                                            ),
+                                            discriminant,
                                             shape,
                                         };
                                         let mut found = false;
@@ -632,9 +629,10 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             .or_else(|| variants.iter.next().copied())
         {
             // Process the current variant.
+            let mut discriminant = 0;
             let mut enum_access = EnumAccess {
                 variant,
-                discriminant: None,
+                discriminant: &mut discriminant,
                 recursive_deserializer: &mut self.recursive_deserializer,
             };
             match visitor.visit_enum(&mut enum_access) {
@@ -644,9 +642,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                         match status {
                             Status::Success(shape) => {
                                 let key_info = KeyInfo {
-                                    discriminant: enum_access
-                                        .discriminant
-                                        .expect("discriminant was not created for enum variant"),
+                                    discriminant,
                                     shape,
                                 };
                                 let mut found = false;
@@ -752,7 +748,7 @@ impl Hasher for IdentityHasher {
 
 struct StructAccess<'a> {
     field: &'static str,
-    discriminant: Option<u64>,
+    discriminant: &'a mut u64,
     recursive_deserializer: &'a mut Option<Box<Deserializer>>,
 }
 
@@ -766,7 +762,7 @@ impl<'de> MapAccess<'de> for StructAccess<'_> {
         let key = seed.deserialize(KeyDeserializer { key: self.field })?;
         let mut hasher = IdentityHasher(0);
         mem::discriminant(&key).hash(&mut hasher);
-        self.discriminant = Some(hasher.finish());
+        *self.discriminant = hasher.finish();
         Ok(Some(key))
     }
 
@@ -787,7 +783,7 @@ impl<'de> MapAccess<'de> for StructAccess<'_> {
 
 struct EnumAccess<'a> {
     variant: &'static str,
-    discriminant: Option<u64>,
+    discriminant: &'a mut u64,
     recursive_deserializer: &'a mut Option<Box<Deserializer>>,
 }
 
@@ -802,7 +798,7 @@ impl<'a, 'de> de::EnumAccess<'de> for &'a mut EnumAccess<'_> {
         let key = seed.deserialize(KeyDeserializer { key: self.variant })?;
         let mut hasher = IdentityHasher(0);
         mem::discriminant(&key).hash(&mut hasher);
-        self.discriminant = Some(hasher.finish());
+        *self.discriminant = hasher.finish();
         Ok((
             key,
             VariantAccess {
@@ -2478,14 +2474,15 @@ mod tests {
             }
         }
 
+        let mut discriminant = 0;
         let mut struct_access = StructAccess {
             field: "bar",
-            discriminant: None,
+            discriminant: &mut discriminant,
             recursive_deserializer: &mut None,
         };
 
         assert_some_eq!(assert_ok!(struct_access.next_key::<Key>()), Key::Bar);
-        assert_some_eq!(struct_access.discriminant, 1);
+        assert_eq!(discriminant, 1);
     }
 
     #[test]
@@ -2526,9 +2523,10 @@ mod tests {
             }
         }
 
+        let mut discriminant = 0;
         let mut struct_access = StructAccess {
             field: "bar",
-            discriminant: None,
+            discriminant: &mut discriminant,
             recursive_deserializer: &mut None,
         };
 
@@ -2579,9 +2577,10 @@ mod tests {
             }
         }
 
+        let mut discriminant = 0;
         let mut struct_access = StructAccess {
             field: "bar",
-            discriminant: None,
+            discriminant: &mut discriminant,
             recursive_deserializer: &mut None,
         };
 
@@ -2632,9 +2631,10 @@ mod tests {
             }
         }
 
+        let mut discriminant = 0;
         let mut struct_access = StructAccess {
             field: "bar",
-            discriminant: None,
+            discriminant: &mut discriminant,
             recursive_deserializer: &mut None,
         };
 
@@ -2644,6 +2644,6 @@ mod tests {
                 name: "i32".to_owned(),
             })
         );
-        assert_some_eq!(struct_access.discriminant, 1);
+        assert_eq!(discriminant, 1);
     }
 }
