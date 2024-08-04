@@ -1,17 +1,24 @@
-use crate::trace::Shape;
-use std::{collections::HashMap, ffi::OsString, iter, iter::Peekable};
+use crate::trace::{Field, Shape};
+use std::{
+    collections::{HashMap, HashSet},
+    ffi::OsString,
+    iter,
+    iter::Peekable,
+};
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) enum Error {
     UnexpectedArgument,
     UnrecognizedOption,
+    UnrecognizedVariant,
     DuplicateOption,
+    InvalidNestedOptional,
     EndOfArgs,
 }
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) enum Segment {
-    Flag(OsString),
+    Identifier(&'static str),
     Value(OsString),
     Context(Context),
 }
@@ -21,174 +28,715 @@ pub(crate) struct Context {
     segments: Vec<Segment>,
 }
 
-/// Root-level parsing.
-pub(crate) fn parse<Arg, Args>(mut args: Args, shape: &Shape) -> Result<Context, Error>
-where
-    Args: IntoIterator<Item = Arg>,
-    Arg: Into<OsString> + std::convert::AsRef<std::ffi::OsStr>,
-{
-    let mut args = args.into_iter().peekable();
-    let context = match shape {
-        Shape::Empty
-        | Shape::Primitive { .. }
-        | Shape::Enum { .. }
-        | Shape::Struct { .. }
-        | Shape::Variant { .. } => parse_inner_context(&mut args, shape, None)?.0,
-        Shape::Optional(shape) => match shape.as_ref() {
-            Shape::Empty | Shape::Optional(_) => Context {
-                segments: if let Some(arg) = args.next() {
-                    if arg.into() == "--" {
-                        vec![Segment::Context(
-                            parse_inner_context(&mut args, shape, None)?.0,
-                        )]
-                    } else {
-                        return Err(Error::UnexpectedArgument);
-                    }
-                } else {
-                    vec![]
-                },
-            },
-            Shape::Primitive { .. }
-            | Shape::Struct { .. }
-            | Shape::Enum { .. }
-            | Shape::Variant { .. } => Context {
-                segments: if args.peek().is_some() {
-                    vec![Segment::Context(
-                        parse_inner_context(&mut args, shape, None)?.0,
-                    )]
-                } else {
-                    vec![]
-                },
-            },
-        },
-    };
+enum Token {
+    Positional(OsString),
+    Optional(OsString),
+    EndOfOptions,
+}
 
-    if args.next().is_some() {
-        Err(Error::UnexpectedArgument)
-    } else {
-        Ok(context)
+struct ParsedArgs<Args> {
+    args: Args,
+    revisit: Option<OsString>,
+}
+
+impl<Args> ParsedArgs<Args> {
+    fn new(args: Args) -> Self {
+        Self {
+            args,
+            revisit: None,
+        }
     }
 }
 
-fn parse_inner_context<'a, Arg, Args>(
-    args: &mut Peekable<Args>,
-    shape: &Shape,
-    options: Option<&HashMap<&'a str, &Shape>>,
-) -> Result<(Context, HashMap<&'a str, Context>), Error>
+impl<Args> ParsedArgs<Args>
 where
-    Args: Iterator<Item = Arg>,
-    Arg: Into<OsString> + std::convert::AsRef<std::ffi::OsStr>,
+    Args: Iterator<Item = OsString>,
 {
-    let mut found_options = HashMap::new();
-    // Loop through args until we find the next non-optional value.
-    if let Some(options) = options {
-        while let Some(arg) = args.peek() {
-            let arg_os: OsString = arg.into();
-            if let Some(arg_str) = arg_os.to_str() {
-                if let Some(identifier) = arg_str.strip_prefix("--") {
-                    // Parse optional context.
-                    // Take the argument so we can parse the rest of the context.
-                    args.next();
-                    if let Some((key, shape)) = options.get_key_value(identifier) {
-                        let context = parse_inner_context(args, shape, Some(options))?.0;
-                        if found_options.insert(*key, context).is_some() {
-                            return Err(Error::DuplicateOption);
+    fn next_token(&mut self) -> Option<Token> {
+        if let Some(token) = self.next() {
+            let bytes = token.as_encoded_bytes();
+            if let Some(short_bytes) = bytes.strip_prefix(b"-") {
+                if short_bytes.is_empty() {
+                    // A single `-` is an empty optional token.
+                    Some(Token::Optional(OsString::new()))
+                } else {
+                    if let Some(long_bytes) = short_bytes.strip_prefix(b"-") {
+                        if long_bytes.is_empty() {
+                            Some(Token::EndOfOptions)
+                        } else {
+                            Some(Token::Optional(unsafe {
+                                OsString::from_encoded_bytes_unchecked(
+                                    token.into_encoded_bytes().get_unchecked(2..).to_vec(),
+                                )
+                            }))
                         }
                     } else {
-                        return Err(Error::UnrecognizedOption);
+                        // This is only an option if there is a single character.
+                        if short_bytes.len() > 4 {
+                            Some(Token::Positional(token))
+                        } else {
+                            let mut short_bytes_iter = short_bytes.into_iter().copied();
+                            let bytes = [
+                                short_bytes_iter.next().unwrap_or(0),
+                                short_bytes_iter.next().unwrap_or(0),
+                                short_bytes_iter.next().unwrap_or(0),
+                                short_bytes_iter.next().unwrap_or(0),
+                            ];
+                            if char::from_u32(u32::from_be_bytes(bytes)).is_some() {
+                                Some(Token::Optional(unsafe {
+                                    OsString::from_encoded_bytes_unchecked(
+                                        token.into_encoded_bytes().get_unchecked(1..).to_vec(),
+                                    )
+                                }))
+                            } else {
+                                Some(Token::Positional(token))
+                            }
+                        }
                     }
-                } else {
-                    break;
                 }
             } else {
-                // We've found a non-optional value.
-                break;
+                Some(Token::Positional(token))
             }
+        } else {
+            None
         }
     }
 
-    let context = match shape {
-        Shape::Empty => Context { segments: vec![] },
-        Shape::Primitive { .. } => Context {
-            segments: vec![Segment::Value(
-                args.next().map(|arg| arg.into()).ok_or(Error::EndOfArgs)?,
-            )],
-        },
-        Shape::Optional(shape) => {
-            todo!()
+    fn next_positional(&mut self) -> Option<OsString> {
+        self.next()
+    }
+
+    fn next_optional(&mut self) -> Option<OsString> {
+        if let Some(token) = self.next_token() {
+            match token {
+                Token::Optional(token) => Some(token),
+                Token::EndOfOptions => None,
+                Token::Positional(token) => {
+                    self.revisit = Some(token);
+                    None
+                }
+            }
+        } else {
+            None
+        }
+    }
+}
+
+impl<Args> Iterator for ParsedArgs<Args>
+where
+    Args: Iterator<Item = OsString>,
+{
+    type Item = OsString;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.revisit.take().or_else(|| self.args.next())
+    }
+}
+
+pub(crate) fn parse<Arg, Args>(mut args: Args, shape: &mut Shape) -> Result<Context, Error>
+where
+    Args: IntoIterator<Item = Arg>,
+    Arg: Into<OsString>,
+{
+    let mut parsed_args = ParsedArgs::new(args.into_iter().map(|arg| arg.into()));
+    let result = parse_context_no_options(&mut parsed_args, shape, Context { segments: vec![] })?;
+    if parsed_args.next().is_some() {
+        Err(Error::UnexpectedArgument)
+    } else {
+        Ok(result)
+    }
+}
+
+fn parse_context_no_options<Args>(
+    args: &mut ParsedArgs<Args>,
+    shape: &mut Shape,
+    mut context: Context,
+) -> Result<Context, Error>
+where
+    Args: Iterator<Item = OsString>,
+{
+    match *shape {
+        Shape::Empty => Ok(context),
+        Shape::Primitive { .. } => {
+            context.segments.push(Segment::Value(
+                args.next_positional().ok_or(Error::EndOfArgs)?,
+            ));
+            Ok(context)
+        }
+        Shape::Optional(ref mut optional_shape) => {
+            // This is a "positional optional". It starts its own isolated context, which only contains its own optional value if it exists.
+            match **optional_shape {
+                Shape::Empty
+                | Shape::Optional(_)
+                | Shape::Primitive { .. }
+                | Shape::Struct { .. }
+                | Shape::Enum { .. } => {
+                    if let Some(next) = args.next_positional() {
+                        if let Some(next_str) = next.to_str() {
+                            match next_str {
+                                "-" => {
+                                    context.segments.push(Segment::Context(
+                                        parse_context_no_options(
+                                            args,
+                                            optional_shape,
+                                            Context { segments: vec![] },
+                                        )?,
+                                    ));
+                                }
+                                "--" => {
+                                    // End of isolated context.
+                                }
+                                _ => {
+                                    args.revisit = Some(next);
+                                }
+                            }
+                        } else {
+                            args.revisit = Some(next);
+                        }
+                    }
+                }
+                // Shape::Primitive {..} | Shape::Struct {..} | Shape::Enum {..} => {
+                //     if let Some(optional) = args.next_optional() {
+                //         let mut optional_context = Context {
+                //             segments: vec![],
+                //         };
+                //         context.segments.push(Segment::Context(parse_context_no_options(&mut ParsedArgs::new(iter::once(optional).chain(args)), optional_shape, optional_context)?));
+                //     }
+                // }
+                Shape::Variant { .. } => {
+                    unreachable!()
+                }
+            }
+            Ok(context)
+        }
+        Shape::Struct {
+            ref mut required,
+            ref mut optional,
+        } => {
+            // Parse the struct in its own nested context.
+            //
+            // While the current context cannot have options, the nested context can.
+            let mut end_of_options = false;
+            for required_field in required.iter_mut() {
+                if end_of_options {
+                    match required_field.shape {
+                        Shape::Struct { .. } | Shape::Enum { .. } => {
+                            let mut inner_context = Context { segments: vec![] };
+                            context
+                                .segments
+                                .push(Segment::Context(parse_context_no_options(
+                                    args,
+                                    &mut required_field.shape,
+                                    inner_context,
+                                )?));
+                        }
+                        Shape::Primitive { .. } | Shape::Empty => {
+                            context =
+                                parse_context_no_options(args, &mut required_field.shape, context)?;
+                        }
+                        Shape::Optional(_) | Shape::Variant { .. } => unreachable!(),
+                    }
+                } else {
+                    let parsed_options = match required_field.shape {
+                        Shape::Struct { .. } | Shape::Enum { .. } => {
+                            let mut inner_context = Context { segments: vec![] };
+                            let parsed_context = parse_context(
+                                args,
+                                &mut required_field.shape,
+                                &mut optional
+                                    .clone()
+                                    .into_iter()
+                                    .map(|option| (option, false))
+                                    .collect(),
+                                inner_context,
+                            )?;
+                            context
+                                .segments
+                                .push(Segment::Context(parsed_context.context));
+                            end_of_options = parsed_context.closing_end_of_options;
+                            parsed_context.options
+                        }
+                        Shape::Primitive { .. } | Shape::Empty => {
+                            let parsed_context = parse_context(
+                                args,
+                                &mut required_field.shape,
+                                &mut optional
+                                    .clone()
+                                    .into_iter()
+                                    .map(|option| (option, false))
+                                    .collect(),
+                                context,
+                            )?;
+                            context = parsed_context.context;
+                            end_of_options = parsed_context.closing_end_of_options;
+                            parsed_context.options
+                        }
+                        Shape::Optional(_) | Shape::Variant { .. } => unreachable!(),
+                    };
+                    for (optional_name, optional_context) in parsed_options {
+                        let mut found = false;
+                        // Find whether the optional name is in this struct.
+                        for (index, optional_field) in (&mut *optional).into_iter().enumerate() {
+                            if optional_name == optional_field.name
+                                || optional_field.aliases.contains(&optional_name)
+                            {
+                                found = true;
+                                context.segments.push(Segment::Context(optional_context));
+                                break;
+                            }
+                        }
+                        if !found {
+                            return Err(Error::UnrecognizedOption);
+                        }
+                    }
+                }
+            }
+            // Parse any remaining options.
+            if !end_of_options {
+                let parsed_context = parse_context(
+                    args,
+                    &mut Shape::Empty,
+                    &mut optional
+                        .clone()
+                        .into_iter()
+                        .map(|option| (option, false))
+                        .collect(),
+                    context,
+                )?;
+                context = parsed_context.context;
+                for (optional_name, optional_context) in parsed_context.options {
+                    let mut found = false;
+                    // Find whether the optional name is in this struct.
+                    for optional_field in &mut *optional {
+                        if optional_name == optional_field.name
+                            || optional_field.aliases.contains(&optional_name)
+                        {
+                            found = true;
+                            context.segments.push(Segment::Context(optional_context));
+                            break;
+                        }
+                    }
+                    if !found {
+                        return Err(Error::UnrecognizedOption);
+                    }
+                }
+            }
+
+            Ok(context)
+        }
+        Shape::Enum {
+            ref mut variants, ..
+        } => {
+            let variant_name = args.next_positional().ok_or(Error::EndOfArgs)?;
+            let variant_name_str = variant_name.to_str().ok_or(Error::UnrecognizedVariant)?;
+            let mut found = false;
+
+            let mut variants_iter = std::mem::take(variants).into_iter();
+            let new_shape = loop {
+                if let Some(mut variant) = variants_iter.next() {
+                    if let Some(static_variant_name) = iter::once(variant.name)
+                        .chain(variant.aliases)
+                        .find(|s| *s == variant_name_str)
+                    {
+                        context
+                            .segments
+                            .push(Segment::Identifier(static_variant_name));
+                        context = parse_context_no_options(args, &mut variant.shape, context)?;
+
+                        break Shape::Variant {
+                            name: static_variant_name,
+                            shape: Box::new(variant.shape),
+                        };
+                    }
+                } else {
+                    return Err(Error::UnrecognizedVariant);
+                }
+            };
+
+            *shape = new_shape;
+
+            if found {
+                Ok(context)
+            } else {
+                Err(Error::UnrecognizedVariant)
+            }
+        }
+        Shape::Variant { .. } => {
+            unreachable!()
+        }
+    }
+}
+
+#[derive(Debug)]
+struct ParsedContext {
+    context: Context,
+    options: Vec<(&'static str, Context)>,
+    /// If an `EndOfOptions` token appeared at the end of the positional arguments.
+    ///
+    /// This indicates that the outer context's options should also be terminated.
+    closing_end_of_options: bool,
+}
+
+fn parse_context<Args>(
+    args: &mut ParsedArgs<Args>,
+    shape: &mut Shape,
+    options: &mut Vec<(Field, bool)>,
+    mut context: Context,
+) -> Result<ParsedContext, Error>
+where
+    Args: Iterator<Item = OsString>,
+{
+    let mut parsed_options = Vec::new();
+    let mut closing_end_of_options = false;
+
+    match shape {
+        Shape::Empty => {
+            while let Some(token) = args.next_token() {
+                match token {
+                    Token::Positional(value) => {
+                        args.revisit = Some(value);
+                        break;
+                    }
+                    Token::Optional(value) => {
+                        // Find the option and parse it.
+                        let identifier = value.to_str().ok_or(Error::UnrecognizedOption)?;
+                        let mut optional_context = Context { segments: vec![] };
+                        let mut found = false;
+                        let mut index = 0;
+                        while index < options.len() {
+                            let (optional_field, used) = &options[index];
+                            if let Some(static_field_name) = iter::once(optional_field.name)
+                                .chain(optional_field.aliases.clone())
+                                .find(|s| *s == identifier)
+                            {
+                                if *used {
+                                    index += 1;
+                                    continue;
+                                }
+                                let (mut optional_field, _) = options.remove(index);
+                                found = true;
+                                optional_context
+                                    .segments
+                                    .push(Segment::Identifier(static_field_name));
+                                let parsed_context = parse_context(
+                                    args,
+                                    &mut optional_field.shape,
+                                    options,
+                                    optional_context,
+                                )?;
+                                parsed_options.extend(parsed_context.options);
+                                parsed_options.push((static_field_name, parsed_context.context));
+                                if parsed_context.closing_end_of_options {
+                                    closing_end_of_options = true;
+                                }
+                                options.insert(index, (optional_field, true));
+                                break;
+                            } else {
+                                index += 1;
+                            }
+                        }
+                        if !found {
+                            // The argument could belong to a neighboring context.
+                            args.revisit = Some({
+                                let mut bytes = vec![b'-', b'-'];
+                                bytes.extend(value.as_encoded_bytes());
+                                unsafe { OsString::from_encoded_bytes_unchecked(bytes) }
+                            });
+                            break;
+                        }
+                    }
+                    Token::EndOfOptions => {
+                        closing_end_of_options = true;
+                    }
+                }
+                if closing_end_of_options {
+                    break;
+                }
+            }
+        }
+        Shape::Primitive { .. } => {
+            while let Some(token) = args.next_token() {
+                match token {
+                    Token::Positional(value) => {
+                        context.segments.push(Segment::Value(value));
+                        break;
+                    }
+                    Token::Optional(value) => {
+                        let identifier = value.to_str().ok_or(Error::UnrecognizedOption)?;
+                        let mut optional_context = Context { segments: vec![] };
+                        let mut found = false;
+                        let mut index = 0;
+                        while index < options.len() {
+                            let (optional_field, used) = &options[index];
+                            if let Some(static_field_name) = iter::once(optional_field.name)
+                                .chain(optional_field.aliases.clone())
+                                .find(|s| *s == identifier)
+                            {
+                                if *used {
+                                    index += 1;
+                                    continue;
+                                }
+                                let (mut optional_field, _) = options.remove(index);
+                                found = true;
+                                optional_context
+                                    .segments
+                                    .push(Segment::Identifier(static_field_name));
+                                let parsed_context = parse_context(
+                                    args,
+                                    &mut optional_field.shape,
+                                    options,
+                                    optional_context,
+                                )?;
+                                parsed_options.extend(parsed_context.options);
+                                parsed_options.push((static_field_name, parsed_context.context));
+                                if parsed_context.closing_end_of_options {
+                                    closing_end_of_options = true;
+                                }
+                                options.insert(index, (optional_field, true));
+                                break;
+                            } else {
+                                index += 1;
+                            }
+                        }
+                        if !found {
+                            return Err(Error::UnrecognizedOption);
+                        }
+                    }
+                    Token::EndOfOptions => {
+                        closing_end_of_options = true;
+                    }
+                }
+                if closing_end_of_options {
+                    context = parse_context_no_options(args, shape, context)?;
+                    break;
+                }
+            }
+        }
+        Shape::Optional(_) => {
+            // This is a "positional optional". It starts its own isolated context, which only contains its own optional value if it exists.
+            //
+            // We therefore simply parse in a no-option context, thereby ignoring all parent context options.
+            context = parse_context_no_options(args, shape, context)?;
         }
         Shape::Struct { required, optional } => {
-            // Compile optional fields.
-            let optional_shapes = {
-                let mut optional_shapes = options.cloned().unwrap_or(HashMap::new());
-                optional_shapes.extend(
-                    optional
-                        .iter()
-                        .map(|field| {
-                            iter::once(field.name)
-                                .chain(field.aliases.iter().copied())
-                                .map(|name| (name, &field.shape))
-                        })
-                        .flatten(),
-                );
-                optional_shapes
-            };
-            let mut found_struct_options = HashMap::new();
-            // Iterate over required fields.
-            let mut struct_context = Context {
-                segments: Vec::new(),
-            };
-            for field in required {
-                let (context, options) =
-                    parse_inner_context(args, &field.shape, Some(&optional_shapes))?;
-                struct_context.segments.push(Segment::Context(context));
-                for (key, context) in options {
-                    if found_struct_options.insert(key, context).is_some() {
-                        return Err(Error::DuplicateOption);
-                    }
-                }
-            }
-            // Parse any remaining options at the end of this context.
-            let (_, options) = parse_inner_context(args, &Shape::Empty, Some(&optional_shapes))?;
-            for (key, context) in options {
-                if found_struct_options.insert(key, context).is_some() {
-                    return Err(Error::DuplicateOption);
-                }
-            }
-            // Handle all found options.
-            for optional_field in optional {
-                // Get all options corresponding to the field name and any aliases.
-                let mut found = None;
-                for name in
-                    iter::once(optional_field.name).chain(optional_field.aliases.iter().copied())
-                {
-                    if let Some(context) = found_struct_options.remove(name) {
-                        if found.is_some() {
-                            return Err(Error::DuplicateOption);
+            // Parse the struct in its own nested context.
+            let mut end_of_options = false;
+            let mut combined_options = options.clone();
+            combined_options.extend(optional.clone().into_iter().map(|option| (option, false)));
+            for required_field in required.iter_mut() {
+                if end_of_options {
+                    match required_field.shape {
+                        Shape::Struct { .. } | Shape::Enum { .. } => {
+                            let mut inner_context = Context { segments: vec![] };
+                            context
+                                .segments
+                                .push(Segment::Context(parse_context_no_options(
+                                    args,
+                                    &mut required_field.shape,
+                                    inner_context,
+                                )?));
                         }
-                        found = Some(context);
+                        Shape::Primitive { .. } | Shape::Empty => {
+                            context =
+                                parse_context_no_options(args, &mut required_field.shape, context)?;
+                        }
+                        Shape::Optional(_) | Shape::Variant { .. } => unreachable!(),
+                    }
+                } else {
+                    let found_parsed_options = match required_field.shape {
+                        Shape::Struct { .. } | Shape::Enum { .. } => {
+                            let mut inner_context = Context { segments: vec![] };
+                            let parsed_context = parse_context(
+                                args,
+                                &mut required_field.shape,
+                                &mut combined_options,
+                                inner_context,
+                            )?;
+                            context
+                                .segments
+                                .push(Segment::Context(parsed_context.context));
+                            end_of_options = parsed_context.closing_end_of_options;
+                            parsed_context.options
+                        }
+                        Shape::Primitive { .. } | Shape::Empty => {
+                            let parsed_context = parse_context(
+                                args,
+                                &mut required_field.shape,
+                                &mut combined_options,
+                                context,
+                            )?;
+                            context = parsed_context.context;
+                            end_of_options = parsed_context.closing_end_of_options;
+                            parsed_context.options
+                        }
+                        Shape::Optional(_) | Shape::Variant { .. } => unreachable!(),
+                    };
+                    'outer: for (optional_name, optional_context) in found_parsed_options {
+                        let mut found = false;
+                        // Find whether the optional name is in this struct.
+                        for optional_field in &mut *optional {
+                            if optional_name == optional_field.name
+                                || optional_field.aliases.contains(&optional_name)
+                            {
+                                found = true;
+                                context.segments.push(Segment::Context(optional_context));
+                                continue 'outer;
+                            }
+                        }
+                        if !found {
+                            parsed_options.push((optional_name, optional_context));
+                        }
                     }
                 }
-                if let Some(context) = found {
-                    struct_context.segments.push(Segment::Context(context));
+            }
+            // Parse any remaining options.
+            if !end_of_options {
+                let parsed_context =
+                    parse_context(args, &mut Shape::Empty, &mut combined_options, context)?;
+                context = parsed_context.context;
+                'outer: for (optional_name, optional_context) in parsed_context.options {
+                    let mut found = false;
+                    // Find whether the optional name is in this struct.
+                    for optional_field in &mut *optional {
+                        if optional_name == optional_field.name
+                            || optional_field.aliases.contains(&optional_name)
+                        {
+                            found = true;
+                            context.segments.push(Segment::Context(optional_context));
+                            continue 'outer;
+                        }
+                    }
+                    if !found {
+                        parsed_options.push((optional_name, optional_context));
+                    }
+                }
+                if parsed_context.closing_end_of_options {
+                    closing_end_of_options = true;
                 }
             }
 
-            // Handle all remaining options.
-            for (key, context) in found_struct_options {
-                if found_options.insert(key, context).is_some() {
-                    return Err(Error::DuplicateOption);
+            // Mark all found options as being found.
+            for ((_, found), (_, combined_found)) in options.iter_mut().zip(combined_options) {
+                *found = combined_found;
+            }
+        }
+        Shape::Enum { variants, .. } => {
+            // Parse the variant.
+            while let Some(token) = args.next_token() {
+                match token {
+                    Token::Positional(variant_name) => {
+                        let variant_name_str =
+                            variant_name.to_str().ok_or(Error::UnrecognizedVariant)?;
+                        let mut found = false;
+                        for mut variant in std::mem::take(variants) {
+                            if let Some(static_variant_name) = iter::once(variant.name)
+                                .chain(variant.aliases)
+                                .find(|s| *s == variant_name_str)
+                            {
+                                context
+                                    .segments
+                                    .push(Segment::Identifier(static_variant_name));
+                                // Parse the variant's shape.
+                                let parsed_context =
+                                    parse_context(args, &mut variant.shape, options, context)?;
+                                context = parsed_context.context;
+                                // Handle options.
+                                parsed_options.extend(parsed_context.options);
+                                if parsed_context.closing_end_of_options {
+                                    closing_end_of_options = true;
+                                }
+                                // Update shape.
+                                *shape = Shape::Variant {
+                                    name: static_variant_name,
+                                    shape: Box::new(variant.shape),
+                                };
+                                found = true;
+                            }
+                        }
+                        if !found {
+                            return Err(Error::UnrecognizedVariant);
+                        }
+                        break;
+                    }
+                    Token::Optional(value) => {
+                        let identifier = value.to_str().ok_or(Error::UnrecognizedOption)?;
+                        let mut optional_context = Context { segments: vec![] };
+                        let mut found = false;
+                        let mut index = 0;
+                        while index < options.len() {
+                            let (optional_field, used) = &options[index];
+                            if let Some(static_field_name) = iter::once(optional_field.name)
+                                .chain(optional_field.aliases.clone())
+                                .find(|s| *s == identifier)
+                            {
+                                if *used {
+                                    index += 1;
+                                    continue;
+                                }
+                                let (mut optional_field, _) = options.remove(index);
+                                found = true;
+                                optional_context
+                                    .segments
+                                    .push(Segment::Identifier(static_field_name));
+                                let parsed_context = parse_context(
+                                    args,
+                                    &mut optional_field.shape,
+                                    options,
+                                    optional_context,
+                                )?;
+                                parsed_options.extend(parsed_context.options);
+                                parsed_options.push((static_field_name, parsed_context.context));
+                                if parsed_context.closing_end_of_options {
+                                    closing_end_of_options = true;
+                                }
+                                options.insert(index, (optional_field, true));
+                                break;
+                            }
+                        }
+                        if !found {
+                            return Err(Error::UnrecognizedOption);
+                        }
+                    }
+                    Token::EndOfOptions => {
+                        let variant_name = args.next_positional().ok_or(Error::EndOfArgs)?;
+                        let variant_name_str =
+                            variant_name.to_str().ok_or(Error::UnrecognizedVariant)?;
+                        let mut found = false;
+                        for mut variant in std::mem::take(variants) {
+                            if let Some(static_variant_name) = iter::once(variant.name)
+                                .chain(variant.aliases)
+                                .find(|s| *s == variant_name_str)
+                            {
+                                context
+                                    .segments
+                                    .push(Segment::Identifier(static_variant_name));
+                                context =
+                                    parse_context_no_options(args, &mut variant.shape, context)?;
+
+                                found = true;
+
+                                *shape = Shape::Variant {
+                                    name: static_variant_name,
+                                    shape: Box::new(variant.shape),
+                                };
+                            }
+                        }
+                        if !found {
+                            return Err(Error::UnrecognizedVariant);
+                        }
+                        break;
+                    }
                 }
             }
-
-            struct_context
         }
-        Shape::Enum { .. } | Shape::Variant { .. } => {
-            todo!()
-        }
-    };
+        Shape::Variant { .. } => unreachable!(),
+    }
 
-    Ok((context, found_options))
+    Ok(ParsedContext {
+        context,
+        options: parsed_options,
+        closing_end_of_options,
+    })
 }
 
 #[cfg(test)]
@@ -200,7 +748,7 @@ mod tests {
     #[test]
     fn parse_empty() {
         assert_ok_eq!(
-            parse(Vec::<&str>::new(), &Shape::Empty),
+            parse(Vec::<&str>::new(), &mut Shape::Empty),
             Context {
                 segments: Vec::new(),
             }
@@ -212,7 +760,7 @@ mod tests {
         assert_ok_eq!(
             parse(
                 ["foo"],
-                &Shape::Primitive {
+                &mut Shape::Primitive {
                     name: "bar".to_owned()
                 }
             ),
@@ -227,7 +775,7 @@ mod tests {
         assert_err_eq!(
             parse(
                 Vec::<&str>::new(),
-                &Shape::Primitive {
+                &mut Shape::Primitive {
                     name: "bar".to_owned()
                 }
             ),
@@ -239,8 +787,8 @@ mod tests {
     fn parse_optional_primitive() {
         assert_ok_eq!(
             parse(
-                ["foo"],
-                &Shape::Optional(Box::new(Shape::Primitive {
+                ["-", "foo"],
+                &mut Shape::Optional(Box::new(Shape::Primitive {
                     name: "bar".to_owned()
                 }))
             ),
@@ -257,7 +805,7 @@ mod tests {
         assert_ok_eq!(
             parse(
                 Vec::<&str>::new(),
-                &Shape::Struct {
+                &mut Shape::Struct {
                     required: vec![],
                     optional: vec![],
                 }
@@ -271,7 +819,7 @@ mod tests {
         assert_ok_eq!(
             parse(
                 vec!["foo"],
-                &Shape::Struct {
+                &mut Shape::Struct {
                     required: vec![Field {
                         name: "bar",
                         aliases: vec![],
@@ -283,9 +831,7 @@ mod tests {
                 }
             ),
             Context {
-                segments: vec![Segment::Context(Context {
-                    segments: vec![Segment::Value("foo".into())]
-                })]
+                segments: vec![Segment::Value("foo".into()),]
             }
         );
     }
@@ -295,7 +841,7 @@ mod tests {
         assert_ok_eq!(
             parse(
                 vec!["foo", "bar"],
-                &Shape::Struct {
+                &mut Shape::Struct {
                     required: vec![
                         Field {
                             name: "baz",
@@ -316,14 +862,7 @@ mod tests {
                 }
             ),
             Context {
-                segments: vec![
-                    Segment::Context(Context {
-                        segments: vec![Segment::Value("foo".into())]
-                    }),
-                    Segment::Context(Context {
-                        segments: vec![Segment::Value("bar".into())]
-                    })
-                ]
+                segments: vec![Segment::Value("foo".into()), Segment::Value("bar".into()),]
             }
         );
     }
@@ -333,7 +872,7 @@ mod tests {
         assert_ok_eq!(
             parse(
                 Vec::<&str>::new(),
-                &Shape::Struct {
+                &mut Shape::Struct {
                     required: vec![],
                     optional: vec![Field {
                         name: "bar",
@@ -353,7 +892,7 @@ mod tests {
         assert_ok_eq!(
             parse(
                 vec!["--bar", "foo"],
-                &Shape::Struct {
+                &mut Shape::Struct {
                     required: vec![],
                     optional: vec![Field {
                         name: "bar",
@@ -366,7 +905,7 @@ mod tests {
             ),
             Context {
                 segments: vec![Segment::Context(Context {
-                    segments: vec![Segment::Value("foo".into())]
+                    segments: vec![Segment::Identifier("bar"), Segment::Value("foo".into())]
                 })]
             }
         );
@@ -377,7 +916,7 @@ mod tests {
         assert_ok_eq!(
             parse(
                 vec!["--qux", "foo"],
-                &Shape::Struct {
+                &mut Shape::Struct {
                     required: vec![],
                     optional: vec![Field {
                         name: "bar",
@@ -390,7 +929,7 @@ mod tests {
             ),
             Context {
                 segments: vec![Segment::Context(Context {
-                    segments: vec![Segment::Value("foo".into())]
+                    segments: vec![Segment::Identifier("qux"), Segment::Value("foo".into())]
                 })]
             }
         );
@@ -401,7 +940,7 @@ mod tests {
         assert_err_eq!(
             parse(
                 vec!["--qux", "foo", "--bar", "baz"],
-                &Shape::Struct {
+                &mut Shape::Struct {
                     required: vec![],
                     optional: vec![Field {
                         name: "bar",
@@ -412,7 +951,7 @@ mod tests {
                     }],
                 }
             ),
-            Error::DuplicateOption,
+            Error::UnexpectedArgument,
         );
     }
 
@@ -421,7 +960,7 @@ mod tests {
         assert_ok_eq!(
             parse(
                 vec!["123", "--bar", "foo", "456", "--qux", "789"],
-                &Shape::Struct {
+                &mut Shape::Struct {
                     required: vec![
                         Field {
                             name: "foo",
@@ -465,17 +1004,13 @@ mod tests {
             ),
             Context {
                 segments: vec![
+                    Segment::Value("123".into()),
+                    Segment::Value("456".into()),
                     Segment::Context(Context {
-                        segments: vec![Segment::Value("123".into())]
+                        segments: vec![Segment::Identifier("bar"), Segment::Value("foo".into())],
                     }),
                     Segment::Context(Context {
-                        segments: vec![Segment::Value("456".into())]
-                    }),
-                    Segment::Context(Context {
-                        segments: vec![Segment::Value("foo".into())],
-                    }),
-                    Segment::Context(Context {
-                        segments: vec![Segment::Value("789".into())],
+                        segments: vec![Segment::Identifier("qux"), Segment::Value("789".into())],
                     }),
                 ]
             }
@@ -487,7 +1022,7 @@ mod tests {
         assert_ok_eq!(
             parse(
                 vec!["123", "--bar", "foo", "--qux", "789", "456"],
-                &Shape::Struct {
+                &mut Shape::Struct {
                     required: vec![
                         Field {
                             name: "inner_struct",
@@ -539,20 +1074,19 @@ mod tests {
                 segments: vec![
                     Segment::Context(Context {
                         segments: vec![
+                            Segment::Value("123".into()),
                             Segment::Context(Context {
-                                segments: vec![Segment::Value("123".into())],
+                                segments: vec![
+                                    Segment::Identifier("bar"),
+                                    Segment::Value("foo".into()),
+                                ]
                             }),
-                            Segment::Context(Context {
-                                segments: vec![Segment::Value("foo".into())],
-                            })
                         ],
                     }),
                     Segment::Context(Context {
-                        segments: vec![Segment::Value("456".into())]
+                        segments: vec![Segment::Identifier("qux"), Segment::Value("789".into()),],
                     }),
-                    Segment::Context(Context {
-                        segments: vec![Segment::Value("789".into())],
-                    }),
+                    Segment::Value("456".into()),
                 ]
             }
         );
