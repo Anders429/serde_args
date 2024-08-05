@@ -6,6 +6,7 @@ mod trace;
 pub use error::Error;
 
 use de::Deserializer;
+use parse::parse;
 use serde::de::{Deserialize, DeserializeSeed};
 use std::{env, marker::PhantomData, path::PathBuf};
 use trace::{trace, trace_seed_copy};
@@ -14,14 +15,16 @@ pub fn from_args_seed<'de, D>(seed: D) -> Result<D::Value, Error>
 where
     D: Copy + DeserializeSeed<'de>,
 {
-    let shape = trace_seed_copy(seed)?;
+    let mut shape = trace_seed_copy(seed)?;
 
     let mut args = env::args_os();
     let executable_path = PathBuf::from(args.next().ok_or(Error::EmptyArgs)?)
         .file_name()
         .ok_or(Error::MissingExecutableName)?;
 
-    seed.deserialize(Deserializer::new(args, shape))
+    let context = parse(args, &mut shape)?;
+
+    seed.deserialize(Deserializer::new(context))
         .map_err(Into::into)
 }
 

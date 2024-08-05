@@ -1,4 +1,4 @@
-use super::{de, trace, trace::Shape};
+use super::{de, parse, trace, trace::Shape};
 use std::{
     ffi::OsString,
     fmt,
@@ -10,6 +10,7 @@ pub enum Error {
     EmptyArgs,
     MissingExecutableName,
     Trace(trace::Error),
+    Parse(parse::Error),
     Deserialize(de::error::Development),
     Usage {
         error: de::error::Usage,
@@ -21,6 +22,12 @@ pub enum Error {
 impl From<trace::Error> for Error {
     fn from(error: trace::Error) -> Self {
         Self::Trace(error)
+    }
+}
+
+impl From<parse::Error> for Error {
+    fn from(error: parse::Error) -> Self {
+        Self::Parse(error)
     }
 }
 
@@ -43,6 +50,7 @@ impl Display for Error {
                 formatter.write_str("unable to extract executable name from executable path")
             }
             Self::Trace(error) => write!(formatter, "tracing error: {}", error),
+            Self::Parse(error) => write!(formatter, "parsing error: {}", error),
             Self::Deserialize(error) => write!(formatter, "deserialization error: {}", error),
             Self::Usage {
                 error,

@@ -2,7 +2,10 @@ pub(crate) mod error;
 
 pub(crate) use error::Error;
 
-use crate::trace::Shape;
+use crate::{
+    parse::{Context, ContextIter, Segment},
+    trace::Shape,
+};
 use serde::{
     de,
     de::{Error as _, Unexpected, Visitor},
@@ -16,28 +19,19 @@ use std::{
     str::FromStr,
 };
 
-pub(crate) struct Deserializer<Args> {
-    args: Args,
-    shape: Shape,
+pub(crate) struct Deserializer {
+    context: ContextIter,
 }
 
-impl<Args> Deserializer<Args> {
-    pub(crate) fn new<IntoArgs>(args: IntoArgs, shape: Shape) -> Self
-    where
-        IntoArgs: IntoIterator<IntoIter = Args>,
-    {
+impl Deserializer {
+    pub(crate) fn new(context: Context) -> Self {
         Self {
-            args: args.into_iter(),
-            shape,
+            context: context.into_iter(),
         }
     }
 }
 
-impl<'de, Arg, Args> de::Deserializer<'de> for Deserializer<Args>
-where
-    Args: Iterator<Item = Arg>,
-    Arg: Into<OsString>,
-{
+impl<'de> de::Deserializer<'de> for Deserializer {
     type Error = Error;
 
     // ---------------
@@ -73,290 +67,278 @@ where
     where
         V: Visitor<'de>,
     {
-        let raw = self
-            .args
-            .next()
-            .ok_or(Error::Usage(error::Usage::MissingArgs {
-                shape: self.shape,
-                index: 0,
-            }))?
-            .into();
-        let arg = String::from_utf8_lossy(&raw.as_encoded_bytes());
-        i8::from_str(&arg)
-            .map_err(|parse_int_error| match parse_int_error.kind() {
-                IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => {
-                    if let Ok(value) = i64::from_str(&arg) {
-                        Error::invalid_value(Unexpected::Signed(value), &visitor)
-                    } else {
-                        Error::invalid_value(Unexpected::Other(&arg), &visitor)
-                    }
-                }
-                _ => Error::invalid_type(Unexpected::Other(&arg), &visitor),
-            })
-            .and_then(|int| visitor.visit_i8(int))
+        match self.context.next() {
+            Some(Segment::Value(raw)) => {
+                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                i8::from_str(&value_string)
+                    .map_err(|parse_int_error| match parse_int_error.kind() {
+                        IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => {
+                            if let Ok(value) = i64::from_str(&value_string) {
+                                Error::invalid_value(Unexpected::Signed(value), &visitor)
+                            } else {
+                                Error::invalid_value(Unexpected::Other(&value_string), &visitor)
+                            }
+                        }
+                        _ => Error::invalid_type(Unexpected::Other(&value_string), &visitor),
+                    })
+                    .and_then(|int| visitor.visit_i8(int))
+            }
+            _ => {
+                unreachable!()
+            }
+        }
     }
 
     fn deserialize_i16<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        let raw = self
-            .args
-            .next()
-            .ok_or(Error::Usage(error::Usage::MissingArgs {
-                shape: self.shape,
-                index: 0,
-            }))?
-            .into();
-        let arg = String::from_utf8_lossy(&raw.as_encoded_bytes());
-        i16::from_str(&arg)
-            .map_err(|parse_int_error| match parse_int_error.kind() {
-                IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => {
-                    if let Ok(value) = i64::from_str(&arg) {
-                        Error::invalid_value(Unexpected::Signed(value), &visitor)
-                    } else {
-                        Error::invalid_value(Unexpected::Other(&arg), &visitor)
-                    }
-                }
-                _ => Error::invalid_type(Unexpected::Other(&arg), &visitor),
-            })
-            .and_then(|int| visitor.visit_i16(int))
+        match self.context.next() {
+            Some(Segment::Value(raw)) => {
+                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                i16::from_str(&value_string)
+                    .map_err(|parse_int_error| match parse_int_error.kind() {
+                        IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => {
+                            if let Ok(value) = i64::from_str(&value_string) {
+                                Error::invalid_value(Unexpected::Signed(value), &visitor)
+                            } else {
+                                Error::invalid_value(Unexpected::Other(&value_string), &visitor)
+                            }
+                        }
+                        _ => Error::invalid_type(Unexpected::Other(&value_string), &visitor),
+                    })
+                    .and_then(|int| visitor.visit_i16(int))
+            }
+            _ => {
+                unreachable!()
+            }
+        }
     }
 
     fn deserialize_i32<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        let raw = self
-            .args
-            .next()
-            .ok_or(Error::Usage(error::Usage::MissingArgs {
-                shape: self.shape,
-                index: 0,
-            }))?
-            .into();
-        let arg = String::from_utf8_lossy(&raw.as_encoded_bytes());
-        i32::from_str(&arg)
-            .map_err(|parse_int_error| match parse_int_error.kind() {
-                IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => {
-                    if let Ok(value) = i64::from_str(&arg) {
-                        Error::invalid_value(Unexpected::Signed(value), &visitor)
-                    } else {
-                        Error::invalid_value(Unexpected::Other(&arg), &visitor)
-                    }
-                }
-                _ => Error::invalid_type(Unexpected::Other(&arg), &visitor),
-            })
-            .and_then(|int| visitor.visit_i32(int))
+        match self.context.next() {
+            Some(Segment::Value(raw)) => {
+                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                i32::from_str(&value_string)
+                    .map_err(|parse_int_error| match parse_int_error.kind() {
+                        IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => {
+                            if let Ok(value) = i64::from_str(&value_string) {
+                                Error::invalid_value(Unexpected::Signed(value), &visitor)
+                            } else {
+                                Error::invalid_value(Unexpected::Other(&value_string), &visitor)
+                            }
+                        }
+                        _ => Error::invalid_type(Unexpected::Other(&value_string), &visitor),
+                    })
+                    .and_then(|int| visitor.visit_i32(int))
+            }
+            _ => {
+                unreachable!()
+            }
+        }
     }
 
     fn deserialize_i64<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        let raw = self
-            .args
-            .next()
-            .ok_or(Error::Usage(error::Usage::MissingArgs {
-                shape: self.shape,
-                index: 0,
-            }))?
-            .into();
-        let arg = String::from_utf8_lossy(&raw.as_encoded_bytes());
-        i64::from_str(&arg)
-            .map_err(|parse_int_error| match parse_int_error.kind() {
-                IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => {
-                    Error::invalid_value(Unexpected::Other(&arg), &visitor)
-                }
-                _ => Error::invalid_type(Unexpected::Other(&arg), &visitor),
-            })
-            .and_then(|int| visitor.visit_i64(int))
+        match self.context.next() {
+            Some(Segment::Value(raw)) => {
+                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                i64::from_str(&value_string)
+                    .map_err(|parse_int_error| match parse_int_error.kind() {
+                        IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => {
+                            Error::invalid_value(Unexpected::Other(&value_string), &visitor)
+                        }
+                        _ => Error::invalid_type(Unexpected::Other(&value_string), &visitor),
+                    })
+                    .and_then(|int| visitor.visit_i64(int))
+            }
+            _ => {
+                unreachable!()
+            }
+        }
     }
 
     fn deserialize_i128<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        let raw = self
-            .args
-            .next()
-            .ok_or(Error::Usage(error::Usage::MissingArgs {
-                shape: self.shape,
-                index: 0,
-            }))?
-            .into();
-        let arg = String::from_utf8_lossy(&raw.as_encoded_bytes());
-        i128::from_str(&arg)
-            .map_err(|parse_int_error| match parse_int_error.kind() {
-                IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => {
-                    Error::invalid_value(Unexpected::Other(&arg), &visitor)
-                }
-                _ => Error::invalid_type(Unexpected::Other(&arg), &visitor),
-            })
-            .and_then(|int| visitor.visit_i128(int))
+        match self.context.next() {
+            Some(Segment::Value(raw)) => {
+                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                i128::from_str(&value_string)
+                    .map_err(|parse_int_error| match parse_int_error.kind() {
+                        IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => {
+                            Error::invalid_value(Unexpected::Other(&value_string), &visitor)
+                        }
+                        _ => Error::invalid_type(Unexpected::Other(&value_string), &visitor),
+                    })
+                    .and_then(|int| visitor.visit_i128(int))
+            }
+            _ => {
+                unreachable!()
+            }
+        }
     }
 
     fn deserialize_u8<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        let raw = self
-            .args
-            .next()
-            .ok_or(Error::Usage(error::Usage::MissingArgs {
-                shape: self.shape,
-                index: 0,
-            }))?
-            .into();
-        let arg = String::from_utf8_lossy(&raw.as_encoded_bytes());
-        u8::from_str(&arg)
-            .map_err(|parse_int_error| match parse_int_error.kind() {
-                IntErrorKind::PosOverflow => {
-                    if let Ok(value) = u64::from_str(&arg) {
-                        Error::invalid_value(Unexpected::Unsigned(value), &visitor)
-                    } else {
-                        Error::invalid_value(Unexpected::Other(&arg), &visitor)
-                    }
-                }
-                _ => Error::invalid_type(Unexpected::Other(&arg), &visitor),
-            })
-            .and_then(|int| visitor.visit_u8(int))
+        match self.context.next() {
+            Some(Segment::Value(raw)) => {
+                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                u8::from_str(&value_string)
+                    .map_err(|parse_int_error| match parse_int_error.kind() {
+                        IntErrorKind::PosOverflow => {
+                            if let Ok(value) = u64::from_str(&value_string) {
+                                Error::invalid_value(Unexpected::Unsigned(value), &visitor)
+                            } else {
+                                Error::invalid_value(Unexpected::Other(&value_string), &visitor)
+                            }
+                        }
+                        _ => Error::invalid_type(Unexpected::Other(&value_string), &visitor),
+                    })
+                    .and_then(|int| visitor.visit_u8(int))
+            }
+            _ => {
+                unreachable!()
+            }
+        }
     }
 
     fn deserialize_u16<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        let raw = self
-            .args
-            .next()
-            .ok_or(Error::Usage(error::Usage::MissingArgs {
-                shape: self.shape,
-                index: 0,
-            }))?
-            .into();
-        let arg = String::from_utf8_lossy(&raw.as_encoded_bytes());
-        u16::from_str(&arg)
-            .map_err(|parse_int_error| match parse_int_error.kind() {
-                IntErrorKind::PosOverflow => {
-                    if let Ok(value) = u64::from_str(&arg) {
-                        Error::invalid_value(Unexpected::Unsigned(value), &visitor)
-                    } else {
-                        Error::invalid_value(Unexpected::Other(&arg), &visitor)
-                    }
-                }
-                _ => Error::invalid_type(Unexpected::Other(&arg), &visitor),
-            })
-            .and_then(|int| visitor.visit_u16(int))
+        match self.context.next() {
+            Some(Segment::Value(raw)) => {
+                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                u16::from_str(&value_string)
+                    .map_err(|parse_int_error| match parse_int_error.kind() {
+                        IntErrorKind::PosOverflow => {
+                            if let Ok(value) = u64::from_str(&value_string) {
+                                Error::invalid_value(Unexpected::Unsigned(value), &visitor)
+                            } else {
+                                Error::invalid_value(Unexpected::Other(&value_string), &visitor)
+                            }
+                        }
+                        _ => Error::invalid_type(Unexpected::Other(&value_string), &visitor),
+                    })
+                    .and_then(|int| visitor.visit_u16(int))
+            }
+            _ => {
+                unreachable!()
+            }
+        }
     }
 
     fn deserialize_u32<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        let raw = self
-            .args
-            .next()
-            .ok_or(Error::Usage(error::Usage::MissingArgs {
-                shape: self.shape,
-                index: 0,
-            }))?
-            .into();
-        let arg = String::from_utf8_lossy(&raw.as_encoded_bytes());
-        u32::from_str(&arg)
-            .map_err(|parse_int_error| match parse_int_error.kind() {
-                IntErrorKind::PosOverflow => {
-                    if let Ok(value) = u64::from_str(&arg) {
-                        Error::invalid_value(Unexpected::Unsigned(value), &visitor)
-                    } else {
-                        Error::invalid_value(Unexpected::Other(&arg), &visitor)
-                    }
-                }
-                _ => Error::invalid_type(Unexpected::Other(&arg), &visitor),
-            })
-            .and_then(|int| visitor.visit_u32(int))
+        match self.context.next() {
+            Some(Segment::Value(raw)) => {
+                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                u32::from_str(&value_string)
+                    .map_err(|parse_int_error| match parse_int_error.kind() {
+                        IntErrorKind::PosOverflow => {
+                            if let Ok(value) = u64::from_str(&value_string) {
+                                Error::invalid_value(Unexpected::Unsigned(value), &visitor)
+                            } else {
+                                Error::invalid_value(Unexpected::Other(&value_string), &visitor)
+                            }
+                        }
+                        _ => Error::invalid_type(Unexpected::Other(&value_string), &visitor),
+                    })
+                    .and_then(|int| visitor.visit_u32(int))
+            }
+            _ => {
+                unreachable!()
+            }
+        }
     }
 
     fn deserialize_u64<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        let raw = self
-            .args
-            .next()
-            .ok_or(Error::Usage(error::Usage::MissingArgs {
-                shape: self.shape,
-                index: 0,
-            }))?
-            .into();
-        let arg = String::from_utf8_lossy(&raw.as_encoded_bytes());
-        u64::from_str(&arg)
-            .map_err(|parse_int_error| match parse_int_error.kind() {
-                IntErrorKind::PosOverflow => {
-                    Error::invalid_value(Unexpected::Other(&arg), &visitor)
-                }
-                _ => Error::invalid_type(Unexpected::Other(&arg), &visitor),
-            })
-            .and_then(|int| visitor.visit_u64(int))
+        match self.context.next() {
+            Some(Segment::Value(raw)) => {
+                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                u64::from_str(&value_string)
+                    .map_err(|parse_int_error| match parse_int_error.kind() {
+                        IntErrorKind::PosOverflow => {
+                            Error::invalid_value(Unexpected::Other(&value_string), &visitor)
+                        }
+                        _ => Error::invalid_type(Unexpected::Other(&value_string), &visitor),
+                    })
+                    .and_then(|int| visitor.visit_u64(int))
+            }
+            _ => {
+                unreachable!()
+            }
+        }
     }
 
     fn deserialize_u128<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        let raw = self
-            .args
-            .next()
-            .ok_or(Error::Usage(error::Usage::MissingArgs {
-                shape: self.shape,
-                index: 0,
-            }))?
-            .into();
-        let arg = String::from_utf8_lossy(&raw.as_encoded_bytes());
-        u128::from_str(&arg)
-            .map_err(|parse_int_error| match parse_int_error.kind() {
-                IntErrorKind::PosOverflow => {
-                    Error::invalid_value(Unexpected::Other(&arg), &visitor)
-                }
-                _ => Error::invalid_type(Unexpected::Other(&arg), &visitor),
-            })
-            .and_then(|int| visitor.visit_u128(int))
+        match self.context.next() {
+            Some(Segment::Value(raw)) => {
+                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                u128::from_str(&value_string)
+                    .map_err(|parse_int_error| match parse_int_error.kind() {
+                        IntErrorKind::PosOverflow => {
+                            Error::invalid_value(Unexpected::Other(&value_string), &visitor)
+                        }
+                        _ => Error::invalid_type(Unexpected::Other(&value_string), &visitor),
+                    })
+                    .and_then(|int| visitor.visit_u128(int))
+            }
+            _ => {
+                unreachable!()
+            }
+        }
     }
 
     fn deserialize_f32<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        let raw = self
-            .args
-            .next()
-            .ok_or(Error::Usage(error::Usage::MissingArgs {
-                shape: self.shape,
-                index: 0,
-            }))?
-            .into();
-        let arg = String::from_utf8_lossy(&raw.as_encoded_bytes());
-        f32::from_str(&arg)
-            .map_err(|_| Error::invalid_type(Unexpected::Other(&arg), &visitor))
-            .and_then(|float| visitor.visit_f32(float))
+        match self.context.next() {
+            Some(Segment::Value(raw)) => {
+                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                f32::from_str(&value_string)
+                    .map_err(|_| Error::invalid_type(Unexpected::Other(&value_string), &visitor))
+                    .and_then(|float| visitor.visit_f32(float))
+            }
+            _ => {
+                unreachable!()
+            }
+        }
     }
 
     fn deserialize_f64<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        let raw = self
-            .args
-            .next()
-            .ok_or(Error::Usage(error::Usage::MissingArgs {
-                shape: self.shape,
-                index: 0,
-            }))?
-            .into();
-        let arg = String::from_utf8_lossy(&raw.as_encoded_bytes());
-        f64::from_str(&arg)
-            .map_err(|_| Error::invalid_type(Unexpected::Other(&arg), &visitor))
-            .and_then(|float| visitor.visit_f64(float))
+        match self.context.next() {
+            Some(Segment::Value(raw)) => {
+                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                f64::from_str(&value_string)
+                    .map_err(|_| Error::invalid_type(Unexpected::Other(&value_string), &visitor))
+                    .and_then(|float| visitor.visit_f64(float))
+            }
+            _ => {
+                unreachable!()
+            }
+        }
     }
 
     fn deserialize_char<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -505,7 +487,10 @@ mod tests {
         error::{Development, Usage},
         Deserializer, Error,
     };
-    use crate::trace::Shape;
+    use crate::{
+        parse::{Context, Segment},
+        trace::Shape,
+    };
     use claims::{assert_err_eq, assert_ok_eq};
     use serde::{
         de,
@@ -541,7 +526,7 @@ mod tests {
             }
         }
 
-        let deserializer = Deserializer::new(vec![""], Shape::Empty);
+        let deserializer = Deserializer::new(Context { segments: vec![] });
 
         assert_err_eq!(
             Any::deserialize(deserializer),
@@ -551,7 +536,7 @@ mod tests {
 
     #[test]
     fn ignored_any() {
-        let deserializer = Deserializer::new(vec![""], Shape::Empty);
+        let deserializer = Deserializer::new(Context { segments: vec![] });
 
         assert_err_eq!(
             IgnoredAny::deserialize(deserializer),
@@ -561,24 +546,18 @@ mod tests {
 
     #[test]
     fn i8() {
-        let deserializer = Deserializer::new(
-            vec!["42"],
-            Shape::Primitive {
-                name: "i8".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("42".into())],
+        });
 
         assert_ok_eq!(i8::deserialize(deserializer), 42);
     }
 
     #[test]
     fn i8_invalid_type() {
-        let deserializer = Deserializer::new(
-            vec!["a"],
-            Shape::Primitive {
-                name: "i8".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("a".into())],
+        });
 
         assert_err_eq!(
             i8::deserialize(deserializer),
@@ -591,12 +570,11 @@ mod tests {
 
     #[test]
     fn i8_invalid_type_not_utf8() {
-        let deserializer = Deserializer::new(
-            vec![unsafe { OsString::from_encoded_bytes_unchecked(vec![255]) }],
-            Shape::Primitive {
-                name: "i8".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value(unsafe {
+                OsString::from_encoded_bytes_unchecked(vec![255])
+            })],
+        });
 
         assert_err_eq!(
             i8::deserialize(deserializer),
@@ -609,12 +587,9 @@ mod tests {
 
     #[test]
     fn i8_invalid_value_positive() {
-        let deserializer = Deserializer::new(
-            vec!["128"],
-            Shape::Primitive {
-                name: "i8".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("128".into())],
+        });
 
         assert_err_eq!(
             i8::deserialize(deserializer),
@@ -627,12 +602,9 @@ mod tests {
 
     #[test]
     fn i8_invalid_value_negative() {
-        let deserializer = Deserializer::new(
-            vec!["-129"],
-            Shape::Primitive {
-                name: "i8".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("-129".into())],
+        });
 
         assert_err_eq!(
             i8::deserialize(deserializer),
@@ -645,12 +617,9 @@ mod tests {
 
     #[test]
     fn i8_invalid_value_out_of_i64_range() {
-        let deserializer = Deserializer::new(
-            vec!["9223372036854775808"],
-            Shape::Primitive {
-                name: "i8".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("9223372036854775808".into())],
+        });
 
         assert_err_eq!(
             i8::deserialize(deserializer),
@@ -663,24 +632,18 @@ mod tests {
 
     #[test]
     fn i16() {
-        let deserializer = Deserializer::new(
-            vec!["42"],
-            Shape::Primitive {
-                name: "i16".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("42".into())],
+        });
 
         assert_ok_eq!(i16::deserialize(deserializer), 42);
     }
 
     #[test]
     fn i16_invalid_type() {
-        let deserializer = Deserializer::new(
-            vec!["a"],
-            Shape::Primitive {
-                name: "i16".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("a".into())],
+        });
 
         assert_err_eq!(
             i16::deserialize(deserializer),
@@ -693,12 +656,11 @@ mod tests {
 
     #[test]
     fn i16_invalid_type_not_utf8() {
-        let deserializer = Deserializer::new(
-            vec![unsafe { OsString::from_encoded_bytes_unchecked(vec![255]) }],
-            Shape::Primitive {
-                name: "i16".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value(unsafe {
+                OsString::from_encoded_bytes_unchecked(vec![255])
+            })],
+        });
 
         assert_err_eq!(
             i16::deserialize(deserializer),
@@ -711,12 +673,9 @@ mod tests {
 
     #[test]
     fn i16_invalid_value_positive() {
-        let deserializer = Deserializer::new(
-            vec!["32768"],
-            Shape::Primitive {
-                name: "i16".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("32768".into())],
+        });
 
         assert_err_eq!(
             i16::deserialize(deserializer),
@@ -729,12 +688,9 @@ mod tests {
 
     #[test]
     fn i16_invalid_value_negative() {
-        let deserializer = Deserializer::new(
-            vec!["-32769"],
-            Shape::Primitive {
-                name: "i16".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("-32769".into())],
+        });
 
         assert_err_eq!(
             i16::deserialize(deserializer),
@@ -747,12 +703,9 @@ mod tests {
 
     #[test]
     fn i16_invalid_value_out_of_i64_range() {
-        let deserializer = Deserializer::new(
-            vec!["9223372036854775808"],
-            Shape::Primitive {
-                name: "i16".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("9223372036854775808".into())],
+        });
 
         assert_err_eq!(
             i16::deserialize(deserializer),
@@ -765,24 +718,18 @@ mod tests {
 
     #[test]
     fn i32() {
-        let deserializer = Deserializer::new(
-            vec!["42"],
-            Shape::Primitive {
-                name: "i32".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("42".into())],
+        });
 
         assert_ok_eq!(i32::deserialize(deserializer), 42);
     }
 
     #[test]
     fn i32_invalid_type() {
-        let deserializer = Deserializer::new(
-            vec!["a"],
-            Shape::Primitive {
-                name: "i32".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("a".into())],
+        });
 
         assert_err_eq!(
             i32::deserialize(deserializer),
@@ -795,12 +742,11 @@ mod tests {
 
     #[test]
     fn i32_invalid_type_not_utf8() {
-        let deserializer = Deserializer::new(
-            vec![unsafe { OsString::from_encoded_bytes_unchecked(vec![255]) }],
-            Shape::Primitive {
-                name: "i32".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value(unsafe {
+                OsString::from_encoded_bytes_unchecked(vec![255])
+            })],
+        });
 
         assert_err_eq!(
             i32::deserialize(deserializer),
@@ -813,12 +759,9 @@ mod tests {
 
     #[test]
     fn i32_invalid_value_positive() {
-        let deserializer = Deserializer::new(
-            vec!["2147483648"],
-            Shape::Primitive {
-                name: "i32".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("2147483648".into())],
+        });
 
         assert_err_eq!(
             i32::deserialize(deserializer),
@@ -831,12 +774,9 @@ mod tests {
 
     #[test]
     fn i32_invalid_value_negative() {
-        let deserializer = Deserializer::new(
-            vec!["-2147483649"],
-            Shape::Primitive {
-                name: "i32".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("-2147483649".into())],
+        });
 
         assert_err_eq!(
             i32::deserialize(deserializer),
@@ -849,12 +789,9 @@ mod tests {
 
     #[test]
     fn i32_invalid_value_out_of_i64_range() {
-        let deserializer = Deserializer::new(
-            vec!["9223372036854775808"],
-            Shape::Primitive {
-                name: "i32".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("9223372036854775808".into())],
+        });
 
         assert_err_eq!(
             i32::deserialize(deserializer),
@@ -867,24 +804,18 @@ mod tests {
 
     #[test]
     fn i64() {
-        let deserializer = Deserializer::new(
-            vec!["42"],
-            Shape::Primitive {
-                name: "i64".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("42".into())],
+        });
 
         assert_ok_eq!(i64::deserialize(deserializer), 42);
     }
 
     #[test]
     fn i64_invalid_type() {
-        let deserializer = Deserializer::new(
-            vec!["a"],
-            Shape::Primitive {
-                name: "i64".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("a".into())],
+        });
 
         assert_err_eq!(
             i64::deserialize(deserializer),
@@ -897,12 +828,11 @@ mod tests {
 
     #[test]
     fn i64_invalid_type_not_utf8() {
-        let deserializer = Deserializer::new(
-            vec![unsafe { OsString::from_encoded_bytes_unchecked(vec![255]) }],
-            Shape::Primitive {
-                name: "i64".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value(unsafe {
+                OsString::from_encoded_bytes_unchecked(vec![255])
+            })],
+        });
 
         assert_err_eq!(
             i64::deserialize(deserializer),
@@ -915,12 +845,9 @@ mod tests {
 
     #[test]
     fn i64_invalid_value_positive() {
-        let deserializer = Deserializer::new(
-            vec!["9223372036854775808"],
-            Shape::Primitive {
-                name: "i64".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("9223372036854775808".into())],
+        });
 
         assert_err_eq!(
             i64::deserialize(deserializer),
@@ -933,12 +860,9 @@ mod tests {
 
     #[test]
     fn i64_invalid_value_negative() {
-        let deserializer = Deserializer::new(
-            vec!["-9223372036854775809"],
-            Shape::Primitive {
-                name: "i64".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("-9223372036854775809".into())],
+        });
 
         assert_err_eq!(
             i64::deserialize(deserializer),
@@ -951,24 +875,18 @@ mod tests {
 
     #[test]
     fn i128() {
-        let deserializer = Deserializer::new(
-            vec!["42"],
-            Shape::Primitive {
-                name: "i128".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("42".into())],
+        });
 
         assert_ok_eq!(i128::deserialize(deserializer), 42);
     }
 
     #[test]
     fn i128_invalid_type() {
-        let deserializer = Deserializer::new(
-            vec!["a"],
-            Shape::Primitive {
-                name: "i128".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("a".into())],
+        });
 
         assert_err_eq!(
             i128::deserialize(deserializer),
@@ -981,12 +899,11 @@ mod tests {
 
     #[test]
     fn i128_invalid_type_not_utf8() {
-        let deserializer = Deserializer::new(
-            vec![unsafe { OsString::from_encoded_bytes_unchecked(vec![255]) }],
-            Shape::Primitive {
-                name: "i128".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value(unsafe {
+                OsString::from_encoded_bytes_unchecked(vec![255])
+            })],
+        });
 
         assert_err_eq!(
             i128::deserialize(deserializer),
@@ -999,12 +916,11 @@ mod tests {
 
     #[test]
     fn i128_invalid_value_positive() {
-        let deserializer = Deserializer::new(
-            vec!["170141183460469231731687303715884105728"],
-            Shape::Primitive {
-                name: "i128".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value(
+                "170141183460469231731687303715884105728".into(),
+            )],
+        });
 
         assert_err_eq!(
             i128::deserialize(deserializer),
@@ -1017,12 +933,11 @@ mod tests {
 
     #[test]
     fn i128_invalid_value_negative() {
-        let deserializer = Deserializer::new(
-            vec!["-170141183460469231731687303715884105729"],
-            Shape::Primitive {
-                name: "i128".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value(
+                "-170141183460469231731687303715884105729".into(),
+            )],
+        });
 
         assert_err_eq!(
             i128::deserialize(deserializer),
@@ -1035,24 +950,18 @@ mod tests {
 
     #[test]
     fn u8() {
-        let deserializer = Deserializer::new(
-            vec!["42"],
-            Shape::Primitive {
-                name: "u8".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("42".into())],
+        });
 
         assert_ok_eq!(u8::deserialize(deserializer), 42);
     }
 
     #[test]
     fn u8_invalid_type() {
-        let deserializer = Deserializer::new(
-            vec!["a"],
-            Shape::Primitive {
-                name: "u8".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("a".into())],
+        });
 
         assert_err_eq!(
             u8::deserialize(deserializer),
@@ -1065,12 +974,11 @@ mod tests {
 
     #[test]
     fn u8_invalid_type_not_utf8() {
-        let deserializer = Deserializer::new(
-            vec![unsafe { OsString::from_encoded_bytes_unchecked(vec![255]) }],
-            Shape::Primitive {
-                name: "u8".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value(unsafe {
+                OsString::from_encoded_bytes_unchecked(vec![255])
+            })],
+        });
 
         assert_err_eq!(
             u8::deserialize(deserializer),
@@ -1083,12 +991,9 @@ mod tests {
 
     #[test]
     fn u8_invalid_value_positive() {
-        let deserializer = Deserializer::new(
-            vec!["256"],
-            Shape::Primitive {
-                name: "u8".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("256".into())],
+        });
 
         assert_err_eq!(
             u8::deserialize(deserializer),
@@ -1101,12 +1006,9 @@ mod tests {
 
     #[test]
     fn u8_invalid_value_negative() {
-        let deserializer = Deserializer::new(
-            vec!["-1"],
-            Shape::Primitive {
-                name: "u8".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("-1".into())],
+        });
 
         assert_err_eq!(
             u8::deserialize(deserializer),
@@ -1119,12 +1021,9 @@ mod tests {
 
     #[test]
     fn u8_invalid_value_out_of_u64_range() {
-        let deserializer = Deserializer::new(
-            vec!["18446744073709551616"],
-            Shape::Primitive {
-                name: "u8".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("18446744073709551616".into())],
+        });
 
         assert_err_eq!(
             u8::deserialize(deserializer),
@@ -1137,24 +1036,18 @@ mod tests {
 
     #[test]
     fn u16() {
-        let deserializer = Deserializer::new(
-            vec!["42"],
-            Shape::Primitive {
-                name: "u16".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("42".into())],
+        });
 
         assert_ok_eq!(u16::deserialize(deserializer), 42);
     }
 
     #[test]
     fn u16_invalid_type() {
-        let deserializer = Deserializer::new(
-            vec!["a"],
-            Shape::Primitive {
-                name: "u16".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("a".into())],
+        });
 
         assert_err_eq!(
             u16::deserialize(deserializer),
@@ -1167,12 +1060,11 @@ mod tests {
 
     #[test]
     fn u16_invalid_type_not_utf8() {
-        let deserializer = Deserializer::new(
-            vec![unsafe { OsString::from_encoded_bytes_unchecked(vec![255]) }],
-            Shape::Primitive {
-                name: "u16".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value(unsafe {
+                OsString::from_encoded_bytes_unchecked(vec![255])
+            })],
+        });
 
         assert_err_eq!(
             u16::deserialize(deserializer),
@@ -1185,12 +1077,9 @@ mod tests {
 
     #[test]
     fn u16_invalid_value_positive() {
-        let deserializer = Deserializer::new(
-            vec!["65536"],
-            Shape::Primitive {
-                name: "u16".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("65536".into())],
+        });
 
         assert_err_eq!(
             u16::deserialize(deserializer),
@@ -1203,12 +1092,9 @@ mod tests {
 
     #[test]
     fn u16_invalid_value_negative() {
-        let deserializer = Deserializer::new(
-            vec!["-1"],
-            Shape::Primitive {
-                name: "u16".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("-1".into())],
+        });
 
         assert_err_eq!(
             u16::deserialize(deserializer),
@@ -1221,12 +1107,9 @@ mod tests {
 
     #[test]
     fn u16_invalid_value_out_of_u64_range() {
-        let deserializer = Deserializer::new(
-            vec!["18446744073709551616"],
-            Shape::Primitive {
-                name: "u16".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("18446744073709551616".into())],
+        });
 
         assert_err_eq!(
             u16::deserialize(deserializer),
@@ -1239,24 +1122,18 @@ mod tests {
 
     #[test]
     fn u32() {
-        let deserializer = Deserializer::new(
-            vec!["42"],
-            Shape::Primitive {
-                name: "u32".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("42".into())],
+        });
 
         assert_ok_eq!(u32::deserialize(deserializer), 42);
     }
 
     #[test]
     fn u32_invalid_type() {
-        let deserializer = Deserializer::new(
-            vec!["a"],
-            Shape::Primitive {
-                name: "u32".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("a".into())],
+        });
 
         assert_err_eq!(
             u32::deserialize(deserializer),
@@ -1269,12 +1146,11 @@ mod tests {
 
     #[test]
     fn u32_invalid_type_not_utf8() {
-        let deserializer = Deserializer::new(
-            vec![unsafe { OsString::from_encoded_bytes_unchecked(vec![255]) }],
-            Shape::Primitive {
-                name: "u32".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value(unsafe {
+                OsString::from_encoded_bytes_unchecked(vec![255])
+            })],
+        });
 
         assert_err_eq!(
             u32::deserialize(deserializer),
@@ -1287,12 +1163,9 @@ mod tests {
 
     #[test]
     fn u32_invalid_value_positive() {
-        let deserializer = Deserializer::new(
-            vec!["4294967296"],
-            Shape::Primitive {
-                name: "u32".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("4294967296".into())],
+        });
 
         assert_err_eq!(
             u32::deserialize(deserializer),
@@ -1305,12 +1178,9 @@ mod tests {
 
     #[test]
     fn u32_invalid_value_negative() {
-        let deserializer = Deserializer::new(
-            vec!["-1"],
-            Shape::Primitive {
-                name: "u32".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("-1".into())],
+        });
 
         assert_err_eq!(
             u32::deserialize(deserializer),
@@ -1323,12 +1193,9 @@ mod tests {
 
     #[test]
     fn u32_invalid_value_out_of_u64_range() {
-        let deserializer = Deserializer::new(
-            vec!["18446744073709551616"],
-            Shape::Primitive {
-                name: "u32".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("18446744073709551616".into())],
+        });
 
         assert_err_eq!(
             u32::deserialize(deserializer),
@@ -1341,24 +1208,18 @@ mod tests {
 
     #[test]
     fn u64() {
-        let deserializer = Deserializer::new(
-            vec!["42"],
-            Shape::Primitive {
-                name: "u64".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("42".into())],
+        });
 
         assert_ok_eq!(u64::deserialize(deserializer), 42);
     }
 
     #[test]
     fn u64_invalid_type() {
-        let deserializer = Deserializer::new(
-            vec!["a"],
-            Shape::Primitive {
-                name: "u64".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("a".into())],
+        });
 
         assert_err_eq!(
             u64::deserialize(deserializer),
@@ -1371,12 +1232,11 @@ mod tests {
 
     #[test]
     fn u64_invalid_type_not_utf8() {
-        let deserializer = Deserializer::new(
-            vec![unsafe { OsString::from_encoded_bytes_unchecked(vec![255]) }],
-            Shape::Primitive {
-                name: "u64".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value(unsafe {
+                OsString::from_encoded_bytes_unchecked(vec![255])
+            })],
+        });
 
         assert_err_eq!(
             u64::deserialize(deserializer),
@@ -1389,12 +1249,9 @@ mod tests {
 
     #[test]
     fn u64_invalid_value_positive() {
-        let deserializer = Deserializer::new(
-            vec!["18446744073709551616"],
-            Shape::Primitive {
-                name: "u64".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("18446744073709551616".into())],
+        });
 
         assert_err_eq!(
             u64::deserialize(deserializer),
@@ -1407,12 +1264,9 @@ mod tests {
 
     #[test]
     fn u64_invalid_value_negative() {
-        let deserializer = Deserializer::new(
-            vec!["-1"],
-            Shape::Primitive {
-                name: "u64".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("-1".into())],
+        });
 
         assert_err_eq!(
             u64::deserialize(deserializer),
@@ -1425,24 +1279,18 @@ mod tests {
 
     #[test]
     fn u128() {
-        let deserializer = Deserializer::new(
-            vec!["42"],
-            Shape::Primitive {
-                name: "u128".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("42".into())],
+        });
 
         assert_ok_eq!(u128::deserialize(deserializer), 42);
     }
 
     #[test]
     fn u128_invalid_type() {
-        let deserializer = Deserializer::new(
-            vec!["a"],
-            Shape::Primitive {
-                name: "u128".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("a".into())],
+        });
 
         assert_err_eq!(
             u128::deserialize(deserializer),
@@ -1455,12 +1303,11 @@ mod tests {
 
     #[test]
     fn u128_invalid_type_not_utf8() {
-        let deserializer = Deserializer::new(
-            vec![unsafe { OsString::from_encoded_bytes_unchecked(vec![255]) }],
-            Shape::Primitive {
-                name: "u128".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value(unsafe {
+                OsString::from_encoded_bytes_unchecked(vec![255])
+            })],
+        });
 
         assert_err_eq!(
             u128::deserialize(deserializer),
@@ -1473,12 +1320,11 @@ mod tests {
 
     #[test]
     fn u128_invalid_value_positive() {
-        let deserializer = Deserializer::new(
-            vec!["340282366920938463463374607431768211456"],
-            Shape::Primitive {
-                name: "u128".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value(
+                "340282366920938463463374607431768211456".into(),
+            )],
+        });
 
         assert_err_eq!(
             u128::deserialize(deserializer),
@@ -1491,12 +1337,9 @@ mod tests {
 
     #[test]
     fn u128_invalid_value_negative() {
-        let deserializer = Deserializer::new(
-            vec!["-1"],
-            Shape::Primitive {
-                name: "u128".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("-1".into())],
+        });
 
         assert_err_eq!(
             u128::deserialize(deserializer),
@@ -1509,24 +1352,18 @@ mod tests {
 
     #[test]
     fn f32() {
-        let deserializer = Deserializer::new(
-            vec!["42.9"],
-            Shape::Primitive {
-                name: "f32".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("42.9".into())],
+        });
 
         assert_ok_eq!(f32::deserialize(deserializer), 42.9);
     }
 
     #[test]
     fn f32_invalid_type() {
-        let deserializer = Deserializer::new(
-            vec!["a"],
-            Shape::Primitive {
-                name: "f32".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("a".into())],
+        });
 
         assert_err_eq!(
             f32::deserialize(deserializer),
@@ -1539,12 +1376,11 @@ mod tests {
 
     #[test]
     fn f32_invalid_type_not_utf8() {
-        let deserializer = Deserializer::new(
-            vec![unsafe { OsString::from_encoded_bytes_unchecked(vec![255]) }],
-            Shape::Primitive {
-                name: "f32".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value(unsafe {
+                OsString::from_encoded_bytes_unchecked(vec![255])
+            })],
+        });
 
         assert_err_eq!(
             f32::deserialize(deserializer),
@@ -1557,24 +1393,18 @@ mod tests {
 
     #[test]
     fn f64() {
-        let deserializer = Deserializer::new(
-            vec!["42.9"],
-            Shape::Primitive {
-                name: "f64".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("42.9".into())],
+        });
 
         assert_ok_eq!(f64::deserialize(deserializer), 42.9);
     }
 
     #[test]
     fn f64_invalid_type() {
-        let deserializer = Deserializer::new(
-            vec!["a"],
-            Shape::Primitive {
-                name: "f64".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("a".into())],
+        });
 
         assert_err_eq!(
             f64::deserialize(deserializer),
@@ -1587,12 +1417,11 @@ mod tests {
 
     #[test]
     fn f64_invalid_type_not_utf8() {
-        let deserializer = Deserializer::new(
-            vec![unsafe { OsString::from_encoded_bytes_unchecked(vec![255]) }],
-            Shape::Primitive {
-                name: "f64".to_owned(),
-            },
-        );
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value(unsafe {
+                OsString::from_encoded_bytes_unchecked(vec![255])
+            })],
+        });
 
         assert_err_eq!(
             f64::deserialize(deserializer),

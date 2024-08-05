@@ -2,8 +2,11 @@ use crate::trace::{Field, Shape};
 use std::{
     collections::{HashMap, HashSet},
     ffi::OsString,
+    fmt,
+    fmt::{Display, Formatter},
     iter,
     iter::Peekable,
+    vec,
 };
 
 #[derive(Debug, Eq, PartialEq)]
@@ -16,6 +19,12 @@ pub(crate) enum Error {
     EndOfArgs,
 }
 
+impl Display for Error {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        todo!()
+    }
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) enum Segment {
     Identifier(&'static str),
@@ -25,7 +34,30 @@ pub(crate) enum Segment {
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct Context {
-    segments: Vec<Segment>,
+    pub(crate) segments: Vec<Segment>,
+}
+
+impl IntoIterator for Context {
+    type IntoIter = ContextIter;
+    type Item = Segment;
+
+    fn into_iter(self) -> Self::IntoIter {
+        ContextIter {
+            segments: self.segments.into_iter(),
+        }
+    }
+}
+
+pub(crate) struct ContextIter {
+    segments: vec::IntoIter<Segment>,
+}
+
+impl Iterator for ContextIter {
+    type Item = Segment;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.segments.next()
+    }
 }
 
 enum Token {
