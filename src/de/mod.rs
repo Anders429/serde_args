@@ -452,13 +452,13 @@ impl<'de> de::Deserializer<'de> for Deserializer {
 
     fn deserialize_newtype_struct<V>(
         self,
-        name: &'static str,
+        _name: &'static str,
         visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        todo!()
+        visitor.visit_newtype_struct(self)
     }
 
     fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -1610,5 +1610,17 @@ mod tests {
         let deserializer = Deserializer::new(Context { segments: vec![] });
 
         assert_ok_eq!(Unit::deserialize(deserializer), Unit);
+    }
+
+    #[test]
+    fn newtype_struct() {
+        #[derive(Debug, Deserialize, Eq, PartialEq)]
+        struct Newtype(u64);
+
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("42".into())],
+        });
+
+        assert_ok_eq!(Newtype::deserialize(deserializer), Newtype(42));
     }
 }
