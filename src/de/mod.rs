@@ -397,18 +397,21 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         self.deserialize_str(visitor)
     }
 
-    fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_bytes<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        todo!()
+        match self.context.next() {
+            Some(Segment::Value(bytes)) => visitor.visit_bytes(&bytes),
+            _ => unreachable!(),
+        }
     }
 
     fn deserialize_byte_buf<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        todo!()
+        self.deserialize_bytes(visitor)
     }
 
     fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -1519,5 +1522,75 @@ mod tests {
                 "a string".to_owned()
             ))
         );
+    }
+
+    #[test]
+    fn bytes() {
+        #[derive(Debug, Eq, PartialEq)]
+        struct Bytes(Vec<u8>);
+
+        impl<'de> Deserialize<'de> for Bytes {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct BytesVisitor;
+
+                impl<'de> Visitor<'de> for BytesVisitor {
+                    type Value = Bytes;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        formatter.write_str("bytes")
+                    }
+
+                    fn visit_bytes<E>(self, bytes: &[u8]) -> Result<Self::Value, E> {
+                        Ok(Bytes(bytes.to_vec()))
+                    }
+                }
+
+                deserializer.deserialize_bytes(BytesVisitor)
+            }
+        }
+
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("foo".into())],
+        });
+
+        assert_ok_eq!(Bytes::deserialize(deserializer), Bytes("foo".into()));
+    }
+
+    #[test]
+    fn bytes_non_utf8() {
+        #[derive(Debug, Eq, PartialEq)]
+        struct Bytes(Vec<u8>);
+
+        impl<'de> Deserialize<'de> for Bytes {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct BytesVisitor;
+
+                impl<'de> Visitor<'de> for BytesVisitor {
+                    type Value = Bytes;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        formatter.write_str("bytes")
+                    }
+
+                    fn visit_bytes<E>(self, bytes: &[u8]) -> Result<Self::Value, E> {
+                        Ok(Bytes(bytes.to_vec()))
+                    }
+                }
+
+                deserializer.deserialize_bytes(BytesVisitor)
+            }
+        }
+
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value(vec![255])],
+        });
+
+        assert_ok_eq!(Bytes::deserialize(deserializer), Bytes(vec![255]));
     }
 }
