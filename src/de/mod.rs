@@ -443,11 +443,17 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     // Compound types
     // --------------
 
-    fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_option<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        todo!()
+        // If there is a value, there will be a context with the contained elements.
+        // If there is not a value, there will be no context. This can only happen at the end of a context anyway, since structs handle their options differently.
+        match self.context.next() {
+            Some(Segment::Context(context)) => visitor.visit_some(Deserializer::new(context)),
+            Some(_) => unreachable!(),
+            None => visitor.visit_none(),
+        }
     }
 
     fn deserialize_newtype_struct<V>(
@@ -1622,5 +1628,39 @@ mod tests {
         });
 
         assert_ok_eq!(Newtype::deserialize(deserializer), Newtype(42));
+    }
+
+    #[test]
+    fn option_unit_some() {
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Context(Context { segments: vec![] })],
+        });
+
+        assert_ok_eq!(Option::<()>::deserialize(deserializer), Some(()));
+    }
+
+    #[test]
+    fn option_unit_none() {
+        let deserializer = Deserializer::new(Context { segments: vec![] });
+
+        assert_ok_eq!(Option::<()>::deserialize(deserializer), None);
+    }
+
+    #[test]
+    fn option_primitive_some() {
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Context(Context {
+                segments: vec![Segment::Value("42".into())],
+            })],
+        });
+
+        assert_ok_eq!(Option::<u64>::deserialize(deserializer), Some(42));
+    }
+
+    #[test]
+    fn option_primitive_none() {
+        let deserializer = Deserializer::new(Context { segments: vec![] });
+
+        assert_ok_eq!(Option::<u64>::deserialize(deserializer), None);
     }
 }
