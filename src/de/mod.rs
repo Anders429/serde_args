@@ -2002,20 +2002,10 @@ mod tests {
                 segments: vec![
                     Segment::Identifier("Struct"),
                     Segment::Context(Context {
-                        segments: vec![
-                            Segment::Context(Context {
-                                segments: vec![
-                                    Segment::Identifier("baz"),
-                                    Segment::Value("1".into()),
-                                ],
-                            }),
-                            Segment::Context(Context {
-                                segments: vec![
-                                    Segment::Identifier("foo"),
-                                    Segment::Value("2".into()),
-                                ],
-                            }),
-                        ],
+                        segments: vec![Segment::Identifier("baz"), Segment::Value("1".into())],
+                    }),
+                    Segment::Context(Context {
+                        segments: vec![Segment::Identifier("foo"), Segment::Value("2".into())],
                     }),
                 ],
             })],
