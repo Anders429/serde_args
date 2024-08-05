@@ -49,6 +49,7 @@ impl IntoIterator for Context {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct ContextIter {
     segments: vec::IntoIter<Segment>,
     revisit: Option<Segment>,
@@ -110,15 +111,12 @@ where
                         if short_token.len() > 4 {
                             Some(Token::Positional(token))
                         } else {
-                            let mut short_token_iter = short_token.into_iter().copied();
-                            let bytes = [
-                                short_token_iter.next().unwrap_or(0),
-                                short_token_iter.next().unwrap_or(0),
-                                short_token_iter.next().unwrap_or(0),
-                                short_token_iter.next().unwrap_or(0),
-                            ];
-                            if char::from_u32(u32::from_be_bytes(bytes)).is_some() {
-                                Some(Token::Optional(short_token.to_vec()))
+                            if let Ok(short_token_str) = str::from_utf8(short_token) {
+                                if short_token_str.chars().count() == 1 {
+                                    Some(Token::Optional(short_token.to_vec()))
+                                } else {
+                                    Some(Token::Positional(token))
+                                }
                             } else {
                                 Some(Token::Positional(token))
                             }

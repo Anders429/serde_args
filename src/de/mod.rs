@@ -561,6 +561,7 @@ impl<'de> de::Deserializer<'de> for KeyDeserializer {
     }
 }
 
+#[derive(Debug)]
 struct StructAccess {
     struct_context: ContextIter,
     field_context: Option<ContextIter>,
@@ -585,7 +586,9 @@ impl<'de> MapAccess<'de> for StructAccess {
                     _ => unreachable!(),
                 }
             }
-            Some(_) => unreachable!(),
+            Some(segment) => {
+                unreachable!()
+            }
             None => Ok(None),
         }
     }
@@ -604,6 +607,7 @@ impl<'de> MapAccess<'de> for StructAccess {
     }
 }
 
+#[derive(Debug)]
 struct EnumAccess {
     context: ContextIter,
 }
@@ -630,11 +634,18 @@ impl<'de> de::EnumAccess<'de> for EnumAccess {
                     _ => unreachable!(),
                 }
             }
+            Some(Segment::Identifier(variant)) => Ok((
+                seed.deserialize(KeyDeserializer { key: variant })?,
+                VariantAccess {
+                    context: self.context,
+                },
+            )),
             _ => unreachable!(),
         }
     }
 }
 
+#[derive(Debug)]
 struct VariantAccess {
     context: ContextIter,
 }
@@ -670,12 +681,10 @@ impl<'de> de::VariantAccess<'de> for VariantAccess {
     where
         V: Visitor<'de>,
     {
-        match self.context.next() {
-            Some(Segment::Context(struct_context)) => {
-                Deserializer::new(struct_context).deserialize_struct("", fields, visitor)
-            }
-            _ => unreachable!(),
+        Deserializer {
+            context: self.context,
         }
+        .deserialize_struct("", fields, visitor)
     }
 }
 

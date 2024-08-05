@@ -448,7 +448,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         visitor.visit_some(self).map_err(|trace| {
             Trace(trace.0.map(|status| match status {
-                Status::Continue => todo!(),
+                Status::Continue => Status::Continue,
                 Status::Success(shape) => Status::Success(Shape::Optional(Box::new(shape))),
             }))
         })
