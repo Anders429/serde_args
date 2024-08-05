@@ -44,19 +44,27 @@ impl IntoIterator for Context {
     fn into_iter(self) -> Self::IntoIter {
         ContextIter {
             segments: self.segments.into_iter(),
+            revisit: None,
         }
     }
 }
 
 pub(crate) struct ContextIter {
     segments: vec::IntoIter<Segment>,
+    revisit: Option<Segment>,
+}
+
+impl ContextIter {
+    pub(crate) fn revisit(&mut self, segment: Segment) {
+        self.revisit = Some(segment);
+    }
 }
 
 impl Iterator for ContextIter {
     type Item = Segment;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.segments.next()
+        self.revisit.take().or_else(|| self.segments.next())
     }
 }
 
@@ -243,61 +251,33 @@ where
             // While the current context cannot have options, the nested context can.
             let mut end_of_options = false;
             for required_field in required.iter_mut() {
+                let mut inner_context = Context {
+                    segments: vec![Segment::Identifier(required_field.name)],
+                };
                 if end_of_options {
-                    match required_field.shape {
-                        Shape::Struct { .. } | Shape::Enum { .. } => {
-                            let mut inner_context = Context { segments: vec![] };
-                            context
-                                .segments
-                                .push(Segment::Context(parse_context_no_options(
-                                    args,
-                                    &mut required_field.shape,
-                                    inner_context,
-                                )?));
-                        }
-                        Shape::Primitive { .. } | Shape::Empty => {
-                            context =
-                                parse_context_no_options(args, &mut required_field.shape, context)?;
-                        }
-                        Shape::Optional(_) | Shape::Variant { .. } => unreachable!(),
-                    }
+                    context
+                        .segments
+                        .push(Segment::Context(parse_context_no_options(
+                            args,
+                            &mut required_field.shape,
+                            inner_context,
+                        )?));
                 } else {
-                    let parsed_options = match required_field.shape {
-                        Shape::Struct { .. } | Shape::Enum { .. } => {
-                            let mut inner_context = Context { segments: vec![] };
-                            let parsed_context = parse_context(
-                                args,
-                                &mut required_field.shape,
-                                &mut optional
-                                    .clone()
-                                    .into_iter()
-                                    .map(|option| (option, false))
-                                    .collect(),
-                                inner_context,
-                            )?;
-                            context
-                                .segments
-                                .push(Segment::Context(parsed_context.context));
-                            end_of_options = parsed_context.closing_end_of_options;
-                            parsed_context.options
-                        }
-                        Shape::Primitive { .. } | Shape::Empty => {
-                            let parsed_context = parse_context(
-                                args,
-                                &mut required_field.shape,
-                                &mut optional
-                                    .clone()
-                                    .into_iter()
-                                    .map(|option| (option, false))
-                                    .collect(),
-                                context,
-                            )?;
-                            context = parsed_context.context;
-                            end_of_options = parsed_context.closing_end_of_options;
-                            parsed_context.options
-                        }
-                        Shape::Optional(_) | Shape::Variant { .. } => unreachable!(),
-                    };
+                    let parsed_context = parse_context(
+                        args,
+                        &mut required_field.shape,
+                        &mut optional
+                            .clone()
+                            .into_iter()
+                            .map(|option| (option, false))
+                            .collect(),
+                        inner_context,
+                    )?;
+                    context
+                        .segments
+                        .push(Segment::Context(parsed_context.context));
+                    end_of_options = parsed_context.closing_end_of_options;
+                    let parsed_options = parsed_context.options;
                     for (optional_name, optional_context) in parsed_options {
                         let mut found = false;
                         // Find whether the optional name is in this struct.
@@ -552,53 +532,29 @@ where
             let mut combined_options = options.clone();
             combined_options.extend(optional.clone().into_iter().map(|option| (option, false)));
             for required_field in required.iter_mut() {
+                let mut inner_context = Context {
+                    segments: vec![Segment::Identifier(required_field.name)],
+                };
                 if end_of_options {
-                    match required_field.shape {
-                        Shape::Struct { .. } | Shape::Enum { .. } => {
-                            let mut inner_context = Context { segments: vec![] };
-                            context
-                                .segments
-                                .push(Segment::Context(parse_context_no_options(
-                                    args,
-                                    &mut required_field.shape,
-                                    inner_context,
-                                )?));
-                        }
-                        Shape::Primitive { .. } | Shape::Empty => {
-                            context =
-                                parse_context_no_options(args, &mut required_field.shape, context)?;
-                        }
-                        Shape::Optional(_) | Shape::Variant { .. } => unreachable!(),
-                    }
+                    context
+                        .segments
+                        .push(Segment::Context(parse_context_no_options(
+                            args,
+                            &mut required_field.shape,
+                            inner_context,
+                        )?));
                 } else {
-                    let found_parsed_options = match required_field.shape {
-                        Shape::Struct { .. } | Shape::Enum { .. } => {
-                            let mut inner_context = Context { segments: vec![] };
-                            let parsed_context = parse_context(
-                                args,
-                                &mut required_field.shape,
-                                &mut combined_options,
-                                inner_context,
-                            )?;
-                            context
-                                .segments
-                                .push(Segment::Context(parsed_context.context));
-                            end_of_options = parsed_context.closing_end_of_options;
-                            parsed_context.options
-                        }
-                        Shape::Primitive { .. } | Shape::Empty => {
-                            let parsed_context = parse_context(
-                                args,
-                                &mut required_field.shape,
-                                &mut combined_options,
-                                context,
-                            )?;
-                            context = parsed_context.context;
-                            end_of_options = parsed_context.closing_end_of_options;
-                            parsed_context.options
-                        }
-                        Shape::Optional(_) | Shape::Variant { .. } => unreachable!(),
-                    };
+                    let parsed_context = parse_context(
+                        args,
+                        &mut required_field.shape,
+                        &mut combined_options,
+                        inner_context,
+                    )?;
+                    context
+                        .segments
+                        .push(Segment::Context(parsed_context.context));
+                    end_of_options = parsed_context.closing_end_of_options;
+                    let found_parsed_options = parsed_context.options;
                     'outer: for (optional_name, optional_context) in found_parsed_options {
                         let mut found = false;
                         // Find whether the optional name is in this struct.
@@ -860,7 +816,9 @@ mod tests {
                 }
             ),
             Context {
-                segments: vec![Segment::Value("foo".into()),]
+                segments: vec![Segment::Context(Context {
+                    segments: vec![Segment::Identifier("bar"), Segment::Value("foo".into())],
+                }),]
             }
         );
     }
@@ -891,7 +849,14 @@ mod tests {
                 }
             ),
             Context {
-                segments: vec![Segment::Value("foo".into()), Segment::Value("bar".into()),]
+                segments: vec![
+                    Segment::Context(Context {
+                        segments: vec![Segment::Identifier("baz"), Segment::Value("foo".into())],
+                    }),
+                    Segment::Context(Context {
+                        segments: vec![Segment::Identifier("qux"), Segment::Value("bar".into())],
+                    }),
+                ]
             }
         );
     }
@@ -1033,8 +998,12 @@ mod tests {
             ),
             Context {
                 segments: vec![
-                    Segment::Value("123".into()),
-                    Segment::Value("456".into()),
+                    Segment::Context(Context {
+                        segments: vec![Segment::Identifier("foo"), Segment::Value("123".into())],
+                    }),
+                    Segment::Context(Context {
+                        segments: vec![Segment::Identifier("quux"), Segment::Value("456".into())],
+                    }),
                     Segment::Context(Context {
                         segments: vec![Segment::Identifier("bar"), Segment::Value("foo".into())],
                     }),
@@ -1103,7 +1072,13 @@ mod tests {
                 segments: vec![
                     Segment::Context(Context {
                         segments: vec![
-                            Segment::Value("123".into()),
+                            Segment::Identifier("inner_struct"),
+                            Segment::Context(Context {
+                                segments: vec![
+                                    Segment::Identifier("foo"),
+                                    Segment::Value("123".into())
+                                ],
+                            }),
                             Segment::Context(Context {
                                 segments: vec![
                                     Segment::Identifier("bar"),
@@ -1115,7 +1090,9 @@ mod tests {
                     Segment::Context(Context {
                         segments: vec![Segment::Identifier("qux"), Segment::Value("789".into()),],
                     }),
-                    Segment::Value("456".into()),
+                    Segment::Context(Context {
+                        segments: vec![Segment::Identifier("quux"), Segment::Value("456".into())],
+                    }),
                 ]
             }
         );

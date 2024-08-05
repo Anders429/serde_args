@@ -8,7 +8,8 @@ use crate::{
 };
 use serde::{
     de,
-    de::{Error as _, Unexpected, Visitor},
+    de::{DeserializeSeed, Error as _, MapAccess, Unexpected, Visitor},
+    forward_to_deserialize_any,
 };
 use std::{
     env::ArgsOs,
@@ -447,11 +448,13 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     where
         V: Visitor<'de>,
     {
-        // If there is a value, there will be a context with the contained elements.
-        // If there is not a value, there will be no context. This can only happen at the end of a context anyway, since structs handle their options differently.
         match self.context.next() {
             Some(Segment::Context(context)) => visitor.visit_some(Deserializer::new(context)),
-            Some(_) => unreachable!(),
+            Some(segment) => {
+                // We will hit this when deserializing structs.
+                self.context.revisit(segment);
+                visitor.visit_some(self)
+            }
             None => visitor.visit_none(),
         }
     }
@@ -509,7 +512,10 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     where
         V: Visitor<'de>,
     {
-        todo!()
+        visitor.visit_map(StructAccess {
+            struct_context: self.context,
+            field_context: None,
+        })
     }
 
     fn deserialize_enum<V>(
@@ -522,6 +528,77 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         V: Visitor<'de>,
     {
         todo!()
+    }
+}
+
+struct KeyDeserializer {
+    key: &'static str,
+}
+
+impl<'de> de::Deserializer<'de> for KeyDeserializer {
+    type Error = Error;
+
+    fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        unreachable!()
+    }
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
+        bytes byte_buf option unit unit_struct newtype_struct seq tuple
+        tuple_struct map struct enum ignored_any
+    }
+
+    fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        visitor.visit_str(self.key)
+    }
+}
+
+struct StructAccess {
+    struct_context: ContextIter,
+    field_context: Option<ContextIter>,
+}
+
+impl<'de> MapAccess<'de> for StructAccess {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
+    where
+        K: DeserializeSeed<'de>,
+    {
+        match self.struct_context.next() {
+            Some(Segment::Context(context)) => {
+                let mut field_context = context.into_iter();
+                // Extract the identifier, which should always be the first element for this type of context.
+                match field_context.next() {
+                    Some(Segment::Identifier(field)) => {
+                        self.field_context = Some(field_context);
+                        Ok(Some(seed.deserialize(KeyDeserializer { key: field })?))
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            Some(_) => unreachable!(),
+            None => Ok(None),
+        }
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Self::Error>
+    where
+        V: DeserializeSeed<'de>,
+    {
+        if let Some(field_context) = self.field_context.take() {
+            seed.deserialize(Deserializer {
+                context: field_context,
+            })
+        } else {
+            unreachable!()
+        }
     }
 }
 
@@ -538,7 +615,7 @@ mod tests {
     use claims::{assert_err_eq, assert_ok_eq};
     use serde::{
         de,
-        de::{Deserialize, IgnoredAny, Unexpected, Visitor},
+        de::{Deserialize, Error as _, IgnoredAny, Unexpected, Visitor},
     };
     use serde_derive::Deserialize;
     use std::{
@@ -1700,5 +1777,94 @@ mod tests {
         let deserializer = Deserializer::new(Context { segments: vec![] });
 
         assert_ok_eq!(Option::<u64>::deserialize(deserializer), None);
+    }
+
+    #[test]
+    fn struct_with_required_field() {
+        #[derive(Debug, Deserialize, PartialEq, Eq)]
+        struct Struct {
+            foo: usize,
+        }
+
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Context(Context {
+                segments: vec![Segment::Identifier("foo"), Segment::Value("42".into())],
+            })],
+        });
+
+        assert_ok_eq!(Struct::deserialize(deserializer), Struct { foo: 42 });
+    }
+
+    #[test]
+    fn struct_with_optional_field_present() {
+        #[derive(Debug, Deserialize, PartialEq, Eq)]
+        struct Struct {
+            foo: Option<usize>,
+        }
+
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Context(Context {
+                segments: vec![Segment::Identifier("foo"), Segment::Value("42".into())],
+            })],
+        });
+
+        assert_ok_eq!(Struct::deserialize(deserializer), Struct { foo: Some(42) });
+    }
+
+    #[test]
+    fn struct_with_optional_field_absent() {
+        #[derive(Debug, Deserialize, PartialEq, Eq)]
+        struct Struct {
+            foo: Option<usize>,
+        }
+
+        let deserializer = Deserializer::new(Context { segments: vec![] });
+
+        assert_ok_eq!(Struct::deserialize(deserializer), Struct { foo: None });
+    }
+
+    #[test]
+    fn struct_with_mixed_fields() {
+        #[derive(Debug, Deserialize, PartialEq, Eq)]
+        struct Struct {
+            foo: usize,
+            bar: Option<usize>,
+            baz: Option<usize>,
+        }
+
+        let deserializer = Deserializer::new(Context {
+            segments: vec![
+                Segment::Context(Context {
+                    segments: vec![Segment::Identifier("baz"), Segment::Value("1".into())],
+                }),
+                Segment::Context(Context {
+                    segments: vec![Segment::Identifier("foo"), Segment::Value("2".into())],
+                }),
+            ],
+        });
+
+        assert_ok_eq!(
+            Struct::deserialize(deserializer),
+            Struct {
+                foo: 2,
+                bar: None,
+                baz: Some(1)
+            }
+        );
+    }
+
+    #[test]
+    fn struct_missing_required_field() {
+        #[derive(Debug, Deserialize, PartialEq, Eq)]
+        struct Struct {
+            foo: usize,
+        }
+
+        let deserializer = Deserializer::new(Context { segments: vec![] });
+
+        assert_err_eq!(
+            Struct::deserialize(deserializer),
+            Error::missing_field("foo")
+        );
     }
 }
