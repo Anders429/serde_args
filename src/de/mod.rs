@@ -418,7 +418,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     where
         V: Visitor<'de>,
     {
-        todo!()
+        self.deserialize_bytes(visitor)
     }
 
     fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -1599,6 +1599,44 @@ mod tests {
         });
 
         assert_ok_eq!(Bytes::deserialize(deserializer), Bytes(vec![255]));
+    }
+
+    #[test]
+    fn identifier() {
+        #[derive(Debug, Eq, PartialEq)]
+        struct Identifier(Vec<u8>);
+
+        impl<'de> Deserialize<'de> for Identifier {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct IdentifierVisitor;
+
+                impl<'de> Visitor<'de> for IdentifierVisitor {
+                    type Value = Identifier;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        formatter.write_str("identifier")
+                    }
+
+                    fn visit_bytes<E>(self, bytes: &[u8]) -> Result<Self::Value, E> {
+                        Ok(Identifier(bytes.to_vec()))
+                    }
+                }
+
+                deserializer.deserialize_identifier(IdentifierVisitor)
+            }
+        }
+
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("foo".into())],
+        });
+
+        assert_ok_eq!(
+            Identifier::deserialize(deserializer),
+            Identifier("foo".into())
+        );
     }
 
     #[test]
