@@ -8,7 +8,7 @@ use crate::{
 };
 use serde::{
     de,
-    de::{DeserializeSeed, Error as _, MapAccess, Unexpected, Visitor},
+    de::{DeserializeSeed, Deserializer as _, Error as _, MapAccess, Unexpected, Visitor},
     forward_to_deserialize_any,
 };
 use std::{
@@ -527,7 +527,9 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     where
         V: Visitor<'de>,
     {
-        todo!()
+        visitor.visit_enum(EnumAccess {
+            context: self.context,
+        })
     }
 }
 
@@ -598,6 +600,81 @@ impl<'de> MapAccess<'de> for StructAccess {
             })
         } else {
             unreachable!()
+        }
+    }
+}
+
+struct EnumAccess {
+    context: ContextIter,
+}
+
+impl<'de> de::EnumAccess<'de> for EnumAccess {
+    type Error = Error;
+    type Variant = VariantAccess;
+
+    fn variant_seed<V>(mut self, seed: V) -> Result<(V::Value, Self::Variant), Self::Error>
+    where
+        V: DeserializeSeed<'de>,
+    {
+        match self.context.next() {
+            Some(Segment::Context(variant_context)) => {
+                let mut variant_context_iter = variant_context.into_iter();
+                // Extract the identifier, which should always be the first eleemnt for this type of context.
+                match variant_context_iter.next() {
+                    Some(Segment::Identifier(variant)) => Ok((
+                        seed.deserialize(KeyDeserializer { key: variant })?,
+                        VariantAccess {
+                            context: variant_context_iter,
+                        },
+                    )),
+                    _ => unreachable!(),
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+}
+
+struct VariantAccess {
+    context: ContextIter,
+}
+
+impl<'de> de::VariantAccess<'de> for VariantAccess {
+    type Error = Error;
+
+    fn unit_variant(self) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value, Self::Error>
+    where
+        T: DeserializeSeed<'de>,
+    {
+        seed.deserialize(Deserializer {
+            context: self.context,
+        })
+    }
+
+    fn tuple_variant<V>(self, _len: usize, _visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        todo!()
+    }
+
+    fn struct_variant<V>(
+        mut self,
+        fields: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        match self.context.next() {
+            Some(Segment::Context(struct_context)) => {
+                Deserializer::new(struct_context).deserialize_struct("", fields, visitor)
+            }
+            _ => unreachable!(),
         }
     }
 }
@@ -1865,6 +1942,102 @@ mod tests {
         assert_err_eq!(
             Struct::deserialize(deserializer),
             Error::missing_field("foo")
+        );
+    }
+
+    #[test]
+    fn enum_unit() {
+        #[derive(Debug, Deserialize, PartialEq, Eq)]
+        enum Enum {
+            Unit,
+        }
+
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Context(Context {
+                segments: vec![Segment::Identifier("Unit")],
+            })],
+        });
+
+        assert_ok_eq!(Enum::deserialize(deserializer), Enum::Unit);
+    }
+
+    #[test]
+    fn enum_newtype() {
+        #[derive(Debug, Deserialize, PartialEq, Eq)]
+        enum Enum {
+            Newtype(u64),
+        }
+
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Context(Context {
+                segments: vec![Segment::Identifier("Newtype"), Segment::Value("42".into())],
+            })],
+        });
+
+        assert_ok_eq!(Enum::deserialize(deserializer), Enum::Newtype(42));
+    }
+
+    #[test]
+    fn enum_struct() {
+        #[derive(Debug, Deserialize, PartialEq, Eq)]
+        enum Enum {
+            Struct {
+                foo: usize,
+                bar: Option<usize>,
+                baz: Option<usize>,
+            },
+        }
+
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Context(Context {
+                segments: vec![
+                    Segment::Identifier("Struct"),
+                    Segment::Context(Context {
+                        segments: vec![
+                            Segment::Context(Context {
+                                segments: vec![
+                                    Segment::Identifier("baz"),
+                                    Segment::Value("1".into()),
+                                ],
+                            }),
+                            Segment::Context(Context {
+                                segments: vec![
+                                    Segment::Identifier("foo"),
+                                    Segment::Value("2".into()),
+                                ],
+                            }),
+                        ],
+                    }),
+                ],
+            })],
+        });
+
+        assert_ok_eq!(
+            Enum::deserialize(deserializer),
+            Enum::Struct {
+                foo: 2,
+                bar: None,
+                baz: Some(1)
+            }
+        );
+    }
+
+    #[test]
+    fn enum_unknown_variant() {
+        #[derive(Debug, Deserialize, PartialEq, Eq)]
+        enum Enum {
+            Unit,
+        }
+
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Context(Context {
+                segments: vec![Segment::Identifier("foo")],
+            })],
+        });
+
+        assert_err_eq!(
+            Enum::deserialize(deserializer),
+            Error::unknown_variant("foo", &["Unit"])
         );
     }
 }
