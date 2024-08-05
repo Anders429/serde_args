@@ -425,7 +425,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     where
         V: Visitor<'de>,
     {
-        todo!()
+        visitor.visit_unit()
     }
 
     fn deserialize_unit_struct<V>(
@@ -436,7 +436,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     where
         V: Visitor<'de>,
     {
-        todo!()
+        visitor.visit_unit()
     }
 
     // --------------
@@ -534,6 +534,7 @@ mod tests {
         de,
         de::{Deserialize, IgnoredAny, Unexpected, Visitor},
     };
+    use serde_derive::Deserialize;
     use std::{
         ffi::OsString,
         fmt,
@@ -1592,5 +1593,22 @@ mod tests {
         });
 
         assert_ok_eq!(Bytes::deserialize(deserializer), Bytes(vec![255]));
+    }
+
+    #[test]
+    fn unit() {
+        let deserializer = Deserializer::new(Context { segments: vec![] });
+
+        assert_ok_eq!(<()>::deserialize(deserializer), ());
+    }
+
+    #[test]
+    fn unit_struct() {
+        #[derive(Debug, Deserialize, Eq, PartialEq)]
+        struct Unit;
+
+        let deserializer = Deserializer::new(Context { segments: vec![] });
+
+        assert_ok_eq!(Unit::deserialize(deserializer), Unit);
     }
 }
