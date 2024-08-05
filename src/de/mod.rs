@@ -349,7 +349,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         match self.context.next() {
             Some(Segment::Value(raw)) => {
                 let value_string = str::from_utf8(&raw).or_else(|_| {
-                    Err(Error::invalid_value(
+                    Err(Error::invalid_type(
                         Unexpected::Other(&String::from_utf8_lossy(&raw)),
                         &visitor,
                     ))
@@ -358,7 +358,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
                 if chars.len() == 1 {
                     visitor.visit_char(chars[0])
                 } else {
-                    Err(Error::invalid_value(
+                    Err(Error::invalid_type(
                         Unexpected::Str(&value_string),
                         &visitor,
                     ))
@@ -370,18 +370,31 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         }
     }
 
-    fn deserialize_str<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_str<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        todo!()
+        match self.context.next() {
+            Some(Segment::Value(raw)) => {
+                let value_string = str::from_utf8(&raw).or_else(|_| {
+                    Err(Error::invalid_type(
+                        Unexpected::Other(&String::from_utf8_lossy(&raw)),
+                        &visitor,
+                    ))
+                })?;
+                visitor.visit_str(value_string)
+            }
+            _ => {
+                unreachable!()
+            }
+        }
     }
 
     fn deserialize_string<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        todo!()
+        self.deserialize_str(visitor)
     }
 
     fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -1447,9 +1460,63 @@ mod tests {
 
         assert_err_eq!(
             char::deserialize(deserializer),
-            Error::Usage(Usage::InvalidValue(
+            Error::Usage(Usage::InvalidType(
                 Unexpected::Other("\u{fffd}").to_string(),
                 "a character".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn char_from_string() {
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("foo".into())],
+        });
+
+        assert_err_eq!(
+            char::deserialize(deserializer),
+            Error::Usage(Usage::InvalidType(
+                Unexpected::Str("foo").to_string(),
+                "a character".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn char_from_empty() {
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("".into())],
+        });
+
+        assert_err_eq!(
+            char::deserialize(deserializer),
+            Error::Usage(Usage::InvalidType(
+                Unexpected::Str("").to_string(),
+                "a character".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn str() {
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("foo".into())],
+        });
+
+        assert_ok_eq!(String::deserialize(deserializer), "foo");
+    }
+
+    #[test]
+    fn str_not_utf8() {
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value(vec![255])],
+        });
+
+        assert_err_eq!(
+            String::deserialize(deserializer),
+            Error::Usage(Usage::InvalidType(
+                Unexpected::Other("\u{fffd}").to_string(),
+                "a string".to_owned()
             ))
         );
     }
