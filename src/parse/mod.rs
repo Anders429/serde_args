@@ -6,7 +6,7 @@ use std::{
     fmt::{Display, Formatter},
     iter,
     iter::Peekable,
-    vec,
+    str, vec,
 };
 
 #[derive(Debug, Eq, PartialEq)]
@@ -28,7 +28,7 @@ impl Display for Error {
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) enum Segment {
     Identifier(&'static str),
-    Value(OsString),
+    Value(Vec<u8>),
     Context(Context),
 }
 
@@ -61,14 +61,14 @@ impl Iterator for ContextIter {
 }
 
 enum Token {
-    Positional(OsString),
-    Optional(OsString),
+    Positional(Vec<u8>),
+    Optional(Vec<u8>),
     EndOfOptions,
 }
 
 struct ParsedArgs<Args> {
     args: Args,
-    revisit: Option<OsString>,
+    revisit: Option<Vec<u8>>,
 }
 
 impl<Args> ParsedArgs<Args> {
@@ -86,40 +86,31 @@ where
 {
     fn next_token(&mut self) -> Option<Token> {
         if let Some(token) = self.next() {
-            let bytes = token.as_encoded_bytes();
-            if let Some(short_bytes) = bytes.strip_prefix(b"-") {
-                if short_bytes.is_empty() {
+            if let Some(short_token) = token.strip_prefix(b"-") {
+                if short_token.is_empty() {
                     // A single `-` is an empty optional token.
-                    Some(Token::Optional(OsString::new()))
+                    Some(Token::Optional(Vec::new()))
                 } else {
-                    if let Some(long_bytes) = short_bytes.strip_prefix(b"-") {
-                        if long_bytes.is_empty() {
+                    if let Some(long_token) = short_token.strip_prefix(b"-") {
+                        if long_token.is_empty() {
                             Some(Token::EndOfOptions)
                         } else {
-                            Some(Token::Optional(unsafe {
-                                OsString::from_encoded_bytes_unchecked(
-                                    token.into_encoded_bytes().get_unchecked(2..).to_vec(),
-                                )
-                            }))
+                            Some(Token::Optional(long_token.to_vec()))
                         }
                     } else {
                         // This is only an option if there is a single character.
-                        if short_bytes.len() > 4 {
+                        if short_token.len() > 4 {
                             Some(Token::Positional(token))
                         } else {
-                            let mut short_bytes_iter = short_bytes.into_iter().copied();
+                            let mut short_token_iter = short_token.into_iter().copied();
                             let bytes = [
-                                short_bytes_iter.next().unwrap_or(0),
-                                short_bytes_iter.next().unwrap_or(0),
-                                short_bytes_iter.next().unwrap_or(0),
-                                short_bytes_iter.next().unwrap_or(0),
+                                short_token_iter.next().unwrap_or(0),
+                                short_token_iter.next().unwrap_or(0),
+                                short_token_iter.next().unwrap_or(0),
+                                short_token_iter.next().unwrap_or(0),
                             ];
                             if char::from_u32(u32::from_be_bytes(bytes)).is_some() {
-                                Some(Token::Optional(unsafe {
-                                    OsString::from_encoded_bytes_unchecked(
-                                        token.into_encoded_bytes().get_unchecked(1..).to_vec(),
-                                    )
-                                }))
+                                Some(Token::Optional(short_token.to_vec()))
                             } else {
                                 Some(Token::Positional(token))
                             }
@@ -134,11 +125,11 @@ where
         }
     }
 
-    fn next_positional(&mut self) -> Option<OsString> {
+    fn next_positional(&mut self) -> Option<Vec<u8>> {
         self.next()
     }
 
-    fn next_optional(&mut self) -> Option<OsString> {
+    fn next_optional(&mut self) -> Option<Vec<u8>> {
         if let Some(token) = self.next_token() {
             match token {
                 Token::Optional(token) => Some(token),
@@ -158,10 +149,12 @@ impl<Args> Iterator for ParsedArgs<Args>
 where
     Args: Iterator<Item = OsString>,
 {
-    type Item = OsString;
+    type Item = Vec<u8>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.revisit.take().or_else(|| self.args.next())
+        self.revisit
+            .take()
+            .or_else(|| self.args.next().map(|os_str| os_str.into_encoded_bytes()))
     }
 }
 
@@ -204,7 +197,7 @@ where
                 | Shape::Struct { .. }
                 | Shape::Enum { .. } => {
                     if let Some(next) = args.next_positional() {
-                        if let Some(next_str) = next.to_str() {
+                        if let Ok(next_str) = str::from_utf8(&next) {
                             match next_str {
                                 "-" => {
                                     context.segments.push(Segment::Context(
@@ -360,7 +353,8 @@ where
             ref mut variants, ..
         } => {
             let variant_name = args.next_positional().ok_or(Error::EndOfArgs)?;
-            let variant_name_str = variant_name.to_str().ok_or(Error::UnrecognizedVariant)?;
+            let variant_name_str =
+                str::from_utf8(&variant_name).or(Err(Error::UnrecognizedVariant))?;
             let mut found = false;
 
             let mut variants_iter = std::mem::take(variants).into_iter();
@@ -431,7 +425,8 @@ where
                     }
                     Token::Optional(value) => {
                         // Find the option and parse it.
-                        let identifier = value.to_str().ok_or(Error::UnrecognizedOption)?;
+                        let identifier =
+                            str::from_utf8(&value).or(Err(Error::UnrecognizedOption))?;
                         let mut optional_context = Context { segments: vec![] };
                         let mut found = false;
                         let mut index = 0;
@@ -471,8 +466,8 @@ where
                             // The argument could belong to a neighboring context.
                             args.revisit = Some({
                                 let mut bytes = vec![b'-', b'-'];
-                                bytes.extend(value.as_encoded_bytes());
-                                unsafe { OsString::from_encoded_bytes_unchecked(bytes) }
+                                bytes.extend(value);
+                                bytes
                             });
                             break;
                         }
@@ -494,7 +489,8 @@ where
                         break;
                     }
                     Token::Optional(value) => {
-                        let identifier = value.to_str().ok_or(Error::UnrecognizedOption)?;
+                        let identifier =
+                            str::from_utf8(&value).or(Err(Error::UnrecognizedOption))?;
                         let mut optional_context = Context { segments: vec![] };
                         let mut found = false;
                         let mut index = 0;
@@ -658,7 +654,7 @@ where
                 match token {
                     Token::Positional(variant_name) => {
                         let variant_name_str =
-                            variant_name.to_str().ok_or(Error::UnrecognizedVariant)?;
+                            str::from_utf8(&variant_name).or(Err(Error::UnrecognizedVariant))?;
                         let mut found = false;
                         for mut variant in std::mem::take(variants) {
                             if let Some(static_variant_name) = iter::once(variant.name)
@@ -691,7 +687,8 @@ where
                         break;
                     }
                     Token::Optional(value) => {
-                        let identifier = value.to_str().ok_or(Error::UnrecognizedOption)?;
+                        let identifier =
+                            str::from_utf8(&value).or(Err(Error::UnrecognizedOption))?;
                         let mut optional_context = Context { segments: vec![] };
                         let mut found = false;
                         let mut index = 0;
@@ -732,7 +729,7 @@ where
                     Token::EndOfOptions => {
                         let variant_name = args.next_positional().ok_or(Error::EndOfArgs)?;
                         let variant_name_str =
-                            variant_name.to_str().ok_or(Error::UnrecognizedVariant)?;
+                            str::from_utf8(&variant_name).or(Err(Error::UnrecognizedVariant))?;
                         let mut found = false;
                         for mut variant in std::mem::take(variants) {
                             if let Some(static_variant_name) = iter::once(variant.name)

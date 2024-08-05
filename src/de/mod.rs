@@ -16,6 +16,7 @@ use std::{
     fmt,
     fmt::{Display, Formatter},
     num::IntErrorKind,
+    str,
     str::FromStr,
 };
 
@@ -69,7 +70,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     {
         match self.context.next() {
             Some(Segment::Value(raw)) => {
-                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                let value_string = String::from_utf8_lossy(&raw);
                 i8::from_str(&value_string)
                     .map_err(|parse_int_error| match parse_int_error.kind() {
                         IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => {
@@ -95,7 +96,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     {
         match self.context.next() {
             Some(Segment::Value(raw)) => {
-                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                let value_string = String::from_utf8_lossy(&raw);
                 i16::from_str(&value_string)
                     .map_err(|parse_int_error| match parse_int_error.kind() {
                         IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => {
@@ -121,7 +122,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     {
         match self.context.next() {
             Some(Segment::Value(raw)) => {
-                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                let value_string = String::from_utf8_lossy(&raw);
                 i32::from_str(&value_string)
                     .map_err(|parse_int_error| match parse_int_error.kind() {
                         IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => {
@@ -147,7 +148,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     {
         match self.context.next() {
             Some(Segment::Value(raw)) => {
-                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                let value_string = String::from_utf8_lossy(&raw);
                 i64::from_str(&value_string)
                     .map_err(|parse_int_error| match parse_int_error.kind() {
                         IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => {
@@ -169,7 +170,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     {
         match self.context.next() {
             Some(Segment::Value(raw)) => {
-                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                let value_string = String::from_utf8_lossy(&raw);
                 i128::from_str(&value_string)
                     .map_err(|parse_int_error| match parse_int_error.kind() {
                         IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => {
@@ -191,7 +192,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     {
         match self.context.next() {
             Some(Segment::Value(raw)) => {
-                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                let value_string = String::from_utf8_lossy(&raw);
                 u8::from_str(&value_string)
                     .map_err(|parse_int_error| match parse_int_error.kind() {
                         IntErrorKind::PosOverflow => {
@@ -217,7 +218,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     {
         match self.context.next() {
             Some(Segment::Value(raw)) => {
-                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                let value_string = String::from_utf8_lossy(&raw);
                 u16::from_str(&value_string)
                     .map_err(|parse_int_error| match parse_int_error.kind() {
                         IntErrorKind::PosOverflow => {
@@ -243,7 +244,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     {
         match self.context.next() {
             Some(Segment::Value(raw)) => {
-                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                let value_string = String::from_utf8_lossy(&raw);
                 u32::from_str(&value_string)
                     .map_err(|parse_int_error| match parse_int_error.kind() {
                         IntErrorKind::PosOverflow => {
@@ -269,7 +270,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     {
         match self.context.next() {
             Some(Segment::Value(raw)) => {
-                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                let value_string = String::from_utf8_lossy(&raw);
                 u64::from_str(&value_string)
                     .map_err(|parse_int_error| match parse_int_error.kind() {
                         IntErrorKind::PosOverflow => {
@@ -291,7 +292,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     {
         match self.context.next() {
             Some(Segment::Value(raw)) => {
-                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                let value_string = String::from_utf8_lossy(&raw);
                 u128::from_str(&value_string)
                     .map_err(|parse_int_error| match parse_int_error.kind() {
                         IntErrorKind::PosOverflow => {
@@ -313,7 +314,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     {
         match self.context.next() {
             Some(Segment::Value(raw)) => {
-                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                let value_string = String::from_utf8_lossy(&raw);
                 f32::from_str(&value_string)
                     .map_err(|_| Error::invalid_type(Unexpected::Other(&value_string), &visitor))
                     .and_then(|float| visitor.visit_f32(float))
@@ -330,7 +331,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     {
         match self.context.next() {
             Some(Segment::Value(raw)) => {
-                let value_string = String::from_utf8_lossy(&raw.as_encoded_bytes());
+                let value_string = String::from_utf8_lossy(&raw);
                 f64::from_str(&value_string)
                     .map_err(|_| Error::invalid_type(Unexpected::Other(&value_string), &visitor))
                     .and_then(|float| visitor.visit_f64(float))
@@ -341,11 +342,32 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         }
     }
 
-    fn deserialize_char<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_char<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        todo!()
+        match self.context.next() {
+            Some(Segment::Value(raw)) => {
+                let value_string = str::from_utf8(&raw).or_else(|_| {
+                    Err(Error::invalid_value(
+                        Unexpected::Other(&String::from_utf8_lossy(&raw)),
+                        &visitor,
+                    ))
+                })?;
+                let chars = value_string.chars().collect::<Vec<char>>();
+                if chars.len() == 1 {
+                    visitor.visit_char(chars[0])
+                } else {
+                    Err(Error::invalid_value(
+                        Unexpected::Str(&value_string),
+                        &visitor,
+                    ))
+                }
+            }
+            _ => {
+                unreachable!()
+            }
+        }
     }
 
     fn deserialize_str<V>(self, visitor: V) -> Result<V::Value, Self::Error>
@@ -571,9 +593,7 @@ mod tests {
     #[test]
     fn i8_invalid_type_not_utf8() {
         let deserializer = Deserializer::new(Context {
-            segments: vec![Segment::Value(unsafe {
-                OsString::from_encoded_bytes_unchecked(vec![255])
-            })],
+            segments: vec![Segment::Value(vec![255])],
         });
 
         assert_err_eq!(
@@ -657,9 +677,7 @@ mod tests {
     #[test]
     fn i16_invalid_type_not_utf8() {
         let deserializer = Deserializer::new(Context {
-            segments: vec![Segment::Value(unsafe {
-                OsString::from_encoded_bytes_unchecked(vec![255])
-            })],
+            segments: vec![Segment::Value(vec![255])],
         });
 
         assert_err_eq!(
@@ -743,9 +761,7 @@ mod tests {
     #[test]
     fn i32_invalid_type_not_utf8() {
         let deserializer = Deserializer::new(Context {
-            segments: vec![Segment::Value(unsafe {
-                OsString::from_encoded_bytes_unchecked(vec![255])
-            })],
+            segments: vec![Segment::Value(vec![255])],
         });
 
         assert_err_eq!(
@@ -829,9 +845,7 @@ mod tests {
     #[test]
     fn i64_invalid_type_not_utf8() {
         let deserializer = Deserializer::new(Context {
-            segments: vec![Segment::Value(unsafe {
-                OsString::from_encoded_bytes_unchecked(vec![255])
-            })],
+            segments: vec![Segment::Value(vec![255])],
         });
 
         assert_err_eq!(
@@ -900,9 +914,7 @@ mod tests {
     #[test]
     fn i128_invalid_type_not_utf8() {
         let deserializer = Deserializer::new(Context {
-            segments: vec![Segment::Value(unsafe {
-                OsString::from_encoded_bytes_unchecked(vec![255])
-            })],
+            segments: vec![Segment::Value(vec![255])],
         });
 
         assert_err_eq!(
@@ -975,9 +987,7 @@ mod tests {
     #[test]
     fn u8_invalid_type_not_utf8() {
         let deserializer = Deserializer::new(Context {
-            segments: vec![Segment::Value(unsafe {
-                OsString::from_encoded_bytes_unchecked(vec![255])
-            })],
+            segments: vec![Segment::Value(vec![255])],
         });
 
         assert_err_eq!(
@@ -1061,9 +1071,7 @@ mod tests {
     #[test]
     fn u16_invalid_type_not_utf8() {
         let deserializer = Deserializer::new(Context {
-            segments: vec![Segment::Value(unsafe {
-                OsString::from_encoded_bytes_unchecked(vec![255])
-            })],
+            segments: vec![Segment::Value(vec![255])],
         });
 
         assert_err_eq!(
@@ -1147,9 +1155,7 @@ mod tests {
     #[test]
     fn u32_invalid_type_not_utf8() {
         let deserializer = Deserializer::new(Context {
-            segments: vec![Segment::Value(unsafe {
-                OsString::from_encoded_bytes_unchecked(vec![255])
-            })],
+            segments: vec![Segment::Value(vec![255])],
         });
 
         assert_err_eq!(
@@ -1233,9 +1239,7 @@ mod tests {
     #[test]
     fn u64_invalid_type_not_utf8() {
         let deserializer = Deserializer::new(Context {
-            segments: vec![Segment::Value(unsafe {
-                OsString::from_encoded_bytes_unchecked(vec![255])
-            })],
+            segments: vec![Segment::Value(vec![255])],
         });
 
         assert_err_eq!(
@@ -1304,9 +1308,7 @@ mod tests {
     #[test]
     fn u128_invalid_type_not_utf8() {
         let deserializer = Deserializer::new(Context {
-            segments: vec![Segment::Value(unsafe {
-                OsString::from_encoded_bytes_unchecked(vec![255])
-            })],
+            segments: vec![Segment::Value(vec![255])],
         });
 
         assert_err_eq!(
@@ -1377,9 +1379,7 @@ mod tests {
     #[test]
     fn f32_invalid_type_not_utf8() {
         let deserializer = Deserializer::new(Context {
-            segments: vec![Segment::Value(unsafe {
-                OsString::from_encoded_bytes_unchecked(vec![255])
-            })],
+            segments: vec![Segment::Value(vec![255])],
         });
 
         assert_err_eq!(
@@ -1418,9 +1418,7 @@ mod tests {
     #[test]
     fn f64_invalid_type_not_utf8() {
         let deserializer = Deserializer::new(Context {
-            segments: vec![Segment::Value(unsafe {
-                OsString::from_encoded_bytes_unchecked(vec![255])
-            })],
+            segments: vec![Segment::Value(vec![255])],
         });
 
         assert_err_eq!(
@@ -1428,6 +1426,30 @@ mod tests {
             Error::Usage(Usage::InvalidType(
                 Unexpected::Other("\u{fffd}").to_string(),
                 "f64".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn char() {
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("a".into())],
+        });
+
+        assert_ok_eq!(char::deserialize(deserializer), 'a');
+    }
+
+    #[test]
+    fn char_not_utf8() {
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value(vec![255])],
+        });
+
+        assert_err_eq!(
+            char::deserialize(deserializer),
+            Error::Usage(Usage::InvalidValue(
+                Unexpected::Other("\u{fffd}").to_string(),
+                "a character".to_owned()
             ))
         );
     }
