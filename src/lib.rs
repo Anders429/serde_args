@@ -17,8 +17,6 @@ where
 {
     let mut shape = trace_seed_copy(seed)?;
 
-    dbg!(&shape);
-
     let mut args = env::args_os();
     let executable_path = PathBuf::from(args.next().ok_or(Error::EmptyArgs)?)
         .file_name()
