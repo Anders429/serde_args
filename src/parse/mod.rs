@@ -347,13 +347,13 @@ where
                             .push(Segment::Identifier(static_variant_name));
                         context = parse_context_no_options(args, &mut variant.shape, context)?;
 
+                        found = true;
+
                         break Shape::Variant {
                             name: static_variant_name,
                             shape: Box::new(variant.shape),
                         };
                     }
-                } else {
-                    return Err(Error::UnrecognizedVariant);
                 }
             };
 

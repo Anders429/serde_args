@@ -953,19 +953,6 @@ impl<'de> de::EnumAccess<'de> for EnumAccess {
         V: DeserializeSeed<'de>,
     {
         match self.context.next() {
-            Some(Segment::Context(variant_context)) => {
-                let mut variant_context_iter = variant_context.into_iter();
-                // Extract the identifier, which should always be the first eleemnt for this type of context.
-                match variant_context_iter.next() {
-                    Some(Segment::Identifier(variant)) => Ok((
-                        seed.deserialize(KeyDeserializer { key: variant })?,
-                        VariantAccess {
-                            context: variant_context_iter,
-                        },
-                    )),
-                    _ => unreachable!(),
-                }
-            }
             Some(Segment::Identifier(variant)) => Ok((
                 seed.deserialize(KeyDeserializer { key: variant })?,
                 VariantAccess {
@@ -2294,9 +2281,7 @@ mod tests {
         }
 
         let deserializer = Deserializer::new(Context {
-            segments: vec![Segment::Context(Context {
-                segments: vec![Segment::Identifier("Unit")],
-            })],
+            segments: vec![Segment::Identifier("Unit")],
         });
 
         assert_ok_eq!(Enum::deserialize(deserializer), Enum::Unit);
@@ -2310,9 +2295,7 @@ mod tests {
         }
 
         let deserializer = Deserializer::new(Context {
-            segments: vec![Segment::Context(Context {
-                segments: vec![Segment::Identifier("Newtype"), Segment::Value("42".into())],
-            })],
+            segments: vec![Segment::Identifier("Newtype"), Segment::Value("42".into())],
         });
 
         assert_ok_eq!(Enum::deserialize(deserializer), Enum::Newtype(42));
@@ -2330,17 +2313,15 @@ mod tests {
         }
 
         let deserializer = Deserializer::new(Context {
-            segments: vec![Segment::Context(Context {
-                segments: vec![
-                    Segment::Identifier("Struct"),
-                    Segment::Context(Context {
-                        segments: vec![Segment::Identifier("baz"), Segment::Value("1".into())],
-                    }),
-                    Segment::Context(Context {
-                        segments: vec![Segment::Identifier("foo"), Segment::Value("2".into())],
-                    }),
-                ],
-            })],
+            segments: vec![
+                Segment::Identifier("Struct"),
+                Segment::Context(Context {
+                    segments: vec![Segment::Identifier("baz"), Segment::Value("1".into())],
+                }),
+                Segment::Context(Context {
+                    segments: vec![Segment::Identifier("foo"), Segment::Value("2".into())],
+                }),
+            ],
         });
 
         assert_ok_eq!(
@@ -2361,9 +2342,7 @@ mod tests {
         }
 
         let deserializer = Deserializer::new(Context {
-            segments: vec![Segment::Context(Context {
-                segments: vec![Segment::Identifier("foo")],
-            })],
+            segments: vec![Segment::Identifier("foo")],
         });
 
         assert_err_eq!(
