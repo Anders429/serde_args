@@ -561,6 +561,338 @@ impl<'de> de::Deserializer<'de> for KeyDeserializer {
     }
 }
 
+struct FieldDeserializer {
+    context: ContextIter,
+}
+
+impl<'de> de::Deserializer<'de> for FieldDeserializer {
+    type Error = Error;
+
+    fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        unreachable!()
+    }
+
+    forward_to_deserialize_any! {
+        ignored_any
+    }
+
+    fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_bool(visitor)
+    }
+
+    fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_i8(visitor)
+    }
+
+    fn deserialize_i16<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_i16(visitor)
+    }
+
+    fn deserialize_i32<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_i32(visitor)
+    }
+
+    fn deserialize_i64<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_i64(visitor)
+    }
+
+    fn deserialize_i128<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_i128(visitor)
+    }
+
+    fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_u8(visitor)
+    }
+
+    fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_u16(visitor)
+    }
+
+    fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_u32(visitor)
+    }
+
+    fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_u64(visitor)
+    }
+
+    fn deserialize_u128<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_u128(visitor)
+    }
+
+    fn deserialize_f32<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_f32(visitor)
+    }
+
+    fn deserialize_f64<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_f64(visitor)
+    }
+
+    fn deserialize_char<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_char(visitor)
+    }
+
+    fn deserialize_str<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_str(visitor)
+    }
+
+    fn deserialize_string<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_string(visitor)
+    }
+
+    fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_bytes(visitor)
+    }
+
+    fn deserialize_byte_buf<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_byte_buf(visitor)
+    }
+
+    fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_unit(visitor)
+    }
+
+    fn deserialize_unit_struct<V>(
+        self,
+        name: &'static str,
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_unit_struct(name, visitor)
+    }
+
+    fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        // The presence of an optional field indicates that it has a `Some` value.
+        visitor.visit_some(Deserializer {
+            context: self.context,
+        })
+    }
+
+    fn deserialize_newtype_struct<V>(
+        self,
+        name: &'static str,
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_newtype_struct(name, visitor)
+    }
+
+    fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_seq(visitor)
+    }
+
+    fn deserialize_tuple<V>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_tuple(len, visitor)
+    }
+
+    fn deserialize_tuple_struct<V>(
+        self,
+        name: &'static str,
+        len: usize,
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_tuple_struct(name, len, visitor)
+    }
+
+    fn deserialize_map<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_map(visitor)
+    }
+
+    fn deserialize_struct<V>(
+        self,
+        name: &'static str,
+        fields: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_struct(name, fields, visitor)
+    }
+
+    fn deserialize_enum<V>(
+        self,
+        name: &'static str,
+        variants: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_enum(name, variants, visitor)
+    }
+
+    fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        Deserializer {
+            context: self.context,
+        }
+        .deserialize_identifier(visitor)
+    }
+}
+
 #[derive(Debug)]
 struct StructAccess {
     struct_context: ContextIter,
@@ -598,7 +930,7 @@ impl<'de> MapAccess<'de> for StructAccess {
         V: DeserializeSeed<'de>,
     {
         if let Some(field_context) = self.field_context.take() {
-            seed.deserialize(Deserializer {
+            seed.deserialize(FieldDeserializer {
                 context: field_context,
             })
         } else {
