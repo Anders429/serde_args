@@ -6,7 +6,6 @@ use serde::{
     forward_to_deserialize_any,
 };
 use std::{
-    collections::HashMap,
     fmt,
     fmt::{Display, Formatter, Write},
     hash::{Hash, Hasher},
@@ -206,7 +205,7 @@ impl Display for Trace {
 }
 
 impl de::Error for Trace {
-    fn custom<T>(msg: T) -> Self {
+    fn custom<T>(_msg: T) -> Self {
         todo!()
     }
 }
@@ -314,9 +313,7 @@ impl Keys {
 
         match self {
             Keys::None => unreachable!(),
-            Keys::Fields(ref mut fields) => {
-                Err(Error::CannotMixDeserializeStructAndDeserializeEnum)
-            }
+            Keys::Fields(_) => Err(Error::CannotMixDeserializeStructAndDeserializeEnum),
             Keys::Variants(ref mut variants) => Ok(variants),
         }
     }
@@ -392,7 +389,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     // Primitive types
     // ---------------
 
-    fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_bool<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
@@ -420,7 +417,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
         deserialize_identifier,
     }
 
-    fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_unit<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
@@ -430,7 +427,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     fn deserialize_unit_struct<V>(
         self,
         _name: &'static str,
-        visitor: V,
+        _visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -465,14 +462,14 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
         visitor.visit_newtype_struct(self)
     }
 
-    fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_seq<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
         todo!()
     }
 
-    fn deserialize_tuple<V>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_tuple<V>(self, _len: usize, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
@@ -481,9 +478,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
 
     fn deserialize_tuple_struct<V>(
         self,
-        name: &'static str,
-        len: usize,
-        visitor: V,
+        _name: &'static str,
+        _len: usize,
+        _visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -491,7 +488,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
         todo!()
     }
 
-    fn deserialize_map<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_map<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
@@ -673,7 +670,7 @@ impl Display for FullTrace {
 }
 
 impl de::Error for FullTrace {
-    fn custom<T>(msg: T) -> Self {
+    fn custom<T>(_msg: T) -> Self {
         todo!()
     }
 }
@@ -814,7 +811,7 @@ impl<'de> de::VariantAccess<'de> for VariantAccess<'_> {
         )
     }
 
-    fn tuple_variant<V>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error>
+    fn tuple_variant<V>(self, _len: usize, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {

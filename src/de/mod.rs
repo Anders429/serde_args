@@ -2,24 +2,13 @@ pub(crate) mod error;
 
 pub(crate) use error::Error;
 
-use crate::{
-    parse::{Context, ContextIter, Segment},
-    trace::Shape,
-};
+use crate::parse::{Context, ContextIter, Segment};
 use serde::{
     de,
     de::{DeserializeSeed, Deserializer as _, Error as _, MapAccess, Unexpected, Visitor},
     forward_to_deserialize_any,
 };
-use std::{
-    env::ArgsOs,
-    ffi::OsString,
-    fmt,
-    fmt::{Display, Formatter},
-    num::IntErrorKind,
-    str,
-    str::FromStr,
-};
+use std::{num::IntErrorKind, str, str::FromStr};
 
 pub(crate) struct Deserializer {
     context: ContextIter,
@@ -58,7 +47,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     // Primitive types
     // ---------------
 
-    fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_bool<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
@@ -431,7 +420,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
 
     fn deserialize_unit_struct<V>(
         self,
-        name: &'static str,
+        _name: &'static str,
         visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
@@ -470,14 +459,14 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         visitor.visit_newtype_struct(self)
     }
 
-    fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_seq<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
         todo!()
     }
 
-    fn deserialize_tuple<V>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_tuple<V>(self, _len: usize, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
@@ -486,9 +475,9 @@ impl<'de> de::Deserializer<'de> for Deserializer {
 
     fn deserialize_tuple_struct<V>(
         self,
-        name: &'static str,
-        len: usize,
-        visitor: V,
+        _name: &'static str,
+        _len: usize,
+        _visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -496,7 +485,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         todo!()
     }
 
-    fn deserialize_map<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_map<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
@@ -505,8 +494,8 @@ impl<'de> de::Deserializer<'de> for Deserializer {
 
     fn deserialize_struct<V>(
         self,
-        name: &'static str,
-        fields: &'static [&'static str],
+        _name: &'static str,
+        _fields: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
@@ -520,8 +509,8 @@ impl<'de> de::Deserializer<'de> for Deserializer {
 
     fn deserialize_enum<V>(
         self,
-        name: &'static str,
-        variants: &'static [&'static str],
+        _name: &'static str,
+        _variants: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
@@ -918,7 +907,7 @@ impl<'de> MapAccess<'de> for StructAccess {
                     _ => unreachable!(),
                 }
             }
-            Some(segment) => {
+            Some(_) => {
                 unreachable!()
             }
             None => Ok(None),
@@ -993,7 +982,7 @@ impl<'de> de::VariantAccess<'de> for VariantAccess {
     }
 
     fn struct_variant<V>(
-        mut self,
+        self,
         fields: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error>

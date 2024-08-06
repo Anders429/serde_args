@@ -1,12 +1,9 @@
 use crate::trace::{Field, Shape};
 use std::{
-    collections::{HashMap, HashSet},
     ffi::OsString,
     fmt,
     fmt::{Display, Formatter},
-    iter,
-    iter::Peekable,
-    str, vec,
+    iter, str, vec,
 };
 
 #[derive(Debug, Eq, PartialEq)]
@@ -20,7 +17,7 @@ pub(crate) enum Error {
 }
 
 impl Display for Error {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, _formatter: &mut Formatter) -> fmt::Result {
         todo!()
     }
 }
@@ -164,7 +161,7 @@ where
     }
 }
 
-pub(crate) fn parse<Arg, Args>(mut args: Args, shape: &mut Shape) -> Result<Context, Error>
+pub(crate) fn parse<Arg, Args>(args: Args, shape: &mut Shape) -> Result<Context, Error>
 where
     Args: IntoIterator<Item = Arg>,
     Arg: Into<OsString>,
@@ -249,7 +246,7 @@ where
             // While the current context cannot have options, the nested context can.
             let mut end_of_options = false;
             for required_field in required.iter_mut() {
-                let mut inner_context = Context {
+                let inner_context = Context {
                     segments: vec![Segment::Identifier(required_field.name)],
                 };
                 if end_of_options {
@@ -279,7 +276,7 @@ where
                     for (optional_name, optional_context) in parsed_options {
                         let mut found = false;
                         // Find whether the optional name is in this struct.
-                        for (index, optional_field) in (&mut *optional).into_iter().enumerate() {
+                        for optional_field in (&mut *optional).into_iter() {
                             if optional_name == optional_field.name
                                 || optional_field.aliases.contains(&optional_name)
                             {
@@ -333,7 +330,6 @@ where
             let variant_name = args.next_positional().ok_or(Error::EndOfArgs)?;
             let variant_name_str =
                 str::from_utf8(&variant_name).or(Err(Error::UnrecognizedVariant))?;
-            let mut found = false;
 
             let mut variants_iter = std::mem::take(variants).into_iter();
             let new_shape = loop {
@@ -347,23 +343,19 @@ where
                             .push(Segment::Identifier(static_variant_name));
                         context = parse_context_no_options(args, &mut variant.shape, context)?;
 
-                        found = true;
-
                         break Shape::Variant {
                             name: static_variant_name,
                             shape: Box::new(variant.shape),
                         };
                     }
+                } else {
+                    return Err(Error::UnrecognizedVariant);
                 }
             };
 
             *shape = new_shape;
 
-            if found {
-                Ok(context)
-            } else {
-                Err(Error::UnrecognizedVariant)
-            }
+            Ok(context)
         }
         Shape::Variant { .. } => {
             unreachable!()
@@ -530,7 +522,7 @@ where
             let mut combined_options = options.clone();
             combined_options.extend(optional.clone().into_iter().map(|option| (option, false)));
             for required_field in required.iter_mut() {
-                let mut inner_context = Context {
+                let inner_context = Context {
                     segments: vec![Segment::Identifier(required_field.name)],
                 };
                 if end_of_options {
@@ -554,20 +546,16 @@ where
                     end_of_options = parsed_context.closing_end_of_options;
                     let found_parsed_options = parsed_context.options;
                     'outer: for (optional_name, optional_context) in found_parsed_options {
-                        let mut found = false;
                         // Find whether the optional name is in this struct.
                         for optional_field in &mut *optional {
                             if optional_name == optional_field.name
                                 || optional_field.aliases.contains(&optional_name)
                             {
-                                found = true;
                                 context.segments.push(Segment::Context(optional_context));
                                 continue 'outer;
                             }
                         }
-                        if !found {
-                            parsed_options.push((optional_name, optional_context));
-                        }
+                        parsed_options.push((optional_name, optional_context));
                     }
                 }
             }
@@ -577,20 +565,16 @@ where
                     parse_context(args, &mut Shape::Empty, &mut combined_options, context)?;
                 context = parsed_context.context;
                 'outer: for (optional_name, optional_context) in parsed_context.options {
-                    let mut found = false;
                     // Find whether the optional name is in this struct.
                     for optional_field in &mut *optional {
                         if optional_name == optional_field.name
                             || optional_field.aliases.contains(&optional_name)
                         {
-                            found = true;
                             context.segments.push(Segment::Context(optional_context));
                             continue 'outer;
                         }
                     }
-                    if !found {
-                        parsed_options.push((optional_name, optional_context));
-                    }
+                    parsed_options.push((optional_name, optional_context));
                 }
                 if parsed_context.closing_end_of_options {
                     closing_end_of_options = true;
