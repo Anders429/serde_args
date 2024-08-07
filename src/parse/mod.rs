@@ -41,7 +41,6 @@ impl IntoIterator for Context {
     fn into_iter(self) -> Self::IntoIter {
         ContextIter {
             segments: self.segments.into_iter(),
-            revisit: None,
         }
     }
 }
@@ -49,20 +48,13 @@ impl IntoIterator for Context {
 #[derive(Debug)]
 pub(crate) struct ContextIter {
     segments: vec::IntoIter<Segment>,
-    revisit: Option<Segment>,
-}
-
-impl ContextIter {
-    pub(crate) fn revisit(&mut self, segment: Segment) {
-        self.revisit = Some(segment);
-    }
 }
 
 impl Iterator for ContextIter {
     type Item = Segment;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.revisit.take().or_else(|| self.segments.next())
+        self.segments.next()
     }
 }
 

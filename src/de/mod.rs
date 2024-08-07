@@ -439,11 +439,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     {
         match self.context.next() {
             Some(Segment::Context(context)) => visitor.visit_some(Deserializer::new(context)),
-            Some(segment) => {
-                // We will hit this when deserializing structs.
-                self.context.revisit(segment);
-                visitor.visit_some(self)
-            }
+            Some(_) => unreachable!(),
             None => visitor.visit_none(),
         }
     }
