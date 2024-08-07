@@ -8,12 +8,11 @@ use std::{
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) enum Error {
+    MissingArguments,
     UnexpectedArgument,
     UnrecognizedOption,
     UnrecognizedVariant,
     DuplicateOption,
-    InvalidNestedOptional,
-    EndOfArgs,
 }
 
 impl Display for Error {
@@ -179,7 +178,7 @@ where
         Shape::Empty => Ok(context),
         Shape::Primitive { .. } => {
             context.segments.push(Segment::Value(
-                args.next_positional().ok_or(Error::EndOfArgs)?,
+                args.next_positional().ok_or(Error::MissingArguments)?,
             ));
             Ok(context)
         }
@@ -319,7 +318,7 @@ where
         Shape::Enum {
             ref mut variants, ..
         } => {
-            let variant_name = args.next_positional().ok_or(Error::EndOfArgs)?;
+            let variant_name = args.next_positional().ok_or(Error::MissingArguments)?;
             let variant_name_str =
                 str::from_utf8(&variant_name).or(Err(Error::UnrecognizedVariant))?;
 
@@ -657,7 +656,7 @@ where
                         }
                     }
                     Token::EndOfOptions => {
-                        let variant_name = args.next_positional().ok_or(Error::EndOfArgs)?;
+                        let variant_name = args.next_positional().ok_or(Error::MissingArguments)?;
                         let variant_name_str =
                             str::from_utf8(&variant_name).or(Err(Error::UnrecognizedVariant))?;
                         let mut found = false;
@@ -738,7 +737,7 @@ mod tests {
                     name: "bar".to_owned()
                 }
             ),
-            Error::EndOfArgs
+            Error::MissingArguments
         );
     }
 
