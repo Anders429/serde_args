@@ -670,6 +670,8 @@ where
                                 }
                                 options.insert(index, (optional_field, true));
                                 break;
+                            } else {
+                                index += 1;
                             }
                         }
                         if !found {
