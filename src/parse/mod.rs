@@ -16,8 +16,16 @@ pub(crate) enum Error {
 }
 
 impl Display for Error {
-    fn fmt(&self, _formatter: &mut Formatter) -> fmt::Result {
-        todo!()
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::MissingArguments => formatter.write_str("missing required positional arguments"),
+            Self::UnexpectedArgument => formatter.write_str("unexpected positional argument"),
+            Self::UnrecognizedOption => formatter.write_str("unrecognized optional flag"),
+            Self::UnrecognizedVariant => formatter.write_str("unrecognized command"),
+            Self::DuplicateOption => formatter.write_str(
+                "optional flag name (or its aliases) cannot be specified more than once",
+            ),
+        }
     }
 }
 
@@ -323,30 +331,34 @@ where
                 str::from_utf8(&variant_name).or(Err(Error::UnrecognizedVariant))?;
 
             let mut variants_iter = std::mem::take(variants).into_iter();
-            let new_shape = loop {
-                if let Some(mut variant) = variants_iter.next() {
+            loop {
+                if let Some(variant) = variants_iter.next() {
                     if let Some(static_variant_name) = iter::once(variant.name)
                         .chain(variant.aliases)
                         .find(|s| *s == variant_name_str)
                     {
-                        context
-                            .segments
-                            .push(Segment::Identifier(static_variant_name));
-                        context = parse_context_no_options(args, &mut variant.shape, context)?;
-
-                        break Shape::Variant {
+                        *shape = Shape::Variant {
                             name: static_variant_name,
                             shape: Box::new(variant.shape),
                         };
+                        if let Shape::Variant {
+                            shape: inner_shape, ..
+                        } = shape
+                        {
+                            context
+                                .segments
+                                .push(Segment::Identifier(static_variant_name));
+                            context = parse_context_no_options(args, inner_shape, context)?;
+                        } else {
+                            unreachable!();
+                        }
+
+                        return Ok(context);
                     }
                 } else {
                     return Err(Error::UnrecognizedVariant);
                 }
-            };
-
-            *shape = new_shape;
-
-            Ok(context)
+            }
         }
         Shape::Variant { .. } => {
             unreachable!()
@@ -585,29 +597,37 @@ where
                         let variant_name_str =
                             str::from_utf8(&variant_name).or(Err(Error::UnrecognizedVariant))?;
                         let mut found = false;
-                        for mut variant in std::mem::take(variants) {
+                        for variant in std::mem::take(variants) {
                             if let Some(static_variant_name) = iter::once(variant.name)
                                 .chain(variant.aliases)
                                 .find(|s| *s == variant_name_str)
                             {
-                                context
-                                    .segments
-                                    .push(Segment::Identifier(static_variant_name));
-                                // Parse the variant's shape.
-                                let parsed_context =
-                                    parse_context(args, &mut variant.shape, options, context)?;
-                                context = parsed_context.context;
-                                // Handle options.
-                                parsed_options.extend(parsed_context.options);
-                                if parsed_context.closing_end_of_options {
-                                    closing_end_of_options = true;
-                                }
-                                // Update shape.
                                 *shape = Shape::Variant {
                                     name: static_variant_name,
                                     shape: Box::new(variant.shape),
                                 };
-                                found = true;
+
+                                if let Shape::Variant {
+                                    shape: inner_shape, ..
+                                } = shape
+                                {
+                                    context
+                                        .segments
+                                        .push(Segment::Identifier(static_variant_name));
+                                    // Parse the variant's shape.
+                                    let parsed_context =
+                                        parse_context(args, inner_shape, options, context)?;
+                                    context = parsed_context.context;
+                                    // Handle options.
+                                    parsed_options.extend(parsed_context.options);
+                                    if parsed_context.closing_end_of_options {
+                                        closing_end_of_options = true;
+                                    }
+                                    found = true;
+                                } else {
+                                    unreachable!()
+                                }
+                                break;
                             }
                         }
                         if !found {
@@ -660,23 +680,28 @@ where
                         let variant_name_str =
                             str::from_utf8(&variant_name).or(Err(Error::UnrecognizedVariant))?;
                         let mut found = false;
-                        for mut variant in std::mem::take(variants) {
+                        for variant in std::mem::take(variants) {
                             if let Some(static_variant_name) = iter::once(variant.name)
                                 .chain(variant.aliases)
                                 .find(|s| *s == variant_name_str)
                             {
-                                context
-                                    .segments
-                                    .push(Segment::Identifier(static_variant_name));
-                                context =
-                                    parse_context_no_options(args, &mut variant.shape, context)?;
-
-                                found = true;
-
                                 *shape = Shape::Variant {
                                     name: static_variant_name,
                                     shape: Box::new(variant.shape),
                                 };
+                                if let Shape::Variant {
+                                    shape: inner_shape, ..
+                                } = shape
+                                {
+                                    context
+                                        .segments
+                                        .push(Segment::Identifier(static_variant_name));
+                                    context = parse_context_no_options(args, inner_shape, context)?;
+                                    found = true;
+                                } else {
+                                    unreachable!();
+                                }
+                                break;
                             }
                         }
                         if !found {

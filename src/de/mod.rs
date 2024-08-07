@@ -33,14 +33,14 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     where
         V: Visitor<'de>,
     {
-        Err(Error::Development(error::Development::NotSelfDescribing))
+        unreachable!()
     }
 
     fn deserialize_ignored_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        Err(Error::Development(error::Development::NotSelfDescribing))
+        unreachable!()
     }
 
     // ---------------
@@ -994,27 +994,18 @@ impl<'de> de::VariantAccess<'de> for VariantAccess {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        error::{Development, Usage},
-        Deserializer, Error,
-    };
-    use crate::{
-        parse::{Context, Segment},
-        trace::Shape,
-    };
+    use super::{Deserializer, Error};
+    use crate::parse::{Context, Segment};
     use claims::{assert_err_eq, assert_ok_eq};
     use serde::{
         de,
         de::{Deserialize, Error as _, IgnoredAny, Unexpected, Visitor},
     };
     use serde_derive::Deserialize;
-    use std::{
-        ffi::OsString,
-        fmt,
-        fmt::{Display, Formatter},
-    };
+    use std::{fmt, fmt::Formatter};
 
     #[test]
+    #[should_panic(expected = "entered unreachable code")]
     fn any() {
         #[derive(Debug)]
         struct Any;
@@ -1040,20 +1031,15 @@ mod tests {
 
         let deserializer = Deserializer::new(Context { segments: vec![] });
 
-        assert_err_eq!(
-            Any::deserialize(deserializer),
-            Error::Development(Development::NotSelfDescribing)
-        );
+        let _ = Any::deserialize(deserializer);
     }
 
     #[test]
+    #[should_panic(expected = "entered unreachable code")]
     fn ignored_any() {
         let deserializer = Deserializer::new(Context { segments: vec![] });
 
-        assert_err_eq!(
-            IgnoredAny::deserialize(deserializer),
-            Error::Development(Development::NotSelfDescribing)
-        );
+        let _ = IgnoredAny::deserialize(deserializer);
     }
 
     #[test]
@@ -1073,10 +1059,7 @@ mod tests {
 
         assert_err_eq!(
             i8::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("a").to_string(),
-                "i8".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("a").to_string(), "i8".to_owned())
         );
     }
 
@@ -1088,10 +1071,7 @@ mod tests {
 
         assert_err_eq!(
             i8::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("\u{fffd}").to_string(),
-                "i8".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("\u{fffd}").to_string(), "i8".to_owned())
         );
     }
 
@@ -1103,10 +1083,7 @@ mod tests {
 
         assert_err_eq!(
             i8::deserialize(deserializer),
-            Error::Usage(Usage::InvalidValue(
-                Unexpected::Signed(128).to_string(),
-                "i8".to_owned()
-            ))
+            Error::InvalidValue(Unexpected::Signed(128).to_string(), "i8".to_owned())
         );
     }
 
@@ -1118,10 +1095,7 @@ mod tests {
 
         assert_err_eq!(
             i8::deserialize(deserializer),
-            Error::Usage(Usage::InvalidValue(
-                Unexpected::Signed(-129).to_string(),
-                "i8".to_owned()
-            ))
+            Error::InvalidValue(Unexpected::Signed(-129).to_string(), "i8".to_owned())
         );
     }
 
@@ -1133,10 +1107,10 @@ mod tests {
 
         assert_err_eq!(
             i8::deserialize(deserializer),
-            Error::Usage(Usage::InvalidValue(
+            Error::InvalidValue(
                 Unexpected::Other("9223372036854775808").to_string(),
                 "i8".to_owned()
-            ))
+            )
         );
     }
 
@@ -1157,10 +1131,7 @@ mod tests {
 
         assert_err_eq!(
             i16::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("a").to_string(),
-                "i16".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("a").to_string(), "i16".to_owned())
         );
     }
 
@@ -1172,10 +1143,7 @@ mod tests {
 
         assert_err_eq!(
             i16::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("\u{fffd}").to_string(),
-                "i16".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("\u{fffd}").to_string(), "i16".to_owned())
         );
     }
 
@@ -1187,10 +1155,7 @@ mod tests {
 
         assert_err_eq!(
             i16::deserialize(deserializer),
-            Error::Usage(Usage::InvalidValue(
-                Unexpected::Signed(32768).to_string(),
-                "i16".to_owned()
-            ))
+            Error::InvalidValue(Unexpected::Signed(32768).to_string(), "i16".to_owned())
         );
     }
 
@@ -1202,10 +1167,7 @@ mod tests {
 
         assert_err_eq!(
             i16::deserialize(deserializer),
-            Error::Usage(Usage::InvalidValue(
-                Unexpected::Signed(-32769).to_string(),
-                "i16".to_owned()
-            ))
+            Error::InvalidValue(Unexpected::Signed(-32769).to_string(), "i16".to_owned())
         );
     }
 
@@ -1217,10 +1179,10 @@ mod tests {
 
         assert_err_eq!(
             i16::deserialize(deserializer),
-            Error::Usage(Usage::InvalidValue(
+            Error::InvalidValue(
                 Unexpected::Other("9223372036854775808").to_string(),
                 "i16".to_owned()
-            ))
+            )
         );
     }
 
@@ -1241,10 +1203,7 @@ mod tests {
 
         assert_err_eq!(
             i32::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("a").to_string(),
-                "i32".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("a").to_string(), "i32".to_owned())
         );
     }
 
@@ -1256,10 +1215,7 @@ mod tests {
 
         assert_err_eq!(
             i32::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("\u{fffd}").to_string(),
-                "i32".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("\u{fffd}").to_string(), "i32".to_owned())
         );
     }
 
@@ -1271,10 +1227,7 @@ mod tests {
 
         assert_err_eq!(
             i32::deserialize(deserializer),
-            Error::Usage(Usage::InvalidValue(
-                Unexpected::Signed(2147483648).to_string(),
-                "i32".to_owned()
-            ))
+            Error::InvalidValue(Unexpected::Signed(2147483648).to_string(), "i32".to_owned())
         );
     }
 
@@ -1286,10 +1239,10 @@ mod tests {
 
         assert_err_eq!(
             i32::deserialize(deserializer),
-            Error::Usage(Usage::InvalidValue(
+            Error::InvalidValue(
                 Unexpected::Signed(-2147483649).to_string(),
                 "i32".to_owned()
-            ))
+            )
         );
     }
 
@@ -1301,10 +1254,10 @@ mod tests {
 
         assert_err_eq!(
             i32::deserialize(deserializer),
-            Error::Usage(Usage::InvalidValue(
+            Error::InvalidValue(
                 Unexpected::Other("9223372036854775808").to_string(),
                 "i32".to_owned()
-            ))
+            )
         );
     }
 
@@ -1325,10 +1278,7 @@ mod tests {
 
         assert_err_eq!(
             i64::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("a").to_string(),
-                "i64".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("a").to_string(), "i64".to_owned())
         );
     }
 
@@ -1340,10 +1290,7 @@ mod tests {
 
         assert_err_eq!(
             i64::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("\u{fffd}").to_string(),
-                "i64".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("\u{fffd}").to_string(), "i64".to_owned())
         );
     }
 
@@ -1355,10 +1302,10 @@ mod tests {
 
         assert_err_eq!(
             i64::deserialize(deserializer),
-            Error::Usage(Usage::InvalidValue(
+            Error::InvalidValue(
                 Unexpected::Other("9223372036854775808").to_string(),
                 "i64".to_owned()
-            ))
+            )
         );
     }
 
@@ -1370,10 +1317,10 @@ mod tests {
 
         assert_err_eq!(
             i64::deserialize(deserializer),
-            Error::Usage(Usage::InvalidValue(
+            Error::InvalidValue(
                 Unexpected::Other("-9223372036854775809").to_string(),
                 "i64".to_owned()
-            ))
+            )
         );
     }
 
@@ -1394,10 +1341,7 @@ mod tests {
 
         assert_err_eq!(
             i128::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("a").to_string(),
-                "i128".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("a").to_string(), "i128".to_owned())
         );
     }
 
@@ -1409,10 +1353,7 @@ mod tests {
 
         assert_err_eq!(
             i128::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("\u{fffd}").to_string(),
-                "i128".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("\u{fffd}").to_string(), "i128".to_owned())
         );
     }
 
@@ -1426,10 +1367,10 @@ mod tests {
 
         assert_err_eq!(
             i128::deserialize(deserializer),
-            Error::Usage(Usage::InvalidValue(
+            Error::InvalidValue(
                 Unexpected::Other("170141183460469231731687303715884105728").to_string(),
                 "i128".to_owned()
-            ))
+            )
         );
     }
 
@@ -1443,10 +1384,10 @@ mod tests {
 
         assert_err_eq!(
             i128::deserialize(deserializer),
-            Error::Usage(Usage::InvalidValue(
+            Error::InvalidValue(
                 Unexpected::Other("-170141183460469231731687303715884105729").to_string(),
                 "i128".to_owned()
-            ))
+            )
         );
     }
 
@@ -1467,10 +1408,7 @@ mod tests {
 
         assert_err_eq!(
             u8::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("a").to_string(),
-                "u8".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("a").to_string(), "u8".to_owned())
         );
     }
 
@@ -1482,10 +1420,7 @@ mod tests {
 
         assert_err_eq!(
             u8::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("\u{fffd}").to_string(),
-                "u8".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("\u{fffd}").to_string(), "u8".to_owned())
         );
     }
 
@@ -1497,10 +1432,7 @@ mod tests {
 
         assert_err_eq!(
             u8::deserialize(deserializer),
-            Error::Usage(Usage::InvalidValue(
-                Unexpected::Unsigned(256).to_string(),
-                "u8".to_owned()
-            ))
+            Error::InvalidValue(Unexpected::Unsigned(256).to_string(), "u8".to_owned())
         );
     }
 
@@ -1512,10 +1444,7 @@ mod tests {
 
         assert_err_eq!(
             u8::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("-1").to_string(),
-                "u8".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("-1").to_string(), "u8".to_owned())
         );
     }
 
@@ -1527,10 +1456,10 @@ mod tests {
 
         assert_err_eq!(
             u8::deserialize(deserializer),
-            Error::Usage(Usage::InvalidValue(
+            Error::InvalidValue(
                 Unexpected::Other("18446744073709551616").to_string(),
                 "u8".to_owned()
-            ))
+            )
         );
     }
 
@@ -1551,10 +1480,7 @@ mod tests {
 
         assert_err_eq!(
             u16::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("a").to_string(),
-                "u16".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("a").to_string(), "u16".to_owned())
         );
     }
 
@@ -1566,10 +1492,7 @@ mod tests {
 
         assert_err_eq!(
             u16::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("\u{fffd}").to_string(),
-                "u16".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("\u{fffd}").to_string(), "u16".to_owned())
         );
     }
 
@@ -1581,10 +1504,7 @@ mod tests {
 
         assert_err_eq!(
             u16::deserialize(deserializer),
-            Error::Usage(Usage::InvalidValue(
-                Unexpected::Unsigned(65536).to_string(),
-                "u16".to_owned()
-            ))
+            Error::InvalidValue(Unexpected::Unsigned(65536).to_string(), "u16".to_owned())
         );
     }
 
@@ -1596,10 +1516,7 @@ mod tests {
 
         assert_err_eq!(
             u16::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("-1").to_string(),
-                "u16".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("-1").to_string(), "u16".to_owned())
         );
     }
 
@@ -1611,10 +1528,10 @@ mod tests {
 
         assert_err_eq!(
             u16::deserialize(deserializer),
-            Error::Usage(Usage::InvalidValue(
+            Error::InvalidValue(
                 Unexpected::Other("18446744073709551616").to_string(),
                 "u16".to_owned()
-            ))
+            )
         );
     }
 
@@ -1635,10 +1552,7 @@ mod tests {
 
         assert_err_eq!(
             u32::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("a").to_string(),
-                "u32".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("a").to_string(), "u32".to_owned())
         );
     }
 
@@ -1650,10 +1564,7 @@ mod tests {
 
         assert_err_eq!(
             u32::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("\u{fffd}").to_string(),
-                "u32".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("\u{fffd}").to_string(), "u32".to_owned())
         );
     }
 
@@ -1665,10 +1576,10 @@ mod tests {
 
         assert_err_eq!(
             u32::deserialize(deserializer),
-            Error::Usage(Usage::InvalidValue(
+            Error::InvalidValue(
                 Unexpected::Unsigned(4294967296).to_string(),
                 "u32".to_owned()
-            ))
+            )
         );
     }
 
@@ -1680,10 +1591,7 @@ mod tests {
 
         assert_err_eq!(
             u32::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("-1").to_string(),
-                "u32".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("-1").to_string(), "u32".to_owned())
         );
     }
 
@@ -1695,10 +1603,10 @@ mod tests {
 
         assert_err_eq!(
             u32::deserialize(deserializer),
-            Error::Usage(Usage::InvalidValue(
+            Error::InvalidValue(
                 Unexpected::Other("18446744073709551616").to_string(),
                 "u32".to_owned()
-            ))
+            )
         );
     }
 
@@ -1719,10 +1627,7 @@ mod tests {
 
         assert_err_eq!(
             u64::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("a").to_string(),
-                "u64".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("a").to_string(), "u64".to_owned())
         );
     }
 
@@ -1734,10 +1639,7 @@ mod tests {
 
         assert_err_eq!(
             u64::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("\u{fffd}").to_string(),
-                "u64".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("\u{fffd}").to_string(), "u64".to_owned())
         );
     }
 
@@ -1749,10 +1651,10 @@ mod tests {
 
         assert_err_eq!(
             u64::deserialize(deserializer),
-            Error::Usage(Usage::InvalidValue(
+            Error::InvalidValue(
                 Unexpected::Other("18446744073709551616").to_string(),
                 "u64".to_owned()
-            ))
+            )
         );
     }
 
@@ -1764,10 +1666,7 @@ mod tests {
 
         assert_err_eq!(
             u64::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("-1").to_string(),
-                "u64".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("-1").to_string(), "u64".to_owned())
         );
     }
 
@@ -1788,10 +1687,7 @@ mod tests {
 
         assert_err_eq!(
             u128::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("a").to_string(),
-                "u128".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("a").to_string(), "u128".to_owned())
         );
     }
 
@@ -1803,10 +1699,7 @@ mod tests {
 
         assert_err_eq!(
             u128::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("\u{fffd}").to_string(),
-                "u128".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("\u{fffd}").to_string(), "u128".to_owned())
         );
     }
 
@@ -1820,10 +1713,10 @@ mod tests {
 
         assert_err_eq!(
             u128::deserialize(deserializer),
-            Error::Usage(Usage::InvalidValue(
+            Error::InvalidValue(
                 Unexpected::Other("340282366920938463463374607431768211456").to_string(),
                 "u128".to_owned()
-            ))
+            )
         );
     }
 
@@ -1835,10 +1728,7 @@ mod tests {
 
         assert_err_eq!(
             u128::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("-1").to_string(),
-                "u128".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("-1").to_string(), "u128".to_owned())
         );
     }
 
@@ -1859,10 +1749,7 @@ mod tests {
 
         assert_err_eq!(
             f32::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("a").to_string(),
-                "f32".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("a").to_string(), "f32".to_owned())
         );
     }
 
@@ -1874,10 +1761,7 @@ mod tests {
 
         assert_err_eq!(
             f32::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("\u{fffd}").to_string(),
-                "f32".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("\u{fffd}").to_string(), "f32".to_owned())
         );
     }
 
@@ -1898,10 +1782,7 @@ mod tests {
 
         assert_err_eq!(
             f64::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("a").to_string(),
-                "f64".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("a").to_string(), "f64".to_owned())
         );
     }
 
@@ -1913,10 +1794,7 @@ mod tests {
 
         assert_err_eq!(
             f64::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Other("\u{fffd}").to_string(),
-                "f64".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Other("\u{fffd}").to_string(), "f64".to_owned())
         );
     }
 
@@ -1937,10 +1815,10 @@ mod tests {
 
         assert_err_eq!(
             char::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
+            Error::InvalidType(
                 Unexpected::Other("\u{fffd}").to_string(),
                 "a character".to_owned()
-            ))
+            )
         );
     }
 
@@ -1952,10 +1830,7 @@ mod tests {
 
         assert_err_eq!(
             char::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Str("foo").to_string(),
-                "a character".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Str("foo").to_string(), "a character".to_owned())
         );
     }
 
@@ -1967,10 +1842,7 @@ mod tests {
 
         assert_err_eq!(
             char::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
-                Unexpected::Str("").to_string(),
-                "a character".to_owned()
-            ))
+            Error::InvalidType(Unexpected::Str("").to_string(), "a character".to_owned())
         );
     }
 
@@ -1991,10 +1863,10 @@ mod tests {
 
         assert_err_eq!(
             String::deserialize(deserializer),
-            Error::Usage(Usage::InvalidType(
+            Error::InvalidType(
                 Unexpected::Other("\u{fffd}").to_string(),
                 "a string".to_owned()
-            ))
+            )
         );
     }
 

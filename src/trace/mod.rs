@@ -844,12 +844,7 @@ mod tests {
         de::{Deserialize, Error as _, IgnoredAny, MapAccess, Unexpected, Visitor},
     };
     use serde_derive::Deserialize;
-    use std::{
-        collections::{HashMap, HashSet},
-        fmt,
-        fmt::Formatter,
-        marker::PhantomData,
-    };
+    use std::{fmt, fmt::Formatter, marker::PhantomData};
 
     #[test]
     fn field_display_empty() {

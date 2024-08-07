@@ -6,64 +6,100 @@ use std::{
 };
 
 #[derive(Debug)]
-pub enum Error {
-    EmptyArgs,
-    MissingExecutableName,
-    Trace(trace::Error),
-    Parse(parse::Error),
-    Deserialize(de::error::Development),
+enum UsageError {
+    Parsing(parse::Error),
+    Deserializing(de::Error),
+}
+
+impl Display for UsageError {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::Parsing(error) => Display::fmt(error, formatter),
+            Self::Deserializing(error) => Display::fmt(error, formatter),
+        }
+    }
+}
+
+#[derive(Debug)]
+enum Kind {
+    Development {
+        error: trace::Error,
+    },
     Usage {
-        error: de::error::Usage,
-        executable_name: OsString,
+        error: UsageError,
+        executable_path: OsString,
         shape: Shape,
     },
 }
 
+impl Display for Kind {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::Development { error } => Display::fmt(error, formatter),
+            Self::Usage {
+                error,
+                executable_path,
+                shape,
+            } => {
+                write!(
+                    formatter,
+                    "ERROR: {}\n\nUSAGE: {} {}",
+                    error,
+                    executable_path.to_string_lossy(),
+                    shape
+                )
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Error {
+    kind: Kind,
+}
+
+impl Error {
+    pub(crate) fn from_parsing_error(
+        error: parse::Error,
+        executable_path: OsString,
+        shape: Shape,
+    ) -> Self {
+        Self {
+            kind: Kind::Usage {
+                error: UsageError::Parsing(error),
+                executable_path,
+                shape,
+            },
+        }
+    }
+
+    pub(crate) fn from_deserializing_error(
+        error: de::Error,
+        executable_path: OsString,
+        shape: Shape,
+    ) -> Self {
+        Self {
+            kind: Kind::Usage {
+                error: UsageError::Deserializing(error),
+                executable_path,
+                shape,
+            },
+        }
+    }
+}
+
 impl From<trace::Error> for Error {
     fn from(error: trace::Error) -> Self {
-        Self::Trace(error)
-    }
-}
-
-impl From<parse::Error> for Error {
-    fn from(error: parse::Error) -> Self {
-        Self::Parse(error)
-    }
-}
-
-impl From<de::Error> for Error {
-    fn from(error: de::Error) -> Self {
-        match error {
-            de::Error::Development(development_error) => Self::Deserialize(development_error),
-            de::Error::Usage(_) => todo!(),
+        // Tracing errors are always development errors.
+        Self {
+            kind: Kind::Development { error },
         }
     }
 }
 
 impl Display for Error {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        match self {
-            Self::EmptyArgs => {
-                formatter.write_str("unable to obtain executable path; arguments were empty")
-            }
-            Self::MissingExecutableName => {
-                formatter.write_str("unable to extract executable name from executable path")
-            }
-            Self::Trace(error) => write!(formatter, "tracing error: {}", error),
-            Self::Parse(error) => write!(formatter, "parsing error: {}", error),
-            Self::Deserialize(error) => write!(formatter, "deserialization error: {}", error),
-            Self::Usage {
-                error,
-                executable_name,
-                shape,
-            } => write!(
-                formatter,
-                "error: {}\n\nUSAGE: {} {}",
-                error,
-                executable_name.to_string_lossy(),
-                shape
-            ),
-        }
+        Display::fmt(&self.kind, formatter)
     }
 }
 
@@ -72,62 +108,57 @@ impl std::error::Error for Error {}
 #[cfg(test)]
 mod tests {
     use super::{
-        super::{de, trace, trace::Shape},
-        Error,
+        super::{de, parse, trace, trace::Shape},
+        Error, Kind, UsageError,
     };
 
     #[test]
-    fn display_empty_args() {
+    fn display_development_error() {
         assert_eq!(
-            format!("{}", Error::EmptyArgs,),
-            "unable to obtain executable path; arguments were empty",
-        )
-    }
-
-    #[test]
-    fn display_missing_executable_name() {
-        assert_eq!(
-            format!("{}", Error::MissingExecutableName,),
-            "unable to extract executable name from executable path",
-        )
-    }
-
-    #[test]
-    fn display_trace() {
-        assert_eq!(
-            format!(
-                "{}",
-                Error::Trace(trace::Error::NotSelfDescribing)
-            ),
-            "tracing error: cannot deserialize as self-describing; use of `Deserializer::deserialize_any()` or `Deserializer::deserialize_ignored_any()` is not allowed",
+            format!("{}", Error {
+                kind: Kind::Development {
+                    error: trace::Error::NotSelfDescribing,
+                }
+            }),
+            "cannot deserialize as self-describing; use of `Deserializer::deserialize_any()` or `Deserializer::deserialize_ignored_any()` is not allowed",
         );
     }
 
     #[test]
-    fn display_deserialize() {
+    fn display_usage_error_parsing() {
         assert_eq!(
             format!(
                 "{}",
-                Error::Deserialize(de::error::Development::NotSelfDescribing)
-            ),
-            "deserialization error: cannot deserialize as self-describing; use of `Deserializer::deserialize_any()` or `Deserializer::deserialize_ignored_any()` is not allowed",
-        );
-    }
-
-    #[test]
-    fn display_usage() {
-        assert_eq!(
-            format!(
-                "{}",
-                Error::Usage {
-                    error: de::error::Usage::Custom("custom message".to_owned()),
-                    executable_name: "foo".into(),
-                    shape: Shape::Primitive {
-                        name: "bar".to_owned()
-                    },
+                Error {
+                    kind: Kind::Usage {
+                        error: UsageError::Parsing(parse::Error::MissingArguments),
+                        executable_path: "executable_name".into(),
+                        shape: Shape::Primitive {
+                            name: "bar".to_owned()
+                        },
+                    }
                 }
             ),
-            "error: custom message\n\nUSAGE: foo <bar>",
-        );
+            "ERROR: missing required positional arguments\n\nUSAGE: executable_name <bar>"
+        )
+    }
+
+    #[test]
+    fn display_usage_error_deserializing() {
+        assert_eq!(
+            format!(
+                "{}",
+                Error {
+                    kind: Kind::Usage {
+                        error: UsageError::Deserializing(de::Error::Custom("foo".into())),
+                        executable_path: "executable_name".into(),
+                        shape: Shape::Primitive {
+                            name: "bar".to_owned()
+                        },
+                    }
+                }
+            ),
+            "ERROR: foo\n\nUSAGE: executable_name <bar>"
+        )
     }
 }

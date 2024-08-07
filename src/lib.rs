@@ -8,7 +8,7 @@ pub use error::Error;
 use de::Deserializer;
 use parse::parse;
 use serde::de::{Deserialize, DeserializeSeed};
-use std::{env, marker::PhantomData, path::PathBuf};
+use std::{env, ffi::OsString, marker::PhantomData, path::PathBuf};
 use trace::{trace, trace_seed_copy};
 
 pub fn from_args_seed<'de, D>(seed: D) -> Result<D::Value, Error>
@@ -18,14 +18,28 @@ where
     let mut shape = trace_seed_copy(seed)?;
 
     let mut args = env::args_os();
-    let executable_path = PathBuf::from(args.next().ok_or(Error::EmptyArgs)?)
-        .file_name()
-        .ok_or(Error::MissingExecutableName)?;
+    let executable_path: OsString = {
+        if let Some(path_str) = args.next() {
+            let path_buf = PathBuf::from(&path_str);
+            if let Some(file_name) = path_buf.file_name() {
+                file_name.to_owned()
+            } else {
+                path_str
+            }
+        } else {
+            option_env!("CARGO_BIN_NAME")
+                .expect("could not obtain binary name")
+                .into()
+        }
+    };
 
-    let context = parse(args, &mut shape)?;
+    let context = match parse(args, &mut shape) {
+        Ok(context) => context,
+        Err(error) => return Err(Error::from_parsing_error(error, executable_path, shape)),
+    };
 
     seed.deserialize(Deserializer::new(context))
-        .map_err(Into::into)
+        .map_err(|error| Error::from_deserializing_error(error, executable_path, shape))
 }
 
 pub fn from_args<'de, D>() -> Result<D, Error>
