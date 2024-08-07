@@ -193,11 +193,7 @@ where
         Shape::Optional(ref mut optional_shape) => {
             // This is a "positional optional". It starts its own isolated context, which only contains its own optional value if it exists.
             match **optional_shape {
-                Shape::Empty
-                | Shape::Optional(_)
-                | Shape::Primitive { .. }
-                | Shape::Struct { .. }
-                | Shape::Enum { .. } => {
+                Shape::Empty | Shape::Optional(_) => {
                     if let Some(next) = args.next_positional() {
                         if let Ok(next_str) = str::from_utf8(&next) {
                             match next_str {
@@ -222,14 +218,19 @@ where
                         }
                     }
                 }
-                // Shape::Primitive {..} | Shape::Struct {..} | Shape::Enum {..} => {
-                //     if let Some(optional) = args.next_optional() {
-                //         let mut optional_context = Context {
-                //             segments: vec![],
-                //         };
-                //         context.segments.push(Segment::Context(parse_context_no_options(&mut ParsedArgs::new(iter::once(optional).chain(args)), optional_shape, optional_context)?));
-                //     }
-                // }
+                Shape::Primitive { .. } | Shape::Struct { .. } | Shape::Enum { .. } => {
+                    if let Some(optional) = args.next_optional() {
+                        args.revisit = Some(optional);
+                        let optional_context = Context { segments: vec![] };
+                        context
+                            .segments
+                            .push(Segment::Context(parse_context_no_options(
+                                args,
+                                optional_shape,
+                                optional_context,
+                            )?));
+                    }
+                }
                 Shape::Variant { .. } => {
                     unreachable!()
                 }
@@ -770,7 +771,7 @@ mod tests {
     fn parse_optional_primitive() {
         assert_ok_eq!(
             parse(
-                ["-", "foo"],
+                ["--foo"],
                 &mut Shape::Optional(Box::new(Shape::Primitive {
                     name: "bar".to_owned()
                 }))
