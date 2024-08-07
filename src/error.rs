@@ -41,13 +41,26 @@ impl Display for Kind {
                 executable_path,
                 shape,
             } => {
-                write!(
-                    formatter,
-                    "ERROR: {}\n\nUSAGE: {} {}",
-                    error,
-                    executable_path.to_string_lossy(),
-                    shape
-                )
+                match error {
+                    UsageError::Parsing(parse::Error::Help) => {
+                        // Write usage string.
+                        write!(
+                            formatter,
+                            "USAGE: {} {}",
+                            executable_path.to_string_lossy(),
+                            shape
+                        )
+                    }
+                    _ => {
+                        write!(
+                            formatter,
+                            "ERROR: {}\n\nUSAGE: {} {}",
+                            error,
+                            executable_path.to_string_lossy(),
+                            shape
+                        )
+                    }
+                }
             }
         }
     }
