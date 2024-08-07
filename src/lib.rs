@@ -19,17 +19,12 @@ where
 
     let mut args = env::args_os();
     let executable_path: OsString = {
-        if let Some(path_str) = args.next() {
-            let path_buf = PathBuf::from(&path_str);
-            if let Some(file_name) = path_buf.file_name() {
-                file_name.to_owned()
-            } else {
-                path_str
-            }
+        let path_str = args.next().expect("could not obtain binary name");
+        let path_buf = PathBuf::from(&path_str);
+        if let Some(file_name) = path_buf.file_name() {
+            file_name.to_owned()
         } else {
-            option_env!("CARGO_BIN_NAME")
-                .expect("could not obtain binary name")
-                .into()
+            path_str
         }
     };
 
