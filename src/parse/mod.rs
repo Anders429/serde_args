@@ -13,6 +13,7 @@ pub(crate) enum Error {
     UnrecognizedOption,
     UnrecognizedVariant,
     DuplicateOption,
+    Help,
 }
 
 impl Display for Error {
@@ -25,6 +26,7 @@ impl Display for Error {
             Self::DuplicateOption => formatter.write_str(
                 "optional flag name (or its aliases) cannot be specified more than once",
             ),
+            Self::Help => formatter.write_str("help requested"),
         }
     }
 }
@@ -166,11 +168,33 @@ where
     Arg: Into<OsString>,
 {
     let mut parsed_args = ParsedArgs::new(args.into_iter().map(|arg| arg.into()));
-    let result = parse_context_no_options(&mut parsed_args, shape, Context { segments: vec![] })?;
+    let parsed_context = parse_context(
+        &mut parsed_args,
+        shape,
+        &mut vec![(
+            Field {
+                name: "help",
+                aliases: vec!["h"],
+                shape: Shape::Empty,
+            },
+            false,
+        )],
+        Context { segments: vec![] },
+    )?;
+
+    // Handle overriding options.
+    for (option_name, _option_context) in parsed_context.options {
+        match option_name {
+            "help" | "h" => return Err(Error::Help),
+            _ => return Err(Error::UnrecognizedOption),
+        }
+    }
+
+    // Ensure there are no remaining arguments.
     if parsed_args.next().is_some() {
         Err(Error::UnexpectedArgument)
     } else {
-        Ok(result)
+        Ok(parsed_context.context)
     }
 }
 
