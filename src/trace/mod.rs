@@ -153,6 +153,39 @@ impl Shape {
 
         result
     }
+
+    pub(crate) fn optional_groups(&self) -> Vec<(&str, Vec<(&str, &str)>)> {
+        let mut result: Vec<(&str, Vec<(&str, &str)>)> = Vec::new();
+
+        match self {
+            Self::Empty { .. } | Self::Primitive { .. } | Self::Enum { .. } => {}
+            Self::Optional(shape) => {
+                result.extend(shape.optional_groups());
+            }
+            Self::Struct {
+                name,
+                required,
+                optional,
+                ..
+            } => {
+                result.push((
+                    name,
+                    optional
+                        .iter()
+                        .map(|field| (field.name, field.shape.description()))
+                        .collect(),
+                ));
+                for required_field in required {
+                    result.extend(required_field.shape.optional_groups());
+                }
+            }
+            Self::Variant { shape, .. } => {
+                result.extend(shape.optional_groups());
+            }
+        }
+
+        result
+    }
 }
 
 impl Display for Shape {
@@ -889,6 +922,7 @@ impl<'a, 'de> de::EnumAccess<'de> for &'a mut EnumAccess<'_> {
         Ok((
             key,
             VariantAccess {
+                name: self.variant,
                 recursive_deserializer: self.recursive_deserializer,
             },
         ))
@@ -896,6 +930,7 @@ impl<'a, 'de> de::EnumAccess<'de> for &'a mut EnumAccess<'_> {
 }
 
 struct VariantAccess<'a> {
+    name: &'static str,
     recursive_deserializer: &'a mut Option<Box<Deserializer>>,
 }
 
@@ -936,7 +971,7 @@ impl<'de> de::VariantAccess<'de> for VariantAccess<'_> {
     {
         self.recursive_deserializer
             .get_or_insert(Box::new(Deserializer::new()))
-            .deserialize_struct("", fields, visitor)
+            .deserialize_struct(self.name, fields, visitor)
     }
 }
 

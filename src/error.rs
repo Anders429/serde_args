@@ -78,6 +78,30 @@ impl Display for Kind {
                             )?;
                         }
 
+                        // Write options.
+                        let optional_groups = shape.optional_groups();
+                        for (index, (name, group)) in optional_groups.iter().enumerate() {
+                            if !group.is_empty() {
+                                if index == 0 {
+                                    formatter.write_str("\n\nGlobal Options:")?;
+                                } else {
+                                    write!(formatter, "\n\n{} Options", name)?;
+                                }
+                                // Get longest option name.
+                                let longest_option = group
+                                    .iter()
+                                    .map(|(name, _)| name.chars().count())
+                                    .max()
+                                    .unwrap_or(0);
+                                for (name, description) in group {
+                                    write!(
+                                        formatter,
+                                        "\n  --{name:longest_option$}  {description}"
+                                    )?;
+                                }
+                            }
+                        }
+
                         Ok(())
                     }
                     _ => {
