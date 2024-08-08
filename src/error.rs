@@ -43,6 +43,13 @@ impl Display for Kind {
             } => {
                 match error {
                     UsageError::Parsing(parse::Error::Help) => {
+                        // Write program description.
+                        let program_description = shape.description();
+                        if !program_description.is_empty() {
+                            formatter.write_str(shape.description())?;
+                            formatter.write_str("\n\n")?;
+                        }
+
                         // Write usage string.
                         write!(
                             formatter,

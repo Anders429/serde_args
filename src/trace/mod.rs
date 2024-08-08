@@ -117,6 +117,17 @@ impl Shape {
         }
     }
 
+    pub(crate) fn description(&self) -> &str {
+        match self {
+            Self::Empty { description }
+            | Self::Primitive { description, .. }
+            | Self::Struct { description, .. }
+            | Self::Enum { description, .. }
+            | Self::Variant { description, .. } => description,
+            Self::Optional(shape) => shape.description(),
+        }
+    }
+
     pub(crate) fn required_arguments(&self) -> Vec<(&str, &str)> {
         let mut result: Vec<(&str, &str)> = Vec::new();
 
