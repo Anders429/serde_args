@@ -147,7 +147,8 @@ mod tests {
                         error: UsageError::Parsing(parse::Error::MissingArguments),
                         executable_path: "executable_name".into(),
                         shape: Shape::Primitive {
-                            name: "bar".to_owned()
+                            name: "bar".to_owned(),
+                            description: String::new(),
                         },
                     }
                 }
@@ -166,7 +167,8 @@ mod tests {
                         error: UsageError::Deserializing(de::Error::Custom("foo".into())),
                         executable_path: "executable_name".into(),
                         shape: Shape::Primitive {
-                            name: "bar".to_owned()
+                            name: "bar".to_owned(),
+                            description: String::new(),
                         },
                     }
                 }

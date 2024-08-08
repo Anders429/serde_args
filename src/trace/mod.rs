@@ -23,12 +23,12 @@ pub(crate) struct Field {
 impl Display for Field {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match &self.shape {
-            Shape::Empty => Ok(()),
+            Shape::Empty { .. } => Ok(()),
             Shape::Primitive { .. } | Shape::Enum { .. } => {
                 write!(formatter, "<{}>", self.name)
             }
             Shape::Optional(shape) => {
-                if matches!(**shape, Shape::Empty) {
+                if matches!(**shape, Shape::Empty { .. }) {
                     write!(formatter, "[--{}]", self.name)
                 } else {
                     write!(formatter, "[--{} {}]", self.name, shape)
@@ -42,6 +42,7 @@ impl Display for Field {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Variant {
     pub(crate) name: &'static str,
+    pub(crate) description: String,
     pub(crate) aliases: Vec<&'static str>,
     pub(crate) shape: Shape,
 }
@@ -49,7 +50,7 @@ pub(crate) struct Variant {
 impl Display for Variant {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match &self.shape {
-            Shape::Empty => write!(formatter, "{}", self.name),
+            Shape::Empty { .. } => write!(formatter, "{}", self.name),
             Shape::Primitive { .. }
             | Shape::Optional(_)
             | Shape::Enum { .. }
@@ -63,29 +64,43 @@ impl Display for Variant {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum Shape {
-    Empty,
+    Empty {
+        description: String,
+    },
     Primitive {
         name: String,
+        description: String,
     },
     Optional(Box<Shape>),
     Struct {
+        name: &'static str,
+        description: String,
         required: Vec<Field>,
         optional: Vec<Field>,
     },
     Enum {
         name: &'static str,
+        description: String,
         variants: Vec<Variant>,
     },
     Variant {
         name: &'static str,
+        description: String,
         shape: Box<Shape>,
     },
 }
 
 impl Shape {
+    fn empty_from_visitor(expected: &dyn Expected) -> Self {
+        Self::Empty {
+            description: format!("{}", expected),
+        }
+    }
+
     fn primitive_from_visitor(expected: &dyn Expected) -> Self {
         Self::Primitive {
             name: format!("{}", expected),
+            description: format!("{:#}", expected),
         }
     }
 }
@@ -93,8 +108,8 @@ impl Shape {
 impl Display for Shape {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
-            Self::Empty => Ok(()),
-            Self::Primitive { name } => write!(formatter, "<{}>", name),
+            Self::Empty { .. } => Ok(()),
+            Self::Primitive { name, .. } => write!(formatter, "<{}>", name),
             Self::Optional(shape) => {
                 if matches!(**shape, Shape::Optional(_)) {
                     write!(formatter, "[-- {}]", shape)
@@ -102,7 +117,9 @@ impl Display for Shape {
                     write!(formatter, "[--{}]", shape)
                 }
             }
-            Self::Struct { required, optional } => {
+            Self::Struct {
+                required, optional, ..
+            } => {
                 let mut required_iter = required.iter();
                 let mut had_required = false;
                 if let Some(field) = required_iter.next() {
@@ -129,7 +146,7 @@ impl Display for Shape {
             Self::Enum { name, .. } => {
                 write!(formatter, "<{}>", name)
             }
-            Self::Variant { name, shape } => {
+            Self::Variant { name, shape, .. } => {
                 write!(formatter, "{} {}", name, shape)
             }
         }
@@ -221,6 +238,8 @@ struct KeyInfo {
 
 #[derive(Debug)]
 struct Fields {
+    name: &'static str,
+    description: String,
     iter: slice::Iter<'static, &'static str>,
     revisit: Option<&'static str>,
     required_fields: Vec<(KeyInfo, Vec<&'static str>)>,
@@ -230,6 +249,8 @@ struct Fields {
 impl From<Fields> for Shape {
     fn from(fields: Fields) -> Self {
         Shape::Struct {
+            name: fields.name,
+            description: fields.description,
             required: fields
                 .required_fields
                 .into_iter()
@@ -261,22 +282,37 @@ impl From<Fields> for Shape {
 #[derive(Debug)]
 struct Variants {
     name: &'static str,
+    description: String,
     iter: slice::Iter<'static, &'static str>,
     revisit: Option<&'static str>,
-    variants: Vec<(KeyInfo, Vec<&'static str>)>,
+    variants: Vec<(KeyInfo, (Vec<&'static str>, String))>,
+}
+
+impl Variants {
+    fn new(name: &'static str, variants: &'static [&'static str], visitor: &dyn Expected) -> Self {
+        Self {
+            name,
+            description: format!("{}", visitor),
+            iter: variants.iter(),
+            revisit: None,
+            variants: Vec::new(),
+        }
+    }
 }
 
 impl From<Variants> for Shape {
     fn from(variants: Variants) -> Self {
         Shape::Enum {
             name: variants.name,
+            description: variants.description,
             variants: variants
                 .variants
                 .into_iter()
-                .map(|(info, mut names)| {
+                .map(|(info, (mut names, description))| {
                     let first = names.remove(0);
                     Variant {
                         name: first,
+                        description,
                         aliases: names,
                         shape: info.shape,
                     }
@@ -327,6 +363,10 @@ impl From<Keys> for Shape {
             Keys::Variants(variants) => variants.into(),
         }
     }
+}
+
+fn description_from_visitor(visitor: &dyn Expected) -> String {
+    format!("{}", visitor)
 }
 
 #[derive(Debug)]
@@ -417,22 +457,26 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
         deserialize_identifier,
     }
 
-    fn deserialize_unit<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        Err(Trace(Ok(Status::Success(Shape::Empty))))
+        Err(Trace(Ok(Status::Success(Shape::empty_from_visitor(
+            &visitor,
+        )))))
     }
 
     fn deserialize_unit_struct<V>(
         self,
         _name: &'static str,
-        _visitor: V,
+        visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        Err(Trace(Ok(Status::Success(Shape::Empty))))
+        Err(Trace(Ok(Status::Success(Shape::empty_from_visitor(
+            &visitor,
+        )))))
     }
 
     // --------------
@@ -497,7 +541,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
 
     fn deserialize_struct<V>(
         self,
-        _name: &'static str,
+        name: &'static str,
         fields: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error>
@@ -507,6 +551,8 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
         let fields = self
             .keys
             .get_fields_or_insert(Fields {
+                name,
+                description: description_from_visitor(&visitor),
                 iter: fields.iter(),
                 revisit: None,
                 required_fields: Vec::new(),
@@ -597,18 +643,26 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     {
         let variants = self
             .keys
-            .get_variants_or_insert(Variants {
-                name,
-                iter: variants.iter(),
-                revisit: None,
-                variants: Vec::new(),
-            })
+            .get_variants_or_insert(Variants::new(name, variants, &visitor))
             .map_err(|error| Trace(Err(error)))?;
         if let Some(variant) = variants
             .revisit
             .take()
             .or_else(|| variants.iter.next().copied())
         {
+            // Obtain description for the possible next variant.
+            fn variant_description_from_visitor(visitor: &dyn Expected, variant: usize) -> String {
+                format!("{:#variant$}", visitor)
+            }
+            let description = {
+                let description =
+                    variant_description_from_visitor(&visitor, variants.variants.len());
+                if description == variants.description {
+                    String::new()
+                } else {
+                    description
+                }
+            };
             // Process the current variant.
             let mut discriminant = 0;
             let mut enum_access = EnumAccess {
@@ -627,7 +681,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                     shape,
                                 };
                                 let mut found = false;
-                                for (info, names) in variants.variants.iter_mut() {
+                                for (info, (names, _description)) in variants.variants.iter_mut() {
                                     if *info == key_info {
                                         found = true;
                                         names.push(variant);
@@ -635,7 +689,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                     }
                                 }
                                 if !found {
-                                    variants.variants.push((key_info, vec![variant]));
+                                    variants
+                                        .variants
+                                        .push((key_info, (vec![variant], description)));
                                 }
                                 self.recursive_deserializer = None;
                             }
@@ -797,7 +853,9 @@ impl<'de> de::VariantAccess<'de> for VariantAccess<'_> {
     type Error = Trace;
 
     fn unit_variant(self) -> Result<(), Self::Error> {
-        Err(Trace(Ok(Status::Success(Shape::Empty))))
+        Err(Trace(Ok(Status::Success(Shape::Empty {
+            description: "".into(),
+        }))))
     }
 
     fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value, Self::Error>
@@ -854,7 +912,9 @@ mod tests {
                 Field {
                     name: "foo",
                     aliases: Vec::new(),
-                    shape: Shape::Empty,
+                    shape: Shape::Empty {
+                        description: String::new()
+                    },
                 }
             ),
             ""
@@ -870,7 +930,8 @@ mod tests {
                     name: "foo",
                     aliases: Vec::new(),
                     shape: Shape::Primitive {
-                        name: "bar".to_owned()
+                        name: "bar".to_owned(),
+                        description: String::new(),
                     },
                 }
             ),
@@ -886,7 +947,9 @@ mod tests {
                 Field {
                     name: "foo",
                     aliases: Vec::new(),
-                    shape: Shape::Optional(Box::new(Shape::Empty)),
+                    shape: Shape::Optional(Box::new(Shape::Empty {
+                        description: String::new(),
+                    })),
                 }
             ),
             "[--foo]"
@@ -902,7 +965,8 @@ mod tests {
                     name: "foo",
                     aliases: Vec::new(),
                     shape: Shape::Optional(Box::new(Shape::Primitive {
-                        name: "bar".to_owned()
+                        name: "bar".to_owned(),
+                        description: String::new(),
                     })),
                 }
             ),
@@ -919,7 +983,8 @@ mod tests {
                     name: "foo",
                     aliases: Vec::new(),
                     shape: Shape::Optional(Box::new(Shape::Optional(Box::new(Shape::Primitive {
-                        name: "bar".to_owned()
+                        name: "bar".to_owned(),
+                        description: String::new(),
                     })))),
                 }
             ),
@@ -936,19 +1001,23 @@ mod tests {
                     name: "foo",
                     aliases: Vec::new(),
                     shape: Shape::Optional(Box::new(Shape::Struct {
+                        name: "",
+                        description: String::new(),
                         required: vec![
                             Field {
                                 name: "bar",
                                 aliases: Vec::new(),
                                 shape: Shape::Primitive {
-                                    name: "foo".to_owned()
+                                    name: "foo".to_owned(),
+                                    description: String::new(),
                                 },
                             },
                             Field {
                                 name: "baz",
                                 aliases: Vec::new(),
                                 shape: Shape::Primitive {
-                                    name: "foo".to_owned()
+                                    name: "foo".to_owned(),
+                                    description: String::new(),
                                 },
                             },
                         ],
@@ -970,6 +1039,7 @@ mod tests {
                     aliases: Vec::new(),
                     shape: Shape::Optional(Box::new(Shape::Enum {
                         name: "bar",
+                        description: String::new(),
                         variants: vec![],
                     })),
                 }
@@ -985,8 +1055,11 @@ mod tests {
                 "{}",
                 Variant {
                     name: "foo",
+                    description: String::new(),
                     aliases: Vec::new(),
-                    shape: Shape::Empty,
+                    shape: Shape::Empty {
+                        description: String::new()
+                    },
                 }
             ),
             "foo"
@@ -1000,9 +1073,11 @@ mod tests {
                 "{}",
                 Variant {
                     name: "foo",
+                    description: String::new(),
                     aliases: Vec::new(),
                     shape: Shape::Primitive {
-                        name: "bar".to_owned()
+                        name: "bar".to_owned(),
+                        description: String::new(),
                     },
                 }
             ),
@@ -1017,9 +1092,11 @@ mod tests {
                 "{}",
                 Variant {
                     name: "foo",
+                    description: String::new(),
                     aliases: Vec::new(),
                     shape: Shape::Optional(Box::new(Shape::Primitive {
-                        name: "bar".to_owned()
+                        name: "bar".to_owned(),
+                        description: String::new(),
                     })),
                 }
             ),
@@ -1034,20 +1111,25 @@ mod tests {
                 "{}",
                 Variant {
                     name: "foo",
+                    description: String::new(),
                     aliases: Vec::new(),
                     shape: Shape::Struct {
+                        name: "",
+                        description: String::new(),
                         required: vec![Field {
                             name: "bar",
                             aliases: vec![],
                             shape: Shape::Primitive {
-                                name: "baz".to_owned()
+                                name: "baz".to_owned(),
+                                description: String::new(),
                             }
                         },],
                         optional: vec![Field {
                             name: "qux",
                             aliases: vec![],
                             shape: Shape::Primitive {
-                                name: "quux".to_owned()
+                                name: "quux".to_owned(),
+                                description: String::new(),
                             }
                         },],
                     },
@@ -1064,19 +1146,27 @@ mod tests {
                 "{}",
                 Variant {
                     name: "foo",
+                    description: String::new(),
                     aliases: Vec::new(),
                     shape: Shape::Enum {
                         name: "bar",
+                        description: String::new(),
                         variants: vec![
                             Variant {
                                 name: "baz",
+                                description: String::new(),
                                 aliases: vec![],
-                                shape: Shape::Empty,
+                                shape: Shape::Empty {
+                                    description: String::new()
+                                },
                             },
                             Variant {
                                 name: "qux",
+                                description: String::new(),
                                 aliases: vec![],
-                                shape: Shape::Empty,
+                                shape: Shape::Empty {
+                                    description: String::new()
+                                },
                             }
                         ],
                     },
@@ -1091,14 +1181,23 @@ mod tests {
         assert_eq!(
             Shape::primitive_from_visitor(&IgnoredAny),
             Shape::Primitive {
-                name: "anything at all".to_owned()
+                name: "anything at all".to_owned(),
+                description: "anything at all".to_owned(),
             }
         );
     }
 
     #[test]
     fn shape_display_empty() {
-        assert_eq!(format!("{}", Shape::Empty), "");
+        assert_eq!(
+            format!(
+                "{}",
+                Shape::Empty {
+                    description: String::new(),
+                }
+            ),
+            ""
+        );
     }
 
     #[test]
@@ -1107,7 +1206,8 @@ mod tests {
             format!(
                 "{}",
                 Shape::Primitive {
-                    name: "foo".to_owned()
+                    name: "foo".to_owned(),
+                    description: String::new(),
                 }
             ),
             "<foo>"
@@ -1117,7 +1217,12 @@ mod tests {
     #[test]
     fn shape_display_optional_empty() {
         assert_eq!(
-            format!("{}", Shape::Optional(Box::new(Shape::Empty))),
+            format!(
+                "{}",
+                Shape::Optional(Box::new(Shape::Empty {
+                    description: String::new(),
+                }))
+            ),
             "[--]"
         );
     }
@@ -1128,7 +1233,8 @@ mod tests {
             format!(
                 "{}",
                 Shape::Optional(Box::new(Shape::Primitive {
-                    name: "foo".to_owned()
+                    name: "foo".to_owned(),
+                    description: String::new(),
                 }))
             ),
             "[--<foo>]"
@@ -1141,7 +1247,8 @@ mod tests {
             format!(
                 "{}",
                 Shape::Optional(Box::new(Shape::Optional(Box::new(Shape::Primitive {
-                    name: "foo".to_owned()
+                    name: "foo".to_owned(),
+                    description: String::new(),
                 }))))
             ),
             "[-- [--<foo>]]"
@@ -1154,19 +1261,23 @@ mod tests {
             format!(
                 "{}",
                 Shape::Optional(Box::new(Shape::Struct {
+                    name: "",
+                    description: String::new(),
                     required: vec![
                         Field {
                             name: "foo",
                             aliases: Vec::new(),
                             shape: Shape::Primitive {
-                                name: "bar".to_owned()
+                                name: "bar".to_owned(),
+                                description: String::new(),
                             },
                         },
                         Field {
                             name: "baz",
                             aliases: Vec::new(),
                             shape: Shape::Primitive {
-                                name: "qux".to_owned()
+                                name: "qux".to_owned(),
+                                description: String::new(),
                             },
                         },
                     ],
@@ -1184,6 +1295,7 @@ mod tests {
                 "{}",
                 Shape::Optional(Box::new(Shape::Enum {
                     name: "foo",
+                    description: String::new(),
                     variants: vec![],
                 }))
             ),
@@ -1197,19 +1309,23 @@ mod tests {
             format!(
                 "{}",
                 Shape::Struct {
+                    name: "",
+                    description: String::new(),
                     required: vec![
                         Field {
                             name: "foo",
                             aliases: Vec::new(),
                             shape: Shape::Primitive {
-                                name: "bar".to_owned()
+                                name: "bar".to_owned(),
+                                description: String::new(),
                             },
                         },
                         Field {
                             name: "baz",
                             aliases: Vec::new(),
                             shape: Shape::Primitive {
-                                name: "qux".to_owned()
+                                name: "qux".to_owned(),
+                                description: String::new(),
                             },
                         },
                     ],
@@ -1226,20 +1342,24 @@ mod tests {
             format!(
                 "{}",
                 Shape::Struct {
+                    name: "",
+                    description: String::new(),
                     required: vec![],
                     optional: vec![
                         Field {
                             name: "foo",
                             aliases: Vec::new(),
                             shape: Shape::Primitive {
-                                name: "bar".to_owned()
+                                name: "bar".to_owned(),
+                                description: String::new(),
                             },
                         },
                         Field {
                             name: "baz",
                             aliases: Vec::new(),
                             shape: Shape::Primitive {
-                                name: "qux".to_owned()
+                                name: "qux".to_owned(),
+                                description: String::new(),
                             },
                         },
                     ],
@@ -1256,6 +1376,7 @@ mod tests {
                 "{}",
                 Shape::Enum {
                     name: "foo",
+                    description: String::new(),
                     variants: vec![],
                 }
             ),
@@ -1270,8 +1391,10 @@ mod tests {
                 "{}",
                 Shape::Variant {
                     name: "foo",
+                    description: String::new(),
                     shape: Box::new(Shape::Primitive {
-                        name: "bar".to_owned()
+                        name: "bar".to_owned(),
+                        description: String::new(),
                     }),
                 },
             ),
@@ -1283,12 +1406,16 @@ mod tests {
     fn shape_from_fields_empty() {
         assert_eq!(
             Shape::from(Fields {
+                name: "",
+                description: String::new(),
                 iter: [].iter(),
                 revisit: None,
                 required_fields: vec![],
                 optional_fields: vec![],
             }),
             Shape::Struct {
+                name: "",
+                description: String::new(),
                 required: vec![],
                 optional: vec![],
             }
@@ -1299,6 +1426,8 @@ mod tests {
     fn shape_from_fields_single() {
         assert_eq!(
             Shape::from(Fields {
+                name: "",
+                description: String::new(),
                 iter: [].iter(),
                 revisit: None,
                 required_fields: vec![(
@@ -1306,6 +1435,7 @@ mod tests {
                         discriminant: 0,
                         shape: Shape::Primitive {
                             name: "foo".to_owned(),
+                            description: String::new(),
                         },
                     },
                     vec!["bar"]
@@ -1313,11 +1443,14 @@ mod tests {
                 optional_fields: vec![],
             }),
             Shape::Struct {
+                name: "",
+                description: String::new(),
                 required: vec![Field {
                     name: "bar",
                     aliases: Vec::new(),
                     shape: Shape::Primitive {
                         name: "foo".to_owned(),
+                        description: String::new(),
                     },
                 },],
                 optional: vec![],
@@ -1329,6 +1462,8 @@ mod tests {
     fn shape_from_fields_multiple() {
         assert_eq!(
             Shape::from(Fields {
+                name: "",
+                description: String::new(),
                 iter: [].iter(),
                 revisit: None,
                 required_fields: vec![
@@ -1337,6 +1472,7 @@ mod tests {
                             discriminant: 0,
                             shape: Shape::Primitive {
                                 name: "foo".to_owned(),
+                                description: String::new(),
                             },
                         },
                         vec!["bar"],
@@ -1345,6 +1481,7 @@ mod tests {
                         KeyInfo {
                             discriminant: 1,
                             shape: Shape::Primitive {
+                                description: String::new(),
                                 name: "baz".to_owned(),
                             },
                         },
@@ -1354,12 +1491,15 @@ mod tests {
                 optional_fields: vec![],
             }),
             Shape::Struct {
+                name: "",
+                description: String::new(),
                 required: vec![
                     Field {
                         name: "bar",
                         aliases: Vec::new(),
                         shape: Shape::Primitive {
                             name: "foo".to_owned(),
+                            description: String::new(),
                         },
                     },
                     Field {
@@ -1367,6 +1507,7 @@ mod tests {
                         aliases: Vec::new(),
                         shape: Shape::Primitive {
                             name: "baz".to_owned(),
+                            description: String::new(),
                         },
                     },
                 ],
@@ -1379,6 +1520,8 @@ mod tests {
     fn shape_from_fields_aliases() {
         assert_eq!(
             Shape::from(Fields {
+                name: "",
+                description: String::new(),
                 iter: [].iter(),
                 revisit: None,
                 required_fields: vec![(
@@ -1386,6 +1529,7 @@ mod tests {
                         discriminant: 0,
                         shape: Shape::Primitive {
                             name: "foo".to_owned(),
+                            description: String::new(),
                         },
                     },
                     vec!["bar", "baz", "qux"],
@@ -1393,11 +1537,14 @@ mod tests {
                 optional_fields: vec![],
             }),
             Shape::Struct {
+                name: "",
+                description: String::new(),
                 required: vec![Field {
                     name: "bar",
                     aliases: vec!["baz", "qux"],
                     shape: Shape::Primitive {
                         name: "foo".to_owned(),
+                        description: String::new(),
                     },
                 },],
                 optional: vec![],
@@ -1407,7 +1554,15 @@ mod tests {
 
     #[test]
     fn status_display_success() {
-        assert_eq!(format!("{}", Status::Success(Shape::Empty)), "success: ")
+        assert_eq!(
+            format!(
+                "{}",
+                Status::Success(Shape::Empty {
+                    description: String::new(),
+                })
+            ),
+            "success: "
+        )
     }
 
     #[test]
@@ -1431,7 +1586,12 @@ mod tests {
     #[test]
     fn trace_display_status() {
         assert_eq!(
-            format!("{}", Trace(Ok(Status::Success(Shape::Empty)))),
+            format!(
+                "{}",
+                Trace(Ok(Status::Success(Shape::Empty {
+                    description: String::new(),
+                })))
+            ),
             "status: success: "
         );
     }
@@ -1454,7 +1614,8 @@ mod tests {
         assert_ok_eq!(
             deserializer.trace_required_primitive(&IgnoredAny).0,
             Status::Success(Shape::Primitive {
-                name: "anything at all".to_owned()
+                name: "anything at all".to_owned(),
+                description: "anything at all".to_owned(),
             })
         );
     }
@@ -1508,7 +1669,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(i8::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Primitive {
-                name: "i8".to_owned()
+                name: "i8".to_owned(),
+                description: "i8".to_owned(),
             })
         );
     }
@@ -1520,7 +1682,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(i16::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Primitive {
-                name: "i16".to_owned()
+                name: "i16".to_owned(),
+                description: "i16".to_owned(),
             })
         );
     }
@@ -1532,7 +1695,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(i32::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Primitive {
-                name: "i32".to_owned()
+                name: "i32".to_owned(),
+                description: "i32".to_owned(),
             })
         );
     }
@@ -1544,7 +1708,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(i64::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Primitive {
-                name: "i64".to_owned()
+                name: "i64".to_owned(),
+                description: "i64".to_owned(),
             })
         );
     }
@@ -1556,7 +1721,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(i128::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Primitive {
-                name: "i128".to_owned()
+                name: "i128".to_owned(),
+                description: "i128".to_owned(),
             })
         );
     }
@@ -1568,7 +1734,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(u8::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Primitive {
-                name: "u8".to_owned()
+                name: "u8".to_owned(),
+                description: "u8".to_owned(),
             })
         );
     }
@@ -1580,7 +1747,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(u16::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Primitive {
-                name: "u16".to_owned()
+                name: "u16".to_owned(),
+                description: "u16".to_owned(),
             })
         );
     }
@@ -1592,7 +1760,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(u32::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Primitive {
-                name: "u32".to_owned()
+                name: "u32".to_owned(),
+                description: "u32".to_owned(),
             })
         );
     }
@@ -1604,7 +1773,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(u64::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Primitive {
-                name: "u64".to_owned()
+                name: "u64".to_owned(),
+                description: "u64".to_owned(),
             })
         );
     }
@@ -1616,7 +1786,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(u128::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Primitive {
-                name: "u128".to_owned()
+                name: "u128".to_owned(),
+                description: "u128".to_owned(),
             })
         );
     }
@@ -1628,7 +1799,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(f32::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Primitive {
-                name: "f32".to_owned()
+                name: "f32".to_owned(),
+                description: "f32".to_owned(),
             })
         );
     }
@@ -1640,7 +1812,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(f64::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Primitive {
-                name: "f64".to_owned()
+                name: "f64".to_owned(),
+                description: "f64".to_owned(),
             })
         );
     }
@@ -1652,7 +1825,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(char::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Primitive {
-                name: "a character".to_owned()
+                name: "a character".to_owned(),
+                description: "a character".to_owned(),
             })
         );
     }
@@ -1664,7 +1838,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(<&str>::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Primitive {
-                name: "a borrowed string".to_owned()
+                name: "a borrowed string".to_owned(),
+                description: "a borrowed string".to_owned(),
             })
         );
     }
@@ -1676,7 +1851,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(String::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Primitive {
-                name: "a string".to_owned()
+                name: "a string".to_owned(),
+                description: "a string".to_owned(),
             })
         );
     }
@@ -1710,7 +1886,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(Bytes::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Primitive {
-                name: "bytes".to_owned()
+                name: "bytes".to_owned(),
+                description: "bytes".to_owned(),
             })
         );
     }
@@ -1744,7 +1921,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(ByteBuf::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Primitive {
-                name: "byte buf".to_owned()
+                name: "byte buf".to_owned(),
+                description: "byte buf".to_owned(),
             })
         );
     }
@@ -1778,7 +1956,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(Identifier::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Primitive {
-                name: "identifier".to_owned()
+                name: "identifier".to_owned(),
+                description: "identifier".to_owned(),
             })
         );
     }
@@ -1789,7 +1968,9 @@ mod tests {
 
         assert_ok_eq!(
             assert_err!(<()>::deserialize(&mut deserializer)).0,
-            Status::Success(Shape::Empty)
+            Status::Success(Shape::Empty {
+                description: "unit".to_owned()
+            })
         );
     }
 
@@ -1802,7 +1983,9 @@ mod tests {
 
         assert_ok_eq!(
             assert_err!(Unit::deserialize(&mut deserializer)).0,
-            Status::Success(Shape::Empty)
+            Status::Success(Shape::Empty {
+                description: "unit struct Unit".to_owned()
+            })
         );
     }
 
@@ -1813,7 +1996,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(Option::<i32>::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Optional(Box::new(Shape::Primitive {
-                name: "i32".to_owned()
+                name: "i32".to_owned(),
+                description: "i32".to_owned(),
             })))
         );
     }
@@ -1829,7 +2013,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(Newtype::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Primitive {
-                name: "i32".to_owned()
+                name: "i32".to_owned(),
+                description: "i32".to_owned(),
             })
         );
     }
@@ -1858,12 +2043,15 @@ mod tests {
         assert_ok_eq!(
             assert_err!(Struct::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Struct {
+                name: "Struct",
+                description: "struct Struct".into(),
                 required: vec![
                     Field {
                         name: "foo",
                         aliases: Vec::new(),
                         shape: Shape::Primitive {
                             name: "usize".to_owned(),
+                            description: "usize".to_owned(),
                         },
                     },
                     Field {
@@ -1871,6 +2059,7 @@ mod tests {
                         aliases: Vec::new(),
                         shape: Shape::Primitive {
                             name: "a string".to_owned(),
+                            description: "a string".to_owned(),
                         },
                     },
                 ],
@@ -1908,6 +2097,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(Struct::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Struct {
+                name: "Struct",
+                description: "empty struct".into(),
                 required: vec![],
                 optional: vec![]
             })
@@ -1953,12 +2144,15 @@ mod tests {
         assert_ok_eq!(
             assert_err!(Struct::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Struct {
+                name: "Struct",
+                description: "struct Struct".into(),
                 required: vec![
                     Field {
                         name: "f",
                         aliases: vec!["foo"],
                         shape: Shape::Primitive {
                             name: "usize".to_owned(),
+                            description: "usize".to_owned(),
                         },
                     },
                     Field {
@@ -1966,6 +2160,7 @@ mod tests {
                         aliases: vec!["bar", "baz"],
                         shape: Shape::Primitive {
                             name: "a string".to_owned(),
+                            description: "a string".to_owned(),
                         },
                     },
                 ],
@@ -1998,11 +2193,14 @@ mod tests {
         assert_ok_eq!(
             assert_err!(Struct::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Struct {
+                name: "Struct",
+                description: "struct Struct".into(),
                 required: vec![Field {
                     name: "bar",
                     aliases: Vec::new(),
                     shape: Shape::Primitive {
                         name: "a string".to_owned(),
+                        description: "a string".to_owned(),
                     },
                 },],
                 optional: vec![Field {
@@ -2010,6 +2208,7 @@ mod tests {
                     aliases: Vec::new(),
                     shape: Shape::Primitive {
                         name: "usize".to_owned(),
+                        description: "usize".to_owned(),
                     },
                 },],
             })
@@ -2050,16 +2249,21 @@ mod tests {
         assert_ok_eq!(
             assert_err!(Nested::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Struct {
+                name: "Nested",
+                description: "struct Nested".into(),
                 required: vec![
                     Field {
                         name: "struct",
                         aliases: Vec::new(),
                         shape: Shape::Struct {
+                            name: "Struct",
+                            description: "struct Struct".into(),
                             required: vec![Field {
                                 name: "foo",
                                 aliases: Vec::new(),
                                 shape: Shape::Primitive {
                                     name: "usize".to_owned(),
+                                    description: "usize".to_owned(),
                                 },
                             },],
                             optional: vec![],
@@ -2070,6 +2274,7 @@ mod tests {
                         aliases: Vec::new(),
                         shape: Shape::Primitive {
                             name: "isize".to_owned(),
+                            description: "isize".to_owned(),
                         }
                     }
                 ],
@@ -2106,12 +2311,15 @@ mod tests {
         assert_ok_eq!(
             assert_err!(Newtype::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Struct {
+                name: "Struct",
+                description: "struct Struct".into(),
                 required: vec![
                     Field {
                         name: "foo",
                         aliases: Vec::new(),
                         shape: Shape::Primitive {
                             name: "usize".to_owned(),
+                            description: "usize".to_owned(),
                         },
                     },
                     Field {
@@ -2119,6 +2327,7 @@ mod tests {
                         aliases: Vec::new(),
                         shape: Shape::Primitive {
                             name: "a string".to_owned(),
+                            description: "a string".to_owned(),
                         },
                     },
                 ],
@@ -2145,16 +2354,23 @@ mod tests {
             assert_err!(Result::<(), ()>::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Enum {
                 name: "Result",
+                description: "enum Result".into(),
                 variants: vec![
                     Variant {
                         name: "Ok",
+                        description: "".into(),
                         aliases: vec![],
-                        shape: Shape::Empty,
+                        shape: Shape::Empty {
+                            description: "unit".into()
+                        },
                     },
                     Variant {
                         name: "Err",
+                        description: "".into(),
                         aliases: vec![],
-                        shape: Shape::Empty,
+                        shape: Shape::Empty {
+                            description: "unit".into()
+                        },
                     },
                 ],
             })
@@ -2194,16 +2410,21 @@ mod tests {
             assert_err!(Result::<Struct, ()>::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Enum {
                 name: "Result",
+                description: "enum Result".into(),
                 variants: vec![
                     Variant {
                         name: "Ok",
+                        description: "".into(),
                         aliases: vec![],
                         shape: Shape::Struct {
+                            name: "Struct",
+                            description: "struct Struct".into(),
                             required: vec![Field {
                                 name: "bar",
                                 aliases: Vec::new(),
                                 shape: Shape::Primitive {
                                     name: "a string".to_owned(),
+                                    description: "a string".to_owned(),
                                 },
                             },],
                             optional: vec![Field {
@@ -2211,14 +2432,18 @@ mod tests {
                                 aliases: Vec::new(),
                                 shape: Shape::Primitive {
                                     name: "usize".to_owned(),
+                                    description: "usize".to_owned(),
                                 },
                             },],
                         },
                     },
                     Variant {
                         name: "Err",
+                        description: "".into(),
                         aliases: vec![],
-                        shape: Shape::Empty,
+                        shape: Shape::Empty {
+                            description: "unit".into()
+                        },
                     },
                 ],
             })
@@ -2251,30 +2476,42 @@ mod tests {
             assert_err!(Result::<Result<(), ()>, ()>::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Enum {
                 name: "Result",
+                description: "enum Result".into(),
                 variants: vec![
                     Variant {
                         name: "Ok",
+                        description: "".into(),
                         aliases: vec![],
                         shape: Shape::Enum {
                             name: "Result",
+                            description: "enum Result".into(),
                             variants: vec![
                                 Variant {
                                     name: "Ok",
+                                    description: "".into(),
                                     aliases: vec![],
-                                    shape: Shape::Empty,
+                                    shape: Shape::Empty {
+                                        description: "unit".into()
+                                    },
                                 },
                                 Variant {
                                     name: "Err",
+                                    description: "".into(),
                                     aliases: vec![],
-                                    shape: Shape::Empty,
+                                    shape: Shape::Empty {
+                                        description: "unit".into()
+                                    },
                                 },
                             ],
                         },
                     },
                     Variant {
                         name: "Err",
+                        description: "".into(),
                         aliases: vec![],
-                        shape: Shape::Empty,
+                        shape: Shape::Empty {
+                            description: "unit".into()
+                        },
                     },
                 ],
             })
@@ -2336,44 +2573,61 @@ mod tests {
             .0,
             Status::Success(Shape::Enum {
                 name: "Result",
+                description: "enum Result".into(),
                 variants: vec![
                     Variant {
                         name: "Ok",
+                        description: "".into(),
                         aliases: vec![],
                         shape: Shape::Enum {
                             name: "Result",
+                            description: "enum Result".into(),
                             variants: vec![
                                 Variant {
                                     name: "Ok",
+                                    description: "".into(),
                                     aliases: vec![],
                                     shape: Shape::Enum {
                                         name: "Result",
+                                        description: "enum Result".into(),
                                         variants: vec![
                                             Variant {
                                                 name: "Ok",
+                                                description: "".into(),
                                                 aliases: vec![],
-                                                shape: Shape::Empty,
+                                                shape: Shape::Empty {
+                                                    description: "unit".into()
+                                                },
                                             },
                                             Variant {
                                                 name: "Err",
+                                                description: "".into(),
                                                 aliases: vec![],
-                                                shape: Shape::Empty,
+                                                shape: Shape::Empty {
+                                                    description: "unit".into()
+                                                },
                                             },
                                         ],
                                     },
                                 },
                                 Variant {
                                     name: "Err",
+                                    description: "".into(),
                                     aliases: vec![],
-                                    shape: Shape::Empty,
+                                    shape: Shape::Empty {
+                                        description: "unit".into()
+                                    },
                                 },
                             ],
                         },
                     },
                     Variant {
                         name: "Err",
+                        description: "".into(),
                         aliases: vec![],
-                        shape: Shape::Empty,
+                        shape: Shape::Empty {
+                            description: "unit".into()
+                        },
                     },
                 ],
             })
@@ -2386,7 +2640,8 @@ mod tests {
             format!(
                 "{}",
                 FullTrace(Ok(Shape::Primitive {
-                    name: "foo".to_owned()
+                    name: "foo".to_owned(),
+                    description: "foo".to_owned(),
                 }))
             ),
             "shape: <foo>"
@@ -2502,7 +2757,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(struct_access.next_value::<i32>()).0,
             Status::Success(Shape::Primitive {
-                name: "i32".to_owned()
+                name: "i32".to_owned(),
+                description: "i32".to_owned(),
             })
         );
     }
@@ -2556,7 +2812,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(struct_access.next_value_seed(PhantomData::<i32>)).0,
             Status::Success(Shape::Primitive {
-                name: "i32".to_owned()
+                name: "i32".to_owned(),
+                description: "i32".to_owned(),
             })
         );
     }
@@ -2610,6 +2867,7 @@ mod tests {
             assert_err!(struct_access.next_entry::<Key, i32>()).0,
             Status::Success(Shape::Primitive {
                 name: "i32".to_owned(),
+                description: "i32".to_owned(),
             })
         );
         assert_eq!(discriminant, 1);

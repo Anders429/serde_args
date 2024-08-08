@@ -175,7 +175,9 @@ where
             Field {
                 name: "help",
                 aliases: vec!["h"],
-                shape: Shape::Empty,
+                shape: Shape::Empty {
+                    description: "Display this message.".into(),
+                },
             },
             false,
         )],
@@ -207,7 +209,7 @@ where
     Args: Iterator<Item = OsString>,
 {
     match *shape {
-        Shape::Empty => Ok(context),
+        Shape::Empty { .. } => Ok(context),
         Shape::Primitive { .. } => {
             context.segments.push(Segment::Value(
                 args.next_positional().ok_or(Error::MissingArguments)?,
@@ -217,7 +219,7 @@ where
         Shape::Optional(ref mut optional_shape) => {
             // This is a "positional optional". It starts its own isolated context, which only contains its own optional value if it exists.
             match **optional_shape {
-                Shape::Empty | Shape::Optional(_) => {
+                Shape::Empty { .. } | Shape::Optional(_) => {
                     if let Some(next) = args.next_positional() {
                         if let Ok(next_str) = str::from_utf8(&next) {
                             match next_str {
@@ -264,6 +266,7 @@ where
         Shape::Struct {
             ref mut required,
             ref mut optional,
+            ..
         } => {
             // Parse the struct in its own nested context.
             //
@@ -319,7 +322,9 @@ where
             if !end_of_options {
                 let parsed_context = parse_context(
                     args,
-                    &mut Shape::Empty,
+                    &mut Shape::Empty {
+                        description: String::new(),
+                    },
                     &mut optional
                         .clone()
                         .into_iter()
@@ -365,6 +370,7 @@ where
                         *shape = Shape::Variant {
                             name: static_variant_name,
                             shape: Box::new(variant.shape),
+                            description: variant.description,
                         };
                         if let Shape::Variant {
                             shape: inner_shape, ..
@@ -414,7 +420,7 @@ where
     let mut closing_end_of_options = false;
 
     match shape {
-        Shape::Empty => {
+        Shape::Empty { .. } => {
             while let Some(token) = args.next_token() {
                 match token {
                     Token::Positional(value) => {
@@ -544,7 +550,9 @@ where
             // We therefore simply parse in a no-option context, thereby ignoring all parent context options.
             context = parse_context_no_options(args, shape, context)?;
         }
-        Shape::Struct { required, optional } => {
+        Shape::Struct {
+            required, optional, ..
+        } => {
             // Parse the struct in its own nested context.
             let mut end_of_options = false;
             let mut combined_options = options.clone();
@@ -589,8 +597,14 @@ where
             }
             // Parse any remaining options.
             if !end_of_options {
-                let parsed_context =
-                    parse_context(args, &mut Shape::Empty, &mut combined_options, context)?;
+                let parsed_context = parse_context(
+                    args,
+                    &mut Shape::Empty {
+                        description: String::new(),
+                    },
+                    &mut combined_options,
+                    context,
+                )?;
                 context = parsed_context.context;
                 'outer: for (optional_name, optional_context) in parsed_context.options {
                     // Find whether the optional name is in this struct.
@@ -630,6 +644,7 @@ where
                                 *shape = Shape::Variant {
                                     name: static_variant_name,
                                     shape: Box::new(variant.shape),
+                                    description: variant.description,
                                 };
 
                                 if let Shape::Variant {
@@ -715,6 +730,7 @@ where
                                 *shape = Shape::Variant {
                                     name: static_variant_name,
                                     shape: Box::new(variant.shape),
+                                    description: variant.description,
                                 };
                                 if let Shape::Variant {
                                     shape: inner_shape, ..
@@ -758,7 +774,12 @@ mod tests {
     #[test]
     fn parse_empty() {
         assert_ok_eq!(
-            parse(Vec::<&str>::new(), &mut Shape::Empty),
+            parse(
+                Vec::<&str>::new(),
+                &mut Shape::Empty {
+                    description: String::new()
+                },
+            ),
             Context {
                 segments: Vec::new(),
             }
@@ -771,7 +792,8 @@ mod tests {
             parse(
                 ["foo"],
                 &mut Shape::Primitive {
-                    name: "bar".to_owned()
+                    name: "bar".to_owned(),
+                    description: String::new(),
                 }
             ),
             Context {
@@ -786,7 +808,8 @@ mod tests {
             parse(
                 Vec::<&str>::new(),
                 &mut Shape::Primitive {
-                    name: "bar".to_owned()
+                    name: "bar".to_owned(),
+                    description: String::new(),
                 }
             ),
             Error::MissingArguments
@@ -799,7 +822,8 @@ mod tests {
             parse(
                 ["--foo"],
                 &mut Shape::Optional(Box::new(Shape::Primitive {
-                    name: "bar".to_owned()
+                    name: "bar".to_owned(),
+                    description: String::new(),
                 }))
             ),
             Context {
@@ -816,6 +840,8 @@ mod tests {
             parse(
                 Vec::<&str>::new(),
                 &mut Shape::Struct {
+                    name: "",
+                    description: String::new(),
                     required: vec![],
                     optional: vec![],
                 }
@@ -830,11 +856,14 @@ mod tests {
             parse(
                 vec!["foo"],
                 &mut Shape::Struct {
+                    name: "",
+                    description: String::new(),
                     required: vec![Field {
                         name: "bar",
                         aliases: vec![],
                         shape: Shape::Primitive {
-                            name: "baz".to_owned()
+                            name: "baz".to_owned(),
+                            description: String::new(),
                         }
                     }],
                     optional: vec![],
@@ -854,19 +883,23 @@ mod tests {
             parse(
                 vec!["foo", "bar"],
                 &mut Shape::Struct {
+                    name: "",
+                    description: String::new(),
                     required: vec![
                         Field {
                             name: "baz",
                             aliases: vec![],
                             shape: Shape::Primitive {
-                                name: "string".to_owned()
+                                name: "string".to_owned(),
+                                description: String::new(),
                             }
                         },
                         Field {
                             name: "qux",
                             aliases: vec![],
                             shape: Shape::Primitive {
-                                name: "string".to_owned()
+                                name: "string".to_owned(),
+                                description: String::new(),
                             }
                         }
                     ],
@@ -892,12 +925,15 @@ mod tests {
             parse(
                 Vec::<&str>::new(),
                 &mut Shape::Struct {
+                    name: "",
+                    description: String::new(),
                     required: vec![],
                     optional: vec![Field {
                         name: "bar",
                         aliases: vec![],
                         shape: Shape::Primitive {
-                            name: "baz".to_owned()
+                            name: "baz".to_owned(),
+                            description: String::new(),
                         },
                     }],
                 }
@@ -912,12 +948,15 @@ mod tests {
             parse(
                 vec!["--bar", "foo"],
                 &mut Shape::Struct {
+                    name: "",
+                    description: String::new(),
                     required: vec![],
                     optional: vec![Field {
                         name: "bar",
                         aliases: vec![],
                         shape: Shape::Primitive {
-                            name: "baz".to_owned()
+                            name: "baz".to_owned(),
+                            description: String::new(),
                         },
                     }],
                 }
@@ -936,12 +975,15 @@ mod tests {
             parse(
                 vec!["--qux", "foo"],
                 &mut Shape::Struct {
+                    name: "",
+                    description: String::new(),
                     required: vec![],
                     optional: vec![Field {
                         name: "bar",
                         aliases: vec!["qux"],
                         shape: Shape::Primitive {
-                            name: "baz".to_owned()
+                            name: "baz".to_owned(),
+                            description: String::new(),
                         },
                     }],
                 }
@@ -960,12 +1002,15 @@ mod tests {
             parse(
                 vec!["--qux", "foo", "--bar", "baz"],
                 &mut Shape::Struct {
+                    name: "",
+                    description: String::new(),
                     required: vec![],
                     optional: vec![Field {
                         name: "bar",
                         aliases: vec!["qux"],
                         shape: Shape::Primitive {
-                            name: "baz".to_owned()
+                            name: "baz".to_owned(),
+                            description: String::new(),
                         },
                     }],
                 }
@@ -980,19 +1025,23 @@ mod tests {
             parse(
                 vec!["123", "--bar", "foo", "456", "--qux", "789"],
                 &mut Shape::Struct {
+                    name: "",
+                    description: String::new(),
                     required: vec![
                         Field {
                             name: "foo",
                             aliases: vec![],
                             shape: Shape::Primitive {
-                                name: "baz".to_owned()
+                                name: "baz".to_owned(),
+                                description: String::new(),
                             },
                         },
                         Field {
                             name: "quux",
                             aliases: vec![],
                             shape: Shape::Primitive {
-                                name: "baz".to_owned()
+                                name: "baz".to_owned(),
+                                description: String::new(),
                             },
                         },
                     ],
@@ -1001,21 +1050,24 @@ mod tests {
                             name: "bar",
                             aliases: vec![],
                             shape: Shape::Primitive {
-                                name: "baz".to_owned()
+                                name: "baz".to_owned(),
+                                description: String::new(),
                             },
                         },
                         Field {
                             name: "qux",
                             aliases: vec![],
                             shape: Shape::Primitive {
-                                name: "baz".to_owned()
+                                name: "baz".to_owned(),
+                                description: String::new(),
                             },
                         },
                         Field {
                             name: "missing",
                             aliases: vec![],
                             shape: Shape::Primitive {
-                                name: "baz".to_owned()
+                                name: "baz".to_owned(),
+                                description: String::new(),
                             }
                         },
                     ]
@@ -1046,23 +1098,29 @@ mod tests {
             parse(
                 vec!["123", "--bar", "foo", "--qux", "789", "456"],
                 &mut Shape::Struct {
+                    name: "",
+                    description: String::new(),
                     required: vec![
                         Field {
                             name: "inner_struct",
                             aliases: vec![],
                             shape: Shape::Struct {
+                                name: "",
+                                description: String::new(),
                                 required: vec![Field {
                                     name: "foo",
                                     aliases: vec![],
                                     shape: Shape::Primitive {
-                                        name: "baz".to_owned()
+                                        name: "baz".to_owned(),
+                                        description: String::new(),
                                     },
                                 },],
                                 optional: vec![Field {
                                     name: "bar",
                                     aliases: vec![],
                                     shape: Shape::Primitive {
-                                        name: "baz".to_owned()
+                                        name: "baz".to_owned(),
+                                        description: String::new(),
                                     },
                                 },],
                             }
@@ -1071,7 +1129,8 @@ mod tests {
                             name: "quux",
                             aliases: vec![],
                             shape: Shape::Primitive {
-                                name: "baz".to_owned()
+                                name: "baz".to_owned(),
+                                description: String::new(),
                             },
                         },
                     ],
@@ -1080,14 +1139,16 @@ mod tests {
                             name: "qux",
                             aliases: vec![],
                             shape: Shape::Primitive {
-                                name: "baz".to_owned()
+                                name: "baz".to_owned(),
+                                description: String::new(),
                             },
                         },
                         Field {
                             name: "missing",
                             aliases: vec![],
                             shape: Shape::Primitive {
-                                name: "baz".to_owned()
+                                name: "baz".to_owned(),
+                                description: String::new(),
                             },
                         },
                     ],
