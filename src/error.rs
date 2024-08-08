@@ -49,7 +49,29 @@ impl Display for Kind {
                             "USAGE: {} {}",
                             executable_path.to_string_lossy(),
                             shape
-                        )
+                        )?;
+
+                        // Write required arguments.
+                        let required_arguments = shape.required_arguments();
+                        if !required_arguments.is_empty() {
+                            formatter.write_str("\n\nRequired Arguments:")?;
+                        }
+                        // Get longest argument name.
+                        let longest_argument = required_arguments
+                            .iter()
+                            .map(|(name, _)| name.chars().count())
+                            .max()
+                            .unwrap_or(0);
+                        for (name, description) in required_arguments {
+                            write!(
+                                formatter,
+                                "\n  {:longest_argument$}  {description}",
+                                format!("<{}>", name),
+                                longest_argument = longest_argument + 2,
+                            )?;
+                        }
+
+                        Ok(())
                     }
                     _ => {
                         write!(

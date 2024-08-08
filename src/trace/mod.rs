@@ -20,6 +20,19 @@ pub(crate) struct Field {
     pub(crate) shape: Shape,
 }
 
+impl Field {
+    fn required_arguments(&self) -> Vec<(&str, &str)> {
+        let mut result = self.shape.required_arguments();
+        if matches!(
+            self.shape,
+            Shape::Empty { .. } | Shape::Primitive { .. } | Shape::Enum { .. }
+        ) {
+            result.iter_mut().for_each(|(name, _)| *name = self.name);
+        }
+        result
+    }
+}
+
 impl Display for Field {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match &self.shape {
@@ -102,6 +115,32 @@ impl Shape {
             name: format!("{}", expected),
             description: format!("{:#}", expected),
         }
+    }
+
+    pub(crate) fn required_arguments(&self) -> Vec<(&str, &str)> {
+        let mut result: Vec<(&str, &str)> = Vec::new();
+
+        match self {
+            Self::Empty { .. } | Self::Optional(_) => {}
+            Self::Primitive { name, description } => {
+                result.push((name, description));
+            }
+            Self::Enum {
+                name, description, ..
+            } => {
+                result.push((name, description));
+            }
+            Self::Variant { shape, .. } => {
+                result.extend(shape.required_arguments());
+            }
+            Self::Struct { required, .. } => {
+                for field in required {
+                    result.extend(field.required_arguments());
+                }
+            }
+        }
+
+        result
     }
 }
 
