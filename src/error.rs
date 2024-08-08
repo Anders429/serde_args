@@ -106,6 +106,21 @@ impl Display for Kind {
                         formatter
                             .write_str("\n\nOverride Options:\n  --help  Display this message.")?;
 
+                        // Write commands.
+                        let variant_groups = shape.variant_groups();
+                        // Get longest variant name.
+                        let longest_variant = variant_groups
+                            .iter()
+                            .map(|(name, _)| name.chars().count())
+                            .max()
+                            .unwrap_or(0);
+                        for (name, group) in variant_groups {
+                            write!(formatter, "\n\n{name} Variants:")?;
+                            for (name, description) in group {
+                                write!(formatter, "\n  {name:longest_variant$}  {description}",)?;
+                            }
+                        }
+
                         Ok(())
                     }
                     _ => {

@@ -186,6 +186,38 @@ impl Shape {
 
         result
     }
+
+    pub(crate) fn variant_groups(&self) -> Vec<(&str, Vec<(&str, &str)>)> {
+        let mut result: Vec<(&str, Vec<(&str, &str)>)> = Vec::new();
+
+        match self {
+            Self::Empty { .. } | Self::Primitive { .. } => {}
+            Self::Optional(shape) => {
+                result.extend(shape.variant_groups());
+            }
+            Self::Struct {
+                required, optional, ..
+            } => {
+                for field in required.iter().chain(optional.iter()) {
+                    result.extend(field.shape.variant_groups());
+                }
+            }
+            Self::Enum { name, variants, .. } => {
+                result.push((
+                    name,
+                    variants
+                        .iter()
+                        .map(|variant| (variant.name, variant.description.as_str()))
+                        .collect(),
+                ));
+            }
+            Self::Variant { shape, .. } => {
+                result.extend(shape.variant_groups());
+            }
+        }
+
+        result
+    }
 }
 
 impl Display for Shape {
