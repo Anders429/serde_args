@@ -102,6 +102,10 @@ impl Display for Kind {
                             }
                         }
 
+                        // Write override options.
+                        formatter
+                            .write_str("\n\nOverride Options:\n  --help  Display this message.")?;
+
                         Ok(())
                     }
                     _ => {
