@@ -28,7 +28,10 @@ impl Field {
             self.shape,
             Shape::Empty { .. } | Shape::Primitive { .. } | Shape::Enum { .. }
         ) {
-            result.iter_mut().for_each(|(name, _)| *name = self.name);
+            result.iter_mut().for_each(|(name, description)| {
+                *name = self.name;
+                *description = self.description.as_str();
+            });
         }
         result
     }
@@ -173,7 +176,7 @@ impl Shape {
                     name,
                     optional
                         .iter()
-                        .map(|field| (field.name, field.shape.description()))
+                        .map(|field| (field.name, field.description.as_str()))
                         .collect(),
                 ));
                 for required_field in required {
