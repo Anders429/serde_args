@@ -16,6 +16,7 @@ use std::{
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Field {
     pub(crate) name: &'static str,
+    pub(crate) description: String,
     pub(crate) aliases: Vec<&'static str>,
     pub(crate) shape: Shape,
 }
@@ -357,8 +358,8 @@ struct Fields {
     description: String,
     iter: slice::Iter<'static, &'static str>,
     revisit: Option<&'static str>,
-    required_fields: Vec<(KeyInfo, Vec<&'static str>)>,
-    optional_fields: Vec<(KeyInfo, Vec<&'static str>)>,
+    required_fields: Vec<(KeyInfo, (Vec<&'static str>, String))>,
+    optional_fields: Vec<(KeyInfo, (Vec<&'static str>, String))>,
 }
 
 impl From<Fields> for Shape {
@@ -369,10 +370,11 @@ impl From<Fields> for Shape {
             required: fields
                 .required_fields
                 .into_iter()
-                .map(|(info, mut names)| {
+                .map(|(info, (mut names, description))| {
                     let first = names.remove(0);
                     Field {
                         name: first,
+                        description,
                         aliases: names,
                         shape: info.shape,
                     }
@@ -381,10 +383,11 @@ impl From<Fields> for Shape {
             optional: fields
                 .optional_fields
                 .into_iter()
-                .map(|(info, mut names)| {
+                .map(|(info, (mut names, description))| {
                     let first = names.remove(0);
                     Field {
                         name: first,
+                        description,
                         aliases: names,
                         shape: info.shape,
                     }
@@ -679,6 +682,21 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             .take()
             .or_else(|| fields.iter.next().copied())
         {
+            // Obtain description for the possible next variant.
+            fn field_description_from_visitor(visitor: &dyn Expected, field: usize) -> String {
+                format!("{:#field$}", visitor)
+            }
+            let description = {
+                let description = field_description_from_visitor(
+                    &visitor,
+                    fields.required_fields.len() + fields.optional_fields.len(),
+                );
+                if description == fields.description {
+                    String::new()
+                } else {
+                    description
+                }
+            };
             let mut discriminant = 0;
             let mut struct_access = StructAccess {
                 field,
@@ -699,7 +717,8 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                             shape: *shape,
                                         };
                                         let mut found = false;
-                                        for (info, names) in fields.optional_fields.iter_mut() {
+                                        for (info, (names, _)) in fields.optional_fields.iter_mut()
+                                        {
                                             if *info == key_info {
                                                 found = true;
                                                 names.push(field);
@@ -707,7 +726,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                             }
                                         }
                                         if !found {
-                                            fields.optional_fields.push((key_info, vec![field]));
+                                            fields
+                                                .optional_fields
+                                                .push((key_info, (vec![field], description)));
                                         }
                                     }
                                     shape @ _ => {
@@ -717,7 +738,8 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                             shape,
                                         };
                                         let mut found = false;
-                                        for (info, names) in fields.required_fields.iter_mut() {
+                                        for (info, (names, _)) in fields.required_fields.iter_mut()
+                                        {
                                             if *info == key_info {
                                                 found = true;
                                                 names.push(field);
@@ -725,7 +747,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                             }
                                         }
                                         if !found {
-                                            fields.required_fields.push((key_info, vec![field]));
+                                            fields
+                                                .required_fields
+                                                .push((key_info, (vec![field], description)));
                                         }
                                     }
                                 }
@@ -1028,6 +1052,7 @@ mod tests {
                 "{}",
                 Field {
                     name: "foo",
+                    description: String::new(),
                     aliases: Vec::new(),
                     shape: Shape::Empty {
                         description: String::new()
@@ -1045,6 +1070,7 @@ mod tests {
                 "{}",
                 Field {
                     name: "foo",
+                    description: String::new(),
                     aliases: Vec::new(),
                     shape: Shape::Primitive {
                         name: "bar".to_owned(),
@@ -1063,6 +1089,7 @@ mod tests {
                 "{}",
                 Field {
                     name: "foo",
+                    description: String::new(),
                     aliases: Vec::new(),
                     shape: Shape::Optional(Box::new(Shape::Empty {
                         description: String::new(),
@@ -1080,6 +1107,7 @@ mod tests {
                 "{}",
                 Field {
                     name: "foo",
+                    description: String::new(),
                     aliases: Vec::new(),
                     shape: Shape::Optional(Box::new(Shape::Primitive {
                         name: "bar".to_owned(),
@@ -1098,6 +1126,7 @@ mod tests {
                 "{}",
                 Field {
                     name: "foo",
+                    description: String::new(),
                     aliases: Vec::new(),
                     shape: Shape::Optional(Box::new(Shape::Optional(Box::new(Shape::Primitive {
                         name: "bar".to_owned(),
@@ -1116,6 +1145,7 @@ mod tests {
                 "{}",
                 Field {
                     name: "foo",
+                    description: String::new(),
                     aliases: Vec::new(),
                     shape: Shape::Optional(Box::new(Shape::Struct {
                         name: "",
@@ -1123,6 +1153,7 @@ mod tests {
                         required: vec![
                             Field {
                                 name: "bar",
+                                description: String::new(),
                                 aliases: Vec::new(),
                                 shape: Shape::Primitive {
                                     name: "foo".to_owned(),
@@ -1131,6 +1162,7 @@ mod tests {
                             },
                             Field {
                                 name: "baz",
+                                description: String::new(),
                                 aliases: Vec::new(),
                                 shape: Shape::Primitive {
                                     name: "foo".to_owned(),
@@ -1153,6 +1185,7 @@ mod tests {
                 "{}",
                 Field {
                     name: "foo",
+                    description: String::new(),
                     aliases: Vec::new(),
                     shape: Shape::Optional(Box::new(Shape::Enum {
                         name: "bar",
@@ -1235,6 +1268,7 @@ mod tests {
                         description: String::new(),
                         required: vec![Field {
                             name: "bar",
+                            description: String::new(),
                             aliases: vec![],
                             shape: Shape::Primitive {
                                 name: "baz".to_owned(),
@@ -1243,6 +1277,7 @@ mod tests {
                         },],
                         optional: vec![Field {
                             name: "qux",
+                            description: String::new(),
                             aliases: vec![],
                             shape: Shape::Primitive {
                                 name: "quux".to_owned(),
@@ -1383,6 +1418,7 @@ mod tests {
                     required: vec![
                         Field {
                             name: "foo",
+                            description: String::new(),
                             aliases: Vec::new(),
                             shape: Shape::Primitive {
                                 name: "bar".to_owned(),
@@ -1391,6 +1427,7 @@ mod tests {
                         },
                         Field {
                             name: "baz",
+                            description: String::new(),
                             aliases: Vec::new(),
                             shape: Shape::Primitive {
                                 name: "qux".to_owned(),
@@ -1431,6 +1468,7 @@ mod tests {
                     required: vec![
                         Field {
                             name: "foo",
+                            description: String::new(),
                             aliases: Vec::new(),
                             shape: Shape::Primitive {
                                 name: "bar".to_owned(),
@@ -1439,6 +1477,7 @@ mod tests {
                         },
                         Field {
                             name: "baz",
+                            description: String::new(),
                             aliases: Vec::new(),
                             shape: Shape::Primitive {
                                 name: "qux".to_owned(),
@@ -1465,6 +1504,7 @@ mod tests {
                     optional: vec![
                         Field {
                             name: "foo",
+                            description: String::new(),
                             aliases: Vec::new(),
                             shape: Shape::Primitive {
                                 name: "bar".to_owned(),
@@ -1473,6 +1513,7 @@ mod tests {
                         },
                         Field {
                             name: "baz",
+                            description: String::new(),
                             aliases: Vec::new(),
                             shape: Shape::Primitive {
                                 name: "qux".to_owned(),
@@ -1555,7 +1596,7 @@ mod tests {
                             description: String::new(),
                         },
                     },
-                    vec!["bar"]
+                    (vec!["bar"], String::new())
                 ),],
                 optional_fields: vec![],
             }),
@@ -1564,6 +1605,7 @@ mod tests {
                 description: String::new(),
                 required: vec![Field {
                     name: "bar",
+                    description: String::new(),
                     aliases: Vec::new(),
                     shape: Shape::Primitive {
                         name: "foo".to_owned(),
@@ -1592,7 +1634,7 @@ mod tests {
                                 description: String::new(),
                             },
                         },
-                        vec!["bar"],
+                        (vec!["bar"], String::new()),
                     ),
                     (
                         KeyInfo {
@@ -1602,7 +1644,7 @@ mod tests {
                                 name: "baz".to_owned(),
                             },
                         },
-                        vec!["qux"],
+                        (vec!["qux"], String::new()),
                     ),
                 ],
                 optional_fields: vec![],
@@ -1613,6 +1655,7 @@ mod tests {
                 required: vec![
                     Field {
                         name: "bar",
+                        description: String::new(),
                         aliases: Vec::new(),
                         shape: Shape::Primitive {
                             name: "foo".to_owned(),
@@ -1621,6 +1664,7 @@ mod tests {
                     },
                     Field {
                         name: "qux",
+                        description: String::new(),
                         aliases: Vec::new(),
                         shape: Shape::Primitive {
                             name: "baz".to_owned(),
@@ -1649,7 +1693,7 @@ mod tests {
                             description: String::new(),
                         },
                     },
-                    vec!["bar", "baz", "qux"],
+                    (vec!["bar", "baz", "qux"], String::new()),
                 ),],
                 optional_fields: vec![],
             }),
@@ -1658,6 +1702,7 @@ mod tests {
                 description: String::new(),
                 required: vec![Field {
                     name: "bar",
+                    description: String::new(),
                     aliases: vec!["baz", "qux"],
                     shape: Shape::Primitive {
                         name: "foo".to_owned(),
@@ -2165,6 +2210,7 @@ mod tests {
                 required: vec![
                     Field {
                         name: "foo",
+                        description: String::new(),
                         aliases: Vec::new(),
                         shape: Shape::Primitive {
                             name: "usize".to_owned(),
@@ -2173,6 +2219,7 @@ mod tests {
                     },
                     Field {
                         name: "bar",
+                        description: String::new(),
                         aliases: Vec::new(),
                         shape: Shape::Primitive {
                             name: "a string".to_owned(),
@@ -2266,6 +2313,7 @@ mod tests {
                 required: vec![
                     Field {
                         name: "f",
+                        description: String::new(),
                         aliases: vec!["foo"],
                         shape: Shape::Primitive {
                             name: "usize".to_owned(),
@@ -2274,6 +2322,7 @@ mod tests {
                     },
                     Field {
                         name: "b",
+                        description: String::new(),
                         aliases: vec!["bar", "baz"],
                         shape: Shape::Primitive {
                             name: "a string".to_owned(),
@@ -2314,6 +2363,7 @@ mod tests {
                 description: "struct Struct".into(),
                 required: vec![Field {
                     name: "bar",
+                    description: String::new(),
                     aliases: Vec::new(),
                     shape: Shape::Primitive {
                         name: "a string".to_owned(),
@@ -2322,6 +2372,7 @@ mod tests {
                 },],
                 optional: vec![Field {
                     name: "foo",
+                    description: String::new(),
                     aliases: Vec::new(),
                     shape: Shape::Primitive {
                         name: "usize".to_owned(),
@@ -2371,12 +2422,14 @@ mod tests {
                 required: vec![
                     Field {
                         name: "struct",
+                        description: String::new(),
                         aliases: Vec::new(),
                         shape: Shape::Struct {
                             name: "Struct",
                             description: "struct Struct".into(),
                             required: vec![Field {
                                 name: "foo",
+                                description: String::new(),
                                 aliases: Vec::new(),
                                 shape: Shape::Primitive {
                                     name: "usize".to_owned(),
@@ -2388,6 +2441,7 @@ mod tests {
                     },
                     Field {
                         name: "bar",
+                        description: String::new(),
                         aliases: Vec::new(),
                         shape: Shape::Primitive {
                             name: "isize".to_owned(),
@@ -2433,6 +2487,7 @@ mod tests {
                 required: vec![
                     Field {
                         name: "foo",
+                        description: String::new(),
                         aliases: Vec::new(),
                         shape: Shape::Primitive {
                             name: "usize".to_owned(),
@@ -2441,6 +2496,7 @@ mod tests {
                     },
                     Field {
                         name: "bar",
+                        description: String::new(),
                         aliases: Vec::new(),
                         shape: Shape::Primitive {
                             name: "a string".to_owned(),
@@ -2538,6 +2594,7 @@ mod tests {
                             description: "struct Struct".into(),
                             required: vec![Field {
                                 name: "bar",
+                                description: String::new(),
                                 aliases: Vec::new(),
                                 shape: Shape::Primitive {
                                     name: "a string".to_owned(),
@@ -2546,6 +2603,7 @@ mod tests {
                             },],
                             optional: vec![Field {
                                 name: "foo",
+                                description: String::new(),
                                 aliases: Vec::new(),
                                 shape: Shape::Primitive {
                                     name: "usize".to_owned(),
