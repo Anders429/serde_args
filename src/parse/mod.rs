@@ -486,65 +486,63 @@ where
                 }
             }
         }
-        Shape::Primitive { .. } => {
-            while let Some(token) = args.next_token() {
-                match token {
-                    Token::Positional(value) => {
-                        context.segments.push(Segment::Value(value));
-                        break;
-                    }
-                    Token::Optional(value) => {
-                        let identifier =
-                            str::from_utf8(&value).or(Err(Error::UnrecognizedOption))?;
-                        let mut optional_context = Context { segments: vec![] };
-                        let mut found = false;
-                        let mut index = 0;
-                        while index < options.len() {
-                            let (optional_field, used) = &options[index];
-                            if let Some(static_field_name) = iter::once(optional_field.name)
-                                .chain(optional_field.aliases.clone())
-                                .find(|s| *s == identifier)
-                            {
-                                if *used {
-                                    index += 1;
-                                    continue;
-                                }
-                                let (mut optional_field, _) = options.remove(index);
-                                found = true;
-                                optional_context
-                                    .segments
-                                    .push(Segment::Identifier(static_field_name));
-                                let parsed_context = parse_context(
-                                    args,
-                                    &mut optional_field.shape,
-                                    options,
-                                    optional_context,
-                                )?;
-                                parsed_options.extend(parsed_context.options);
-                                parsed_options.push((static_field_name, parsed_context.context));
-                                if parsed_context.closing_end_of_options {
-                                    closing_end_of_options = true;
-                                }
-                                options.insert(index, (optional_field, true));
-                                break;
-                            } else {
-                                index += 1;
-                            }
-                        }
-                        if !found {
-                            return Err(Error::UnrecognizedOption);
-                        }
-                    }
-                    Token::EndOfOptions => {
-                        closing_end_of_options = true;
-                    }
-                }
-                if closing_end_of_options {
-                    context = parse_context_no_options(args, shape, context)?;
+        Shape::Primitive { .. } => loop {
+            let token = args.next_token().ok_or(Error::MissingArguments)?;
+            match token {
+                Token::Positional(value) => {
+                    context.segments.push(Segment::Value(value));
                     break;
                 }
+                Token::Optional(value) => {
+                    let identifier = str::from_utf8(&value).or(Err(Error::UnrecognizedOption))?;
+                    let mut optional_context = Context { segments: vec![] };
+                    let mut found = false;
+                    let mut index = 0;
+                    while index < options.len() {
+                        let (optional_field, used) = &options[index];
+                        if let Some(static_field_name) = iter::once(optional_field.name)
+                            .chain(optional_field.aliases.clone())
+                            .find(|s| *s == identifier)
+                        {
+                            if *used {
+                                index += 1;
+                                continue;
+                            }
+                            let (mut optional_field, _) = options.remove(index);
+                            found = true;
+                            optional_context
+                                .segments
+                                .push(Segment::Identifier(static_field_name));
+                            let parsed_context = parse_context(
+                                args,
+                                &mut optional_field.shape,
+                                options,
+                                optional_context,
+                            )?;
+                            parsed_options.extend(parsed_context.options);
+                            parsed_options.push((static_field_name, parsed_context.context));
+                            if parsed_context.closing_end_of_options {
+                                closing_end_of_options = true;
+                            }
+                            options.insert(index, (optional_field, true));
+                            break;
+                        } else {
+                            index += 1;
+                        }
+                    }
+                    if !found {
+                        return Err(Error::UnrecognizedOption);
+                    }
+                }
+                Token::EndOfOptions => {
+                    closing_end_of_options = true;
+                }
             }
-        }
+            if closing_end_of_options {
+                context = parse_context_no_options(args, shape, context)?;
+                break;
+            }
+        },
         Shape::Optional(_) => {
             // This is a "positional optional". It starts its own isolated context, which only contains its own optional value if it exists.
             //
@@ -631,7 +629,8 @@ where
         }
         Shape::Enum { variants, .. } => {
             // Parse the variant.
-            while let Some(token) = args.next_token() {
+            loop {
+                let token = args.next_token().ok_or(Error::MissingArguments)?;
                 match token {
                     Token::Positional(variant_name) => {
                         let variant_name_str =
