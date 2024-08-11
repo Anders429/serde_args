@@ -12,7 +12,6 @@ pub(crate) enum Error {
     UnexpectedArgument,
     UnrecognizedOption,
     UnrecognizedVariant,
-    DuplicateOption,
     Help,
 }
 
@@ -23,9 +22,6 @@ impl Display for Error {
             Self::UnexpectedArgument => formatter.write_str("unexpected positional argument"),
             Self::UnrecognizedOption => formatter.write_str("unrecognized optional flag"),
             Self::UnrecognizedVariant => formatter.write_str("unrecognized command"),
-            Self::DuplicateOption => formatter.write_str(
-                "optional flag name (or its aliases) cannot be specified more than once",
-            ),
             Self::Help => formatter.write_str("help requested"),
         }
     }
@@ -171,17 +167,14 @@ where
     let parsed_context = parse_context(
         &mut parsed_args,
         shape,
-        &mut vec![(
-            Field {
-                name: "help",
-                description: "Display this message.".into(),
-                aliases: vec!["h"],
-                shape: Shape::Empty {
-                    description: String::new(),
-                },
+        &mut vec![Field {
+            name: "help",
+            description: "Display this message.".into(),
+            aliases: vec!["h"],
+            shape: Shape::Empty {
+                description: String::new(),
             },
-            false,
-        )],
+        }],
         Context { segments: vec![] },
     );
 
@@ -289,11 +282,7 @@ where
                     let parsed_context = parse_context(
                         args,
                         &mut required_field.shape,
-                        &mut optional
-                            .clone()
-                            .into_iter()
-                            .map(|option| (option, false))
-                            .collect(),
+                        &mut optional.clone(),
                         inner_context,
                     );
                     context
@@ -326,11 +315,7 @@ where
                     &mut Shape::Empty {
                         description: String::new(),
                     },
-                    &mut optional
-                        .clone()
-                        .into_iter()
-                        .map(|option| (option, false))
-                        .collect(),
+                    &mut optional.clone(),
                     context,
                 );
                 context = parsed_context.context?;
@@ -411,7 +396,7 @@ struct ParsedContext {
 fn parse_context<Args>(
     args: &mut ParsedArgs<Args>,
     shape: &mut Shape,
-    options: &mut Vec<(Field, bool)>,
+    options: &mut Vec<Field>,
     mut context: Context,
 ) -> ParsedContext
 where
@@ -439,16 +424,12 @@ where
                             let mut found = false;
                             let mut index = 0;
                             while index < options.len() {
-                                let (optional_field, used) = &options[index];
+                                let optional_field = &options[index];
                                 if let Some(static_field_name) = iter::once(optional_field.name)
                                     .chain(optional_field.aliases.clone())
                                     .find(|s| *s == identifier)
                                 {
-                                    if *used {
-                                        index += 1;
-                                        continue;
-                                    }
-                                    let (mut optional_field, _) = options.remove(index);
+                                    let mut optional_field = options.remove(index);
                                     found = true;
                                     optional_context
                                         .segments
@@ -465,7 +446,7 @@ where
                                     if parsed_context.closing_end_of_options {
                                         closing_end_of_options = true;
                                     }
-                                    options.insert(index, (optional_field, true));
+                                    options.insert(index, optional_field);
                                     break;
                                 } else {
                                     index += 1;
@@ -504,16 +485,12 @@ where
                         let mut found = false;
                         let mut index = 0;
                         while index < options.len() {
-                            let (optional_field, used) = &options[index];
+                            let optional_field = &options[index];
                             if let Some(static_field_name) = iter::once(optional_field.name)
                                 .chain(optional_field.aliases.clone())
                                 .find(|s| *s == identifier)
                             {
-                                if *used {
-                                    index += 1;
-                                    continue;
-                                }
-                                let (mut optional_field, _) = options.remove(index);
+                                let mut optional_field = options.remove(index);
                                 found = true;
                                 optional_context
                                     .segments
@@ -529,7 +506,7 @@ where
                                 if parsed_context.closing_end_of_options {
                                     closing_end_of_options = true;
                                 }
-                                options.insert(index, (optional_field, true));
+                                options.insert(index, optional_field);
                                 break;
                             } else {
                                 index += 1;
@@ -560,7 +537,7 @@ where
                 // Parse the struct in its own nested context.
                 let mut end_of_options = false;
                 let mut combined_options = options.clone();
-                combined_options.extend(optional.clone().into_iter().map(|option| (option, false)));
+                combined_options.extend(optional.clone());
                 for required_field in required.iter_mut() {
                     let inner_context = Context {
                         segments: vec![Segment::Identifier(required_field.name)],
@@ -626,11 +603,6 @@ where
                         closing_end_of_options = true;
                     }
                 }
-
-                // Mark all found options as being found.
-                for ((_, found), (_, combined_found)) in options.iter_mut().zip(combined_options) {
-                    *found = combined_found;
-                }
             }
             Shape::Enum { variants, .. } => {
                 // Parse the variant.
@@ -687,16 +659,12 @@ where
                             let mut found = false;
                             let mut index = 0;
                             while index < options.len() {
-                                let (optional_field, used) = &options[index];
+                                let optional_field = &options[index];
                                 if let Some(static_field_name) = iter::once(optional_field.name)
                                     .chain(optional_field.aliases.clone())
                                     .find(|s| *s == identifier)
                                 {
-                                    if *used {
-                                        index += 1;
-                                        continue;
-                                    }
-                                    let (mut optional_field, _) = options.remove(index);
+                                    let mut optional_field = options.remove(index);
                                     found = true;
                                     optional_context
                                         .segments
@@ -713,7 +681,7 @@ where
                                     if parsed_context.closing_end_of_options {
                                         closing_end_of_options = true;
                                     }
-                                    options.insert(index, (optional_field, true));
+                                    options.insert(index, optional_field);
                                     break;
                                 } else {
                                     index += 1;
@@ -1014,7 +982,7 @@ mod tests {
 
     #[test]
     fn parse_struct_single_option_present_multiple_aliases() {
-        assert_err_eq!(
+        assert_ok_eq!(
             parse(
                 vec!["--qux", "foo", "--bar", "baz"],
                 &mut Shape::Struct {
@@ -1032,7 +1000,16 @@ mod tests {
                     }],
                 }
             ),
-            Error::UnexpectedArgument,
+            Context {
+                segments: vec![
+                    Segment::Context(Context {
+                        segments: vec![Segment::Identifier("qux"), Segment::Value("foo".into())]
+                    }),
+                    Segment::Context(Context {
+                        segments: vec![Segment::Identifier("bar"), Segment::Value("baz".into())]
+                    })
+                ]
+            },
         );
     }
 
