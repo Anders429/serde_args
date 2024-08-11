@@ -104,6 +104,7 @@ pub(crate) enum Shape {
         name: &'static str,
         description: String,
         shape: Box<Shape>,
+        variants: Vec<Variant>,
     },
 }
 
@@ -1557,6 +1558,7 @@ mod tests {
                         name: "bar".to_owned(),
                         description: String::new(),
                     }),
+                    variants: vec![],
                 },
             ),
             "foo <bar>",

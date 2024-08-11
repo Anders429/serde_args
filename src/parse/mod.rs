@@ -346,7 +346,7 @@ where
             let variant_name_str =
                 str::from_utf8(&variant_name).or(Err(Error::UnrecognizedVariant))?;
 
-            let mut variants_iter = std::mem::take(variants).into_iter();
+            let mut variants_iter = variants.clone().into_iter();
             loop {
                 if let Some(variant) = variants_iter.next() {
                     if let Some(static_variant_name) = iter::once(variant.name)
@@ -357,6 +357,7 @@ where
                             name: static_variant_name,
                             shape: Box::new(variant.shape),
                             description: variant.description,
+                            variants: variants.clone(),
                         };
                         if let Shape::Variant {
                             shape: inner_shape, ..
@@ -377,8 +378,26 @@ where
                 }
             }
         }
-        Shape::Variant { .. } => {
-            unreachable!()
+        Shape::Variant {
+            ref mut variants, ..
+        } => {
+            let variant_name = args.next_positional().ok_or(Error::MissingArguments)?;
+            let variant_name_str =
+                str::from_utf8(&variant_name).or(Err(Error::UnrecognizedVariant))?;
+
+            for variant in variants {
+                if let Some(static_variant_name) = iter::once(variant.name)
+                    .chain(variant.aliases.clone())
+                    .find(|s| *s == variant_name_str)
+                {
+                    context
+                        .segments
+                        .push(Segment::Identifier(static_variant_name));
+                    return parse_context_no_options(args, &mut variant.shape, context);
+                }
+            }
+
+            Err(Error::UnrecognizedVariant)
         }
     }
 }
@@ -613,7 +632,7 @@ where
                             let variant_name_str = str::from_utf8(&variant_name)
                                 .or(Err(Error::UnrecognizedVariant))?;
                             let mut found = false;
-                            for variant in std::mem::take(variants) {
+                            for variant in variants.clone() {
                                 if let Some(static_variant_name) = iter::once(variant.name)
                                     .chain(variant.aliases)
                                     .find(|s| *s == variant_name_str)
@@ -622,6 +641,7 @@ where
                                         name: static_variant_name,
                                         shape: Box::new(variant.shape),
                                         description: variant.description,
+                                        variants: variants.clone(),
                                     };
 
                                     if let Shape::Variant {
@@ -697,7 +717,7 @@ where
                             let variant_name_str = str::from_utf8(&variant_name)
                                 .or(Err(Error::UnrecognizedVariant))?;
                             let mut found = false;
-                            for variant in std::mem::take(variants) {
+                            for variant in variants.clone() {
                                 if let Some(static_variant_name) = iter::once(variant.name)
                                     .chain(variant.aliases)
                                     .find(|s| *s == variant_name_str)
@@ -706,6 +726,7 @@ where
                                         name: static_variant_name,
                                         shape: Box::new(variant.shape),
                                         description: variant.description,
+                                        variants: variants.clone(),
                                     };
                                     if let Shape::Variant {
                                         shape: inner_shape, ..
@@ -731,7 +752,111 @@ where
                     }
                 }
             }
-            Shape::Variant { .. } => unreachable!(),
+            Shape::Variant { variants, .. } => {
+                // Parse the variant.
+                loop {
+                    let token = args.next_token().ok_or(Error::MissingArguments)?;
+                    match token {
+                        Token::Positional(variant_name) => {
+                            let variant_name_str = str::from_utf8(&variant_name)
+                                .or(Err(Error::UnrecognizedVariant))?;
+                            let mut found = false;
+                            for mut variant in variants.clone() {
+                                if let Some(static_variant_name) = iter::once(variant.name)
+                                    .chain(variant.aliases)
+                                    .find(|s| *s == variant_name_str)
+                                {
+                                    context
+                                        .segments
+                                        .push(Segment::Identifier(static_variant_name));
+                                    // Parse the variant's shape.
+                                    let parsed_context =
+                                        parse_context(args, &mut variant.shape, options, context);
+                                    // Handle options.
+                                    parsed_options.extend(parsed_context.options);
+                                    if parsed_context.closing_end_of_options {
+                                        closing_end_of_options = true;
+                                    }
+                                    context = parsed_context.context?;
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            if !found {
+                                return Err(Error::UnrecognizedVariant);
+                            }
+                            break;
+                        }
+                        Token::Optional(value) => {
+                            let identifier =
+                                str::from_utf8(&value).or(Err(Error::UnrecognizedOption))?;
+                            let mut optional_context = Context { segments: vec![] };
+                            let mut found = false;
+                            let mut index = 0;
+                            while index < options.len() {
+                                let optional_field = &options[index];
+                                if let Some(static_field_name) = iter::once(optional_field.name)
+                                    .chain(optional_field.aliases.clone())
+                                    .find(|s| *s == identifier)
+                                {
+                                    let mut optional_field = options.remove(index);
+                                    found = true;
+                                    optional_context
+                                        .segments
+                                        .push(Segment::Identifier(static_field_name));
+                                    let parsed_context = parse_context(
+                                        args,
+                                        &mut optional_field.shape,
+                                        options,
+                                        optional_context,
+                                    );
+                                    parsed_options.extend(parsed_context.options);
+                                    parsed_options
+                                        .push((static_field_name, parsed_context.context?));
+                                    if parsed_context.closing_end_of_options {
+                                        closing_end_of_options = true;
+                                    }
+                                    options.insert(index, optional_field);
+                                    break;
+                                } else {
+                                    index += 1;
+                                }
+                            }
+                            if !found {
+                                return Err(Error::UnrecognizedOption);
+                            }
+                        }
+                        Token::EndOfOptions => {
+                            let variant_name =
+                                args.next_positional().ok_or(Error::MissingArguments)?;
+                            let variant_name_str = str::from_utf8(&variant_name)
+                                .or(Err(Error::UnrecognizedVariant))?;
+                            let mut found = false;
+                            for mut variant in variants.clone() {
+                                if let Some(static_variant_name) = iter::once(variant.name)
+                                    .chain(variant.aliases)
+                                    .find(|s| *s == variant_name_str)
+                                {
+                                    context
+                                        .segments
+                                        .push(Segment::Identifier(static_variant_name));
+                                    context = parse_context_no_options(
+                                        args,
+                                        &mut variant.shape,
+                                        context,
+                                    )?;
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            if !found {
+                                return Err(Error::UnrecognizedVariant);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
         }
         Ok(context)
     })();
