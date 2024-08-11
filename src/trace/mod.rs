@@ -51,7 +51,7 @@ impl Display for Field {
                     write!(formatter, "[--{} {}]", self.name, shape)
                 }
             }
-            Shape::Struct { .. } | Shape::Variant { .. } => Display::fmt(&self.shape, formatter),
+            Shape::Struct { .. } | Shape::Variant { .. } => write!(formatter, "{:#}", self.shape),
         }
     }
 }
@@ -238,11 +238,18 @@ impl Display for Shape {
                 }
             }
             Self::Struct {
-                required, optional, ..
+                name,
+                required,
+                optional,
+                ..
             } => {
                 let has_optional = !optional.is_empty();
                 if has_optional {
-                    formatter.write_str("[options]")?;
+                    if formatter.alternate() {
+                        write!(formatter, "[{} options]", name)?;
+                    } else {
+                        formatter.write_str("[options]")?;
+                    }
                 }
                 let mut required_iter = required.iter();
                 if let Some(field) = required_iter.next() {
@@ -261,7 +268,7 @@ impl Display for Shape {
                 write!(formatter, "<{}>", name)
             }
             Self::Variant { name, shape, .. } => {
-                write!(formatter, "{} {}", name, shape)
+                write!(formatter, "{} {:#}", name, shape)
             }
         }
     }
