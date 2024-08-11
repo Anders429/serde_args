@@ -9,7 +9,7 @@ use de::Deserializer;
 use parse::parse;
 use serde::de::{Deserialize, DeserializeSeed};
 use std::{env, ffi::OsString, marker::PhantomData, path::PathBuf};
-use trace::{trace, trace_seed_copy};
+use trace::trace_seed_copy;
 
 pub fn from_args_seed<'de, D>(seed: D) -> Result<D::Value, Error>
 where
