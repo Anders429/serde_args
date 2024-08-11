@@ -2,14 +2,13 @@
 
 use serde::{
     de,
-    de::{Deserialize, DeserializeSeed, Deserializer as _, Expected, MapAccess, Visitor},
+    de::{DeserializeSeed, Deserializer as _, Expected, MapAccess, Visitor},
     forward_to_deserialize_any,
 };
 use std::{
     fmt,
     fmt::{Display, Formatter, Write},
     hash::{Hash, Hasher},
-    marker::PhantomData,
     mem, slice,
 };
 
