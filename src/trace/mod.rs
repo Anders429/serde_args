@@ -285,13 +285,6 @@ where
     }
 }
 
-pub(crate) fn trace<'de, D>() -> Result<Shape, Error>
-where
-    D: Deserialize<'de>,
-{
-    trace_seed_copy(PhantomData::<D>)
-}
-
 #[derive(Debug, PartialEq, Eq)]
 enum Status {
     Success(Shape),
