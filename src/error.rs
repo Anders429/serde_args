@@ -3,6 +3,7 @@ use std::{
     ffi::OsString,
     fmt,
     fmt::{Display, Formatter},
+    iter,
 };
 
 #[derive(Debug)]
@@ -87,16 +88,53 @@ impl Display for Kind {
                                 } else {
                                     write!(formatter, "\n\n{} Options", name)?;
                                 }
+
+                                let long_options = group.iter().map(|field| {
+                                    iter::once(field.name)
+                                        .chain(field.aliases.iter().copied())
+                                        .filter(|name| name.chars().count() != 1)
+                                        .map(|name| format!("--{name}"))
+                                        .fold(String::new(), |combined, option| {
+                                            combined + &option + " "
+                                        })
+                                        .trim_end()
+                                        .to_owned()
+                                });
+                                let short_options = group.iter().map(|field| {
+                                    iter::once(field.name)
+                                        .chain(field.aliases.iter().copied())
+                                        .filter(|name| name.chars().count() == 1)
+                                        .map(|name| format!("-{name}"))
+                                        .fold(String::new(), |combined, option| {
+                                            combined + &option + " "
+                                        })
+                                        .trim_end()
+                                        .to_owned()
+                                });
+
                                 // Get longest option name.
-                                let longest_option = group
-                                    .iter()
-                                    .map(|(name, _)| name.chars().count())
+                                let longest_long_options = long_options
+                                    .clone()
+                                    .map(|name| name.chars().count())
                                     .max()
                                     .unwrap_or(0);
-                                for (name, description) in group {
+                                // Get longest short option name.
+                                let longest_short_options = short_options
+                                    .clone()
+                                    .map(|name| name.chars().count())
+                                    .max()
+                                    .unwrap_or(0);
+                                for ((field, long_options), short_options) in
+                                    group.iter().zip(long_options).zip(short_options)
+                                {
                                     write!(
                                         formatter,
-                                        "\n  --{name:longest_option$}  {description}"
+                                        "\n  {:longest_short_options$}{}{:longest_long_options$}{}{}",
+                                        short_options,
+                                        if longest_short_options == 0 {""} else {" "},
+                                        long_options,
+                                        if longest_long_options == 0 {" "} else {"  "},
+                                        field.description,
                                     )?;
                                 }
                             }

@@ -159,8 +159,8 @@ impl Shape {
         result
     }
 
-    pub(crate) fn optional_groups(&self) -> Vec<(&str, Vec<(&str, &str)>)> {
-        let mut result: Vec<(&str, Vec<(&str, &str)>)> = Vec::new();
+    pub(crate) fn optional_groups(&self) -> Vec<(&str, Vec<&Field>)> {
+        let mut result: Vec<(&str, Vec<&Field>)> = Vec::new();
 
         match self {
             Self::Empty { .. } | Self::Primitive { .. } | Self::Enum { .. } => {}
@@ -173,13 +173,7 @@ impl Shape {
                 optional,
                 ..
             } => {
-                result.push((
-                    name,
-                    optional
-                        .iter()
-                        .map(|field| (field.name, field.description.as_str()))
-                        .collect(),
-                ));
+                result.push((name, optional.iter().collect()));
                 for required_field in required {
                     result.extend(required_field.shape.optional_groups());
                 }
