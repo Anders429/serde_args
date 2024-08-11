@@ -146,16 +146,30 @@ impl Display for Kind {
 
                         // Write commands.
                         let variant_groups = shape.variant_groups();
-                        // Get longest variant name.
-                        let longest_variant = variant_groups
-                            .iter()
-                            .map(|(name, _)| name.chars().count())
-                            .max()
-                            .unwrap_or(0);
                         for (name, group) in variant_groups {
+                            let variant_names = group.iter().map(|variant| {
+                                iter::once(variant.name)
+                                    .chain(variant.aliases.iter().copied())
+                                    .fold(String::new(), |combined, variant| {
+                                        combined + &variant + " "
+                                    })
+                                    .trim_end()
+                                    .to_owned()
+                            });
+                            // Get longest variant name.
+                            let longest_variant_names = variant_names
+                                .clone()
+                                .map(|name| name.chars().count())
+                                .max()
+                                .unwrap_or(0);
+
                             write!(formatter, "\n\n{name} Variants:")?;
-                            for (name, description) in group {
-                                write!(formatter, "\n  {name:longest_variant$}  {description}",)?;
+                            for (variant, name) in group.iter().zip(variant_names) {
+                                write!(
+                                    formatter,
+                                    "\n  {name:longest_variant_names$}  {}",
+                                    variant.description
+                                )?;
                             }
                         }
 

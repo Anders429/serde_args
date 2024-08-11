@@ -185,8 +185,8 @@ impl Shape {
         result
     }
 
-    pub(crate) fn variant_groups(&self) -> Vec<(&str, Vec<(&str, &str)>)> {
-        let mut result: Vec<(&str, Vec<(&str, &str)>)> = Vec::new();
+    pub(crate) fn variant_groups(&self) -> Vec<(&str, Vec<&Variant>)> {
+        let mut result: Vec<(&str, Vec<&Variant>)> = Vec::new();
 
         match self {
             Self::Empty { .. } | Self::Primitive { .. } => {}
@@ -201,13 +201,7 @@ impl Shape {
                 }
             }
             Self::Enum { name, variants, .. } => {
-                result.push((
-                    name,
-                    variants
-                        .iter()
-                        .map(|variant| (variant.name, variant.description.as_str()))
-                        .collect(),
-                ));
+                result.push((name, variants.iter().collect()));
             }
             Self::Variant { shape, .. } => {
                 result.extend(shape.variant_groups());
