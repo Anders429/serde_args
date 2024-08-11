@@ -240,25 +240,19 @@ impl Display for Shape {
             Self::Struct {
                 required, optional, ..
             } => {
+                let has_optional = !optional.is_empty();
+                if has_optional {
+                    formatter.write_str("[options]")?;
+                }
                 let mut required_iter = required.iter();
-                let mut had_required = false;
                 if let Some(field) = required_iter.next() {
-                    had_required = true;
+                    if has_optional {
+                        formatter.write_char(' ')?;
+                    }
                     Display::fmt(field, formatter)?;
                     for field in required_iter {
                         formatter.write_char(' ')?;
                         Display::fmt(field, formatter)?;
-                    }
-                }
-                let mut optional_iter = optional.iter();
-                if let Some(field) = optional_iter.next() {
-                    if had_required {
-                        formatter.write_char(' ')?;
-                    }
-                    write!(formatter, "[--{} {}]", field.name, field.shape)?;
-                    for field in optional_iter {
-                        formatter.write_char(' ')?;
-                        write!(formatter, "[--{} {}]", field.name, field.shape)?;
                     }
                 }
                 Ok(())
@@ -1291,7 +1285,7 @@ mod tests {
                     },
                 }
             ),
-            "foo <bar> [--qux <quux>]"
+            "foo [options] <bar>"
         );
     }
 
@@ -1527,7 +1521,7 @@ mod tests {
                     ],
                 }
             ),
-            "[--foo <bar>] [--baz <qux>]"
+            "[options]"
         )
     }
 
