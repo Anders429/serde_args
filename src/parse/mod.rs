@@ -628,18 +628,18 @@ where
                                         shape: inner_shape, ..
                                     } = shape
                                     {
+                                        context
+                                            .segments
+                                            .push(Segment::Identifier(static_variant_name));
                                         // Parse the variant's shape.
                                         let parsed_context =
                                             parse_context(args, inner_shape, options, context);
-                                        context = parsed_context.context?;
                                         // Handle options.
                                         parsed_options.extend(parsed_context.options);
                                         if parsed_context.closing_end_of_options {
                                             closing_end_of_options = true;
                                         }
-                                        context
-                                            .segments
-                                            .push(Segment::Identifier(static_variant_name));
+                                        context = parsed_context.context?;
                                         found = true;
                                     } else {
                                         unreachable!()
