@@ -11,7 +11,7 @@ pub(crate) enum Error {
     MissingArguments,
     UnexpectedArgument,
     UnrecognizedOption,
-    UnrecognizedVariant,
+    UnrecognizedVariant { name: String },
     Help,
 }
 
@@ -21,7 +21,9 @@ impl Display for Error {
             Self::MissingArguments => formatter.write_str("missing required positional arguments"),
             Self::UnexpectedArgument => formatter.write_str("unexpected positional argument"),
             Self::UnrecognizedOption => formatter.write_str("unrecognized optional flag"),
-            Self::UnrecognizedVariant => formatter.write_str("unrecognized command"),
+            Self::UnrecognizedVariant { name } => {
+                write!(formatter, "unrecognized command: {}", name)
+            }
             Self::Help => formatter.write_str("help requested"),
         }
     }
@@ -344,7 +346,9 @@ where
         } => {
             let variant_name = args.next_positional().ok_or(Error::MissingArguments)?;
             let variant_name_str =
-                str::from_utf8(&variant_name).or(Err(Error::UnrecognizedVariant))?;
+                str::from_utf8(&variant_name).or(Err(Error::UnrecognizedVariant {
+                    name: String::from_utf8_lossy(&variant_name).into(),
+                }))?;
 
             let mut variants_iter = variants.clone().into_iter();
             loop {
@@ -374,7 +378,9 @@ where
                         return Ok(context);
                     }
                 } else {
-                    return Err(Error::UnrecognizedVariant);
+                    return Err(Error::UnrecognizedVariant {
+                        name: variant_name_str.into(),
+                    });
                 }
             }
         }
@@ -383,7 +389,9 @@ where
         } => {
             let variant_name = args.next_positional().ok_or(Error::MissingArguments)?;
             let variant_name_str =
-                str::from_utf8(&variant_name).or(Err(Error::UnrecognizedVariant))?;
+                str::from_utf8(&variant_name).or(Err(Error::UnrecognizedVariant {
+                    name: String::from_utf8_lossy(&variant_name).into(),
+                }))?;
 
             for variant in variants {
                 if let Some(static_variant_name) = iter::once(variant.name)
@@ -397,7 +405,9 @@ where
                 }
             }
 
-            Err(Error::UnrecognizedVariant)
+            Err(Error::UnrecognizedVariant {
+                name: variant_name_str.into(),
+            })
         }
     }
 }
@@ -629,8 +639,11 @@ where
                     let token = args.next_token().ok_or(Error::MissingArguments)?;
                     match token {
                         Token::Positional(variant_name) => {
-                            let variant_name_str = str::from_utf8(&variant_name)
-                                .or(Err(Error::UnrecognizedVariant))?;
+                            let variant_name_str = str::from_utf8(&variant_name).or(Err(
+                                Error::UnrecognizedVariant {
+                                    name: String::from_utf8_lossy(&variant_name).into(),
+                                },
+                            ))?;
                             let mut found = false;
                             for variant in variants.clone() {
                                 if let Some(static_variant_name) = iter::once(variant.name)
@@ -668,7 +681,9 @@ where
                                 }
                             }
                             if !found {
-                                return Err(Error::UnrecognizedVariant);
+                                return Err(Error::UnrecognizedVariant {
+                                    name: variant_name_str.into(),
+                                });
                             }
                             break;
                         }
@@ -714,8 +729,11 @@ where
                         Token::EndOfOptions => {
                             let variant_name =
                                 args.next_positional().ok_or(Error::MissingArguments)?;
-                            let variant_name_str = str::from_utf8(&variant_name)
-                                .or(Err(Error::UnrecognizedVariant))?;
+                            let variant_name_str = str::from_utf8(&variant_name).or(Err(
+                                Error::UnrecognizedVariant {
+                                    name: String::from_utf8_lossy(&variant_name).into(),
+                                },
+                            ))?;
                             let mut found = false;
                             for variant in variants.clone() {
                                 if let Some(static_variant_name) = iter::once(variant.name)
@@ -745,7 +763,9 @@ where
                                 }
                             }
                             if !found {
-                                return Err(Error::UnrecognizedVariant);
+                                return Err(Error::UnrecognizedVariant {
+                                    name: variant_name_str.into(),
+                                });
                             }
                             break;
                         }
@@ -758,8 +778,11 @@ where
                     let token = args.next_token().ok_or(Error::MissingArguments)?;
                     match token {
                         Token::Positional(variant_name) => {
-                            let variant_name_str = str::from_utf8(&variant_name)
-                                .or(Err(Error::UnrecognizedVariant))?;
+                            let variant_name_str = str::from_utf8(&variant_name).or(Err(
+                                Error::UnrecognizedVariant {
+                                    name: String::from_utf8_lossy(&variant_name).into(),
+                                },
+                            ))?;
                             let mut found = false;
                             for mut variant in variants.clone() {
                                 if let Some(static_variant_name) = iter::once(variant.name)
@@ -783,7 +806,9 @@ where
                                 }
                             }
                             if !found {
-                                return Err(Error::UnrecognizedVariant);
+                                return Err(Error::UnrecognizedVariant {
+                                    name: variant_name_str.into(),
+                                });
                             }
                             break;
                         }
@@ -829,8 +854,11 @@ where
                         Token::EndOfOptions => {
                             let variant_name =
                                 args.next_positional().ok_or(Error::MissingArguments)?;
-                            let variant_name_str = str::from_utf8(&variant_name)
-                                .or(Err(Error::UnrecognizedVariant))?;
+                            let variant_name_str = str::from_utf8(&variant_name).or(Err(
+                                Error::UnrecognizedVariant {
+                                    name: String::from_utf8_lossy(&variant_name).into(),
+                                },
+                            ))?;
                             let mut found = false;
                             for mut variant in variants.clone() {
                                 if let Some(static_variant_name) = iter::once(variant.name)
@@ -850,7 +878,9 @@ where
                                 }
                             }
                             if !found {
-                                return Err(Error::UnrecognizedVariant);
+                                return Err(Error::UnrecognizedVariant {
+                                    name: variant_name_str.into(),
+                                });
                             }
                             break;
                         }
