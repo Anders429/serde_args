@@ -178,7 +178,7 @@ impl Display for Kind {
                     _ => {
                         write!(
                             formatter,
-                            "ERROR: {}\n\nUSAGE: {} {}",
+                            "ERROR: {}\n\nUSAGE: {} {}\n\nFor more information, use --help.",
                             error,
                             executable_path.to_string_lossy(),
                             shape
