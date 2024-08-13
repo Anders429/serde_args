@@ -11,7 +11,7 @@ use std::{
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) enum Error {
     MissingArguments,
-    UnexpectedArguments(Vec<Vec<u8>>),
+    UnexpectedArgument(Vec<u8>),
     UnrecognizedOption {
         name: String,
         expecting: Vec<&'static str>,
@@ -27,20 +27,12 @@ impl Display for Error {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
             Self::MissingArguments => formatter.write_str("missing required positional arguments"),
-            Self::UnexpectedArguments(arguments) => {
-                if arguments.len() == 1 {
-                    write!(
-                        formatter,
-                        "unexpected positional argument: {}",
-                        String::from_utf8_lossy(&arguments[0])
-                    )
-                } else {
-                    formatter.write_str("unexpected positional arguments:")?;
-                    for argument in arguments {
-                        write!(formatter, " {}", String::from_utf8_lossy(argument))?;
-                    }
-                    Ok(())
-                }
+            Self::UnexpectedArgument(argument) => {
+                write!(
+                    formatter,
+                    "unexpected positional argument: {}",
+                    String::from_utf8_lossy(&argument)
+                )
             }
             Self::UnrecognizedOption { name, expecting } => {
                 // Find the most similar option.
@@ -264,12 +256,21 @@ where
     let context = parsed_context.context?;
 
     // Ensure there are no remaining arguments.
-    let remaining: Vec<_> = parsed_args.collect();
-    if !remaining.is_empty() {
-        Err(Error::UnexpectedArguments(remaining))
-    } else {
-        Ok(context)
+    while let Some(token) = parsed_args.next_token() {
+        match token {
+            Token::Positional(value) => {
+                return Err(Error::UnexpectedArgument(value));
+            }
+            Token::Optional(value) => {
+                return Err(Error::UnrecognizedOption {
+                    name: String::from_utf8_lossy(&value).into(),
+                    expecting: vec!["help", "h"],
+                });
+            }
+            Token::EndOfOptions => {}
+        }
     }
+    Ok(context)
 }
 
 fn parse_context_no_options<Args>(
