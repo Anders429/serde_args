@@ -268,7 +268,7 @@ mod tests {
                 "{}",
                 Error {
                     kind: Kind::Usage {
-                        error: UsageError::Parsing(parse::Error::MissingArguments),
+                        error: UsageError::Parsing(parse::Error::MissingArguments(vec!["foo".into()])),
                         executable_path: "executable_name".into(),
                         shape: Shape::Primitive {
                             name: "bar".to_owned(),
@@ -277,7 +277,7 @@ mod tests {
                     }
                 }
             ),
-            "ERROR: missing required positional arguments\n\nUSAGE: executable_name <bar>\n\nFor more information, use --help."
+            "ERROR: missing required positional argument: <foo>\n\nUSAGE: executable_name <bar>\n\nFor more information, use --help."
         )
     }
 

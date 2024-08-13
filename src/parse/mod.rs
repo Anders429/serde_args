@@ -10,7 +10,7 @@ use std::{
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) enum Error {
-    MissingArguments,
+    MissingArguments(Vec<String>),
     UnexpectedArgument(Vec<u8>),
     UnrecognizedOption {
         name: String,
@@ -26,7 +26,21 @@ pub(crate) enum Error {
 impl Display for Error {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
-            Self::MissingArguments => formatter.write_str("missing required positional arguments"),
+            Self::MissingArguments(arguments) => {
+                if arguments.len() == 1 {
+                    write!(
+                        formatter,
+                        "missing required positional argument: <{}>",
+                        arguments.last().expect("argument not present")
+                    )
+                } else {
+                    formatter.write_str("missing required posiitonal arguments:")?;
+                    for argument in arguments {
+                        write!(formatter, " <{}>", argument)?;
+                    }
+                    Ok(())
+                }
+            }
             Self::UnexpectedArgument(argument) => {
                 write!(
                     formatter,
@@ -304,9 +318,10 @@ where
 {
     match *shape {
         Shape::Empty { .. } => Ok(context),
-        Shape::Primitive { .. } => {
+        Shape::Primitive { ref name, .. } => {
             context.segments.push(Segment::Value(
-                args.next_positional().ok_or(Error::MissingArguments)?,
+                args.next_positional()
+                    .ok_or(Error::MissingArguments(vec![name.clone()]))?,
             ));
             Ok(context)
         }
@@ -366,7 +381,8 @@ where
             //
             // While the current context cannot have options, the nested context can.
             let mut end_of_options = false;
-            for required_field in required.iter_mut() {
+            let mut required_iter = required.iter_mut();
+            while let Some(required_field) = required_iter.next() {
                 let inner_context = Context {
                     segments: vec![Segment::Identifier(required_field.name)],
                 };
@@ -387,7 +403,34 @@ where
                     );
                     context
                         .segments
-                        .push(Segment::Context(parsed_context.context?));
+                        .push(Segment::Context(match parsed_context.context {
+                            Ok(context) => context,
+                            Err(error) => {
+                                return Err({
+                                    if let Error::MissingArguments(mut arguments) = error {
+                                        // Replace the last argument if it was primitive.
+                                        if arguments.len() == 1
+                                            && matches!(
+                                                required_field.shape,
+                                                Shape::Primitive { .. }
+                                                    | Shape::Enum { .. }
+                                                    | Shape::Variant { .. }
+                                            )
+                                        {
+                                            *arguments.last_mut().expect("no arguments") =
+                                                required_field.name.to_owned();
+                                        }
+                                        // Append any more missing arguments.
+                                        arguments.extend(
+                                            required_iter.map(|field| field.name.to_owned()),
+                                        );
+                                        Error::MissingArguments(arguments)
+                                    } else {
+                                        error
+                                    }
+                                });
+                            }
+                        }));
                     end_of_options = parsed_context.closing_end_of_options;
                     let parsed_options = parsed_context.options;
                     for (optional_name, optional_context) in parsed_options {
@@ -458,9 +501,13 @@ where
             Ok(context)
         }
         Shape::Enum {
-            ref mut variants, ..
+            name,
+            ref mut variants,
+            ..
         } => {
-            let variant_name = args.next_positional().ok_or(Error::MissingArguments)?;
+            let variant_name = args
+                .next_positional()
+                .ok_or(Error::MissingArguments(vec![name.into()]))?;
             let variant_name_str = str::from_utf8(&variant_name).or_else(|_| {
                 Err(Error::UnrecognizedVariant {
                     name: String::from_utf8_lossy(&variant_name).into(),
@@ -485,6 +532,7 @@ where
                             name: static_variant_name,
                             shape: Box::new(variant.shape),
                             description: variant.description,
+                            enum_name: name,
                             variants: variants.clone(),
                         };
                         if let Shape::Variant {
@@ -516,9 +564,13 @@ where
             }
         }
         Shape::Variant {
-            ref mut variants, ..
+            enum_name,
+            ref mut variants,
+            ..
         } => {
-            let variant_name = args.next_positional().ok_or(Error::MissingArguments)?;
+            let variant_name = args
+                .next_positional()
+                .ok_or(Error::MissingArguments(vec![enum_name.into()]))?;
             let variant_name_str = str::from_utf8(&variant_name).or_else(|_| {
                 Err(Error::UnrecognizedVariant {
                     name: String::from_utf8_lossy(&variant_name).into(),
@@ -654,8 +706,10 @@ where
                     }
                 }
             }
-            Shape::Primitive { .. } => loop {
-                let token = args.next_token().ok_or(Error::MissingArguments)?;
+            Shape::Primitive { ref name, .. } => loop {
+                let token = args
+                    .next_token()
+                    .ok_or(Error::MissingArguments(vec![name.clone()]))?;
                 match token {
                     Token::Positional(value) => {
                         context.segments.push(Segment::Value(value));
@@ -739,7 +793,8 @@ where
                 let mut end_of_options = false;
                 let mut combined_options = options.clone();
                 combined_options.extend(optional.clone());
-                for required_field in required.iter_mut() {
+                let mut required_iter = required.iter_mut();
+                while let Some(required_field) = required_iter.next() {
                     let inner_context = Context {
                         segments: vec![Segment::Identifier(required_field.name)],
                     };
@@ -774,7 +829,34 @@ where
                         }
                         context
                             .segments
-                            .push(Segment::Context(parsed_context.context?));
+                            .push(Segment::Context(match parsed_context.context {
+                                Ok(context) => context,
+                                Err(error) => {
+                                    return Err({
+                                        if let Error::MissingArguments(mut arguments) = error {
+                                            // Replace the last argument if it was primitive.
+                                            if arguments.len() == 1
+                                                && matches!(
+                                                    required_field.shape,
+                                                    Shape::Primitive { .. }
+                                                        | Shape::Enum { .. }
+                                                        | Shape::Variant { .. }
+                                                )
+                                            {
+                                                *arguments.last_mut().expect("no arguments") =
+                                                    required_field.name.to_owned();
+                                            }
+                                            // Append any more missing arguments.
+                                            arguments.extend(
+                                                required_iter.map(|field| field.name.to_owned()),
+                                            );
+                                            Error::MissingArguments(arguments)
+                                        } else {
+                                            error
+                                        }
+                                    });
+                                }
+                            }));
                     }
                 }
                 // Parse any remaining options.
@@ -805,10 +887,12 @@ where
                     }
                 }
             }
-            Shape::Enum { variants, .. } => {
+            Shape::Enum { name, variants, .. } => {
                 // Parse the variant.
                 'outer: loop {
-                    let token = args.next_token().ok_or(Error::MissingArguments)?;
+                    let token = args
+                        .next_token()
+                        .ok_or(Error::MissingArguments(vec![name.to_owned()]))?;
                     match token {
                         Token::Positional(variant_name) => {
                             let variant_name_str = str::from_utf8(&variant_name).or_else(|_| {
@@ -833,6 +917,7 @@ where
                                         name: static_variant_name,
                                         shape: Box::new(variant.shape),
                                         description: variant.description,
+                                        enum_name: name,
                                         variants: variants.clone(),
                                     };
 
@@ -930,8 +1015,9 @@ where
                             }
                         }
                         Token::EndOfOptions => {
-                            let variant_name =
-                                args.next_positional().ok_or(Error::MissingArguments)?;
+                            let variant_name = args
+                                .next_positional()
+                                .ok_or(Error::MissingArguments(vec![name.to_owned()]))?;
                             let variant_name_str = str::from_utf8(&variant_name).or_else(|_| {
                                 Err(Error::UnrecognizedVariant {
                                     name: String::from_utf8_lossy(&variant_name).into(),
@@ -954,6 +1040,7 @@ where
                                         name: static_variant_name,
                                         shape: Box::new(variant.shape),
                                         description: variant.description,
+                                        enum_name: name,
                                         variants: variants.clone(),
                                     };
                                     if let Shape::Variant {
@@ -986,10 +1073,16 @@ where
                     }
                 }
             }
-            Shape::Variant { variants, .. } => {
+            Shape::Variant {
+                enum_name,
+                variants,
+                ..
+            } => {
                 // Parse the variant.
                 loop {
-                    let token = args.next_token().ok_or(Error::MissingArguments)?;
+                    let token = args
+                        .next_token()
+                        .ok_or(Error::MissingArguments(vec![enum_name.to_owned()]))?;
                     match token {
                         Token::Positional(variant_name) => {
                             let variant_name_str = str::from_utf8(&variant_name).or_else(|_| {
@@ -1102,8 +1195,9 @@ where
                             }
                         }
                         Token::EndOfOptions => {
-                            let variant_name =
-                                args.next_positional().ok_or(Error::MissingArguments)?;
+                            let variant_name = args
+                                .next_positional()
+                                .ok_or(Error::MissingArguments(vec![enum_name.to_owned()]))?;
                             let variant_name_str = str::from_utf8(&variant_name).or_else(|_| {
                                 Err(Error::UnrecognizedVariant {
                                     name: String::from_utf8_lossy(&variant_name).into(),
@@ -1211,7 +1305,7 @@ mod tests {
                     description: String::new(),
                 }
             ),
-            Error::MissingArguments
+            Error::MissingArguments(vec!["bar".to_owned()])
         );
     }
 
