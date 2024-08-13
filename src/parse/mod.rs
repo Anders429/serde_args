@@ -148,7 +148,7 @@ enum Token {
 struct ParsedArgs<Args> {
     args: Args,
     revisit: Option<Vec<u8>>,
-    consumed_positional: bool,
+    consumed_token: bool,
 }
 
 impl<Args> ParsedArgs<Args> {
@@ -156,7 +156,7 @@ impl<Args> ParsedArgs<Args> {
         Self {
             args,
             revisit: None,
-            consumed_positional: false,
+            consumed_token: false,
         }
     }
 }
@@ -166,7 +166,7 @@ where
     Args: Iterator<Item = OsString>,
 {
     fn next_token(&mut self) -> Option<Token> {
-        let token = if let Some(token) = self.next() {
+        if let Some(token) = self.next() {
             if let Some(short_token) = token.strip_prefix(b"-") {
                 if short_token.is_empty() {
                     // A single `-` is an empty optional token.
@@ -200,19 +200,11 @@ where
             }
         } else {
             None
-        };
-        if matches!(token, Some(Token::Positional(_))) {
-            self.consumed_positional = true;
         }
-        token
     }
 
     fn next_positional(&mut self) -> Option<Vec<u8>> {
-        let positional = self.next();
-        if positional.is_some() {
-            self.consumed_positional = true;
-        }
-        positional
+        self.next()
     }
 
     fn next_optional(&mut self) -> Option<Vec<u8>> {
@@ -238,9 +230,14 @@ where
     type Item = Vec<u8>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.revisit
+        let value = self
+            .revisit
             .take()
-            .or_else(|| self.args.next().map(|os_str| os_str.into_encoded_bytes()))
+            .or_else(|| self.args.next().map(|os_str| os_str.into_encoded_bytes()));
+        if value.is_some() {
+            self.consumed_token = true;
+        }
+        value
     }
 }
 
@@ -278,7 +275,7 @@ where
     }
 
     let context = parsed_context.context.map_err(|error| {
-        if matches!(error, Error::MissingArguments(_)) && !parsed_args.consumed_positional {
+        if matches!(error, Error::MissingArguments(_)) && !parsed_args.consumed_token {
             Error::Help
         } else {
             error
