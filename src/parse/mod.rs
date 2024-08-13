@@ -148,6 +148,7 @@ enum Token {
 struct ParsedArgs<Args> {
     args: Args,
     revisit: Option<Vec<u8>>,
+    consumed_positional: bool,
 }
 
 impl<Args> ParsedArgs<Args> {
@@ -155,6 +156,7 @@ impl<Args> ParsedArgs<Args> {
         Self {
             args,
             revisit: None,
+            consumed_positional: false,
         }
     }
 }
@@ -164,7 +166,7 @@ where
     Args: Iterator<Item = OsString>,
 {
     fn next_token(&mut self) -> Option<Token> {
-        if let Some(token) = self.next() {
+        let token = if let Some(token) = self.next() {
             if let Some(short_token) = token.strip_prefix(b"-") {
                 if short_token.is_empty() {
                     // A single `-` is an empty optional token.
@@ -198,11 +200,19 @@ where
             }
         } else {
             None
+        };
+        if matches!(token, Some(Token::Positional(_))) {
+            self.consumed_positional = true;
         }
+        token
     }
 
     fn next_positional(&mut self) -> Option<Vec<u8>> {
-        self.next()
+        let positional = self.next();
+        if positional.is_some() {
+            self.consumed_positional = true;
+        }
+        positional
     }
 
     fn next_optional(&mut self) -> Option<Vec<u8>> {
@@ -267,7 +277,13 @@ where
         }
     }
 
-    let context = parsed_context.context?;
+    let context = parsed_context.context.map_err(|error| {
+        if matches!(error, Error::MissingArguments(_)) && !parsed_args.consumed_positional {
+            Error::Help
+        } else {
+            error
+        }
+    })?;
 
     // Ensure there are no remaining arguments.
     let mut end_of_options = parsed_context.closing_end_of_options;
