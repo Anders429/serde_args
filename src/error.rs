@@ -149,13 +149,13 @@ impl Display for Kind {
                         let variant_groups = shape.variant_groups();
                         for (name, group) in variant_groups {
                             let variant_names = group.iter().map(|variant| {
-                                iter::once(variant.name)
+                                let mut combined = iter::once(variant.name)
                                     .chain(variant.aliases.iter().copied())
                                     .fold(String::new(), |combined, variant| {
                                         combined + &variant + " "
-                                    })
-                                    .trim_end()
-                                    .to_owned()
+                                    });
+                                combined.push_str(&format!("{}", variant.shape));
+                                combined
                             });
                             // Get longest variant name.
                             let longest_variant_names = variant_names
