@@ -94,6 +94,7 @@ impl Display for Kind {
                                         .chain(field.aliases.iter().copied())
                                         .filter(|name| name.chars().count() != 1)
                                         .map(|name| format!("--{name}"))
+                                        .chain(iter::once(format!("{}", field.shape)))
                                         .fold(String::new(), |combined, option| {
                                             combined + &option + " "
                                         })
