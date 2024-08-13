@@ -400,13 +400,38 @@ where
                     segments: vec![Segment::Identifier(required_field.name)],
                 };
                 if end_of_options {
-                    context
-                        .segments
-                        .push(Segment::Context(parse_context_no_options(
+                    context.segments.push(Segment::Context(
+                        match parse_context_no_options(
                             args,
                             &mut required_field.shape,
                             inner_context,
-                        )?));
+                        ) {
+                            Ok(context) => context,
+                            Err(error) => {
+                                return Err({
+                                    if let Error::MissingArguments(mut arguments) = error {
+                                        // Replace the last argument if it was primitive.
+                                        if arguments.len() == 1
+                                            && matches!(
+                                                required_field.shape,
+                                                Shape::Primitive { .. } | Shape::Enum { .. }
+                                            )
+                                        {
+                                            *arguments.last_mut().expect("no arguments") =
+                                                required_field.name.to_owned();
+                                        }
+                                        // Append any more missing arguments.
+                                        arguments.extend(
+                                            required_iter.map(|field| field.name.to_owned()),
+                                        );
+                                        Error::MissingArguments(arguments)
+                                    } else {
+                                        error
+                                    }
+                                });
+                            }
+                        },
+                    ));
                 } else {
                     let parsed_context = parse_context(
                         args,
@@ -425,9 +450,7 @@ where
                                         if arguments.len() == 1
                                             && matches!(
                                                 required_field.shape,
-                                                Shape::Primitive { .. }
-                                                    | Shape::Enum { .. }
-                                                    | Shape::Variant { .. }
+                                                Shape::Primitive { .. } | Shape::Enum { .. }
                                             )
                                         {
                                             *arguments.last_mut().expect("no arguments") =
@@ -812,13 +835,38 @@ where
                         segments: vec![Segment::Identifier(required_field.name)],
                     };
                     if end_of_options {
-                        context
-                            .segments
-                            .push(Segment::Context(parse_context_no_options(
+                        context.segments.push(Segment::Context(
+                            match parse_context_no_options(
                                 args,
                                 &mut required_field.shape,
                                 inner_context,
-                            )?));
+                            ) {
+                                Ok(context) => context,
+                                Err(error) => {
+                                    return Err({
+                                        if let Error::MissingArguments(mut arguments) = error {
+                                            // Replace the last argument if it was primitive.
+                                            if arguments.len() == 1
+                                                && matches!(
+                                                    required_field.shape,
+                                                    Shape::Primitive { .. } | Shape::Enum { .. }
+                                                )
+                                            {
+                                                *arguments.last_mut().expect("no arguments") =
+                                                    required_field.name.to_owned();
+                                            }
+                                            // Append any more missing arguments.
+                                            arguments.extend(
+                                                required_iter.map(|field| field.name.to_owned()),
+                                            );
+                                            Error::MissingArguments(arguments)
+                                        } else {
+                                            error
+                                        }
+                                    });
+                                }
+                            },
+                        ));
                     } else {
                         let parsed_context = parse_context(
                             args,
