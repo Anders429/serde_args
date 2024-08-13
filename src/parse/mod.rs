@@ -264,7 +264,12 @@ where
             Token::Optional(value) => {
                 return Err(Error::UnrecognizedOption {
                     name: String::from_utf8_lossy(&value).into(),
-                    expecting: vec!["help", "h"],
+                    expecting: vec!["help", "h"]
+                        .into_iter()
+                        .chain(shape.trailing_options().into_iter().flat_map(|field| {
+                            iter::once(field.name).chain(field.aliases.iter().copied())
+                        }))
+                        .collect(),
                 });
             }
             Token::EndOfOptions => {}

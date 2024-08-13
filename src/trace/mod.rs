@@ -210,6 +210,27 @@ impl Shape {
 
         result
     }
+
+    pub(crate) fn trailing_options(&self) -> Vec<&Field> {
+        match self {
+            Shape::Primitive { .. }
+            | Shape::Empty { .. }
+            | Shape::Optional(_)
+            | Shape::Enum { .. } => vec![],
+            Shape::Variant { shape, .. } => shape.trailing_options(),
+            Shape::Struct {
+                required, optional, ..
+            } => optional
+                .iter()
+                .chain(
+                    required
+                        .last()
+                        .map(|field| field.shape.trailing_options())
+                        .unwrap_or(vec![]),
+                )
+                .collect(),
+        }
+    }
 }
 
 impl Display for Shape {
