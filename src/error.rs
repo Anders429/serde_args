@@ -90,16 +90,15 @@ impl Display for Kind {
                                 }
 
                                 let long_options = group.iter().map(|field| {
-                                    iter::once(field.name)
+                                    let mut combined = iter::once(field.name)
                                         .chain(field.aliases.iter().copied())
                                         .filter(|name| name.chars().count() != 1)
                                         .map(|name| format!("--{name}"))
-                                        .chain(iter::once(format!("{}", field.shape)))
                                         .fold(String::new(), |combined, option| {
                                             combined + &option + " "
-                                        })
-                                        .trim_end()
-                                        .to_owned()
+                                        });
+                                    combined.push_str(&format!("{}", field.shape));
+                                    combined
                                 });
                                 let short_options = group.iter().map(|field| {
                                     iter::once(field.name)
