@@ -1358,7 +1358,7 @@ mod tests {
     fn parse_primitive_end_of_args() {
         assert_err_eq!(
             parse(
-                Vec::<&str>::new(),
+                vec!["--"],
                 &mut Shape::Primitive {
                     name: "bar".to_owned(),
                     description: String::new(),
