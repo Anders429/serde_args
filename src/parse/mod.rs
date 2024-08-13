@@ -12,7 +12,10 @@ use std::{
 pub(crate) enum Error {
     MissingArguments,
     UnexpectedArgument,
-    UnrecognizedOption,
+    UnrecognizedOption {
+        name: String,
+        expecting: Vec<&'static str>,
+    },
     UnrecognizedVariant {
         name: String,
         expecting: Vec<&'static str>,
@@ -25,7 +28,37 @@ impl Display for Error {
         match self {
             Self::MissingArguments => formatter.write_str("missing required positional arguments"),
             Self::UnexpectedArgument => formatter.write_str("unexpected positional argument"),
-            Self::UnrecognizedOption => formatter.write_str("unrecognized optional flag"),
+            Self::UnrecognizedOption { name, expecting } => {
+                // Find the most similar option.
+                let hint = expecting
+                    .iter()
+                    .map(|field| (field, levenshtein::distance(name, field)))
+                    .filter(|(_, distance)| *distance < 5)
+                    .min_by_key(|(_, distance)| *distance)
+                    .map(|(name, _)| name);
+                // Write message.
+                write!(
+                    formatter,
+                    "unrecognized optional flag: {}",
+                    if name.chars().count() == 1 {
+                        format!("-{}", name)
+                    } else {
+                        format!("--{}", name)
+                    }
+                )?;
+                if let Some(field) = hint {
+                    write!(
+                        formatter,
+                        "\n\n  tip: a similar option exists: {}",
+                        if field.chars().count() == 1 {
+                            format!("-{}", field)
+                        } else {
+                            format!("--{}", field)
+                        },
+                    )?;
+                }
+                Ok(())
+            }
             Self::UnrecognizedVariant { name, expecting } => {
                 // Find the most similar command.
                 let hint = expecting
@@ -205,7 +238,12 @@ where
     for (option_name, _option_context) in parsed_context.options {
         match option_name {
             "help" | "h" => return Err(Error::Help),
-            _ => return Err(Error::UnrecognizedOption),
+            _ => {
+                return Err(Error::UnrecognizedOption {
+                    name: option_name.to_owned(),
+                    expecting: vec!["help", "h"],
+                })
+            }
         }
     }
 
@@ -326,7 +364,16 @@ where
                             }
                         }
                         if !found {
-                            return Err(Error::UnrecognizedOption);
+                            return Err(Error::UnrecognizedOption {
+                                name: optional_name.into(),
+                                expecting: optional
+                                    .iter()
+                                    .map(|field| {
+                                        iter::once(field.name).chain(field.aliases.iter().copied())
+                                    })
+                                    .flatten()
+                                    .collect(),
+                            });
                         }
                     }
                 }
@@ -355,7 +402,16 @@ where
                         }
                     }
                     if !found {
-                        return Err(Error::UnrecognizedOption);
+                        return Err(Error::UnrecognizedOption {
+                            name: optional_name.into(),
+                            expecting: optional
+                                .iter()
+                                .map(|field| {
+                                    iter::once(field.name).chain(field.aliases.iter().copied())
+                                })
+                                .flatten()
+                                .collect(),
+                        });
                     }
                 }
             }
@@ -497,7 +553,17 @@ where
                         Token::Optional(value) => {
                             // Find the option and parse it.
                             let identifier =
-                                str::from_utf8(&value).or(Err(Error::UnrecognizedOption))?;
+                                str::from_utf8(&value).or(Err(Error::UnrecognizedOption {
+                                    name: String::from_utf8_lossy(&value).into(),
+                                    expecting: options
+                                        .iter()
+                                        .map(|field| {
+                                            iter::once(field.name)
+                                                .chain(field.aliases.iter().copied())
+                                        })
+                                        .flatten()
+                                        .collect(),
+                                }))?;
                             let mut optional_context = Context { segments: vec![] };
                             let mut found = false;
                             let mut index = 0;
@@ -558,7 +624,16 @@ where
                     }
                     Token::Optional(value) => {
                         let identifier =
-                            str::from_utf8(&value).or(Err(Error::UnrecognizedOption))?;
+                            str::from_utf8(&value).or(Err(Error::UnrecognizedOption {
+                                name: String::from_utf8_lossy(&value).into(),
+                                expecting: options
+                                    .iter()
+                                    .map(|field| {
+                                        iter::once(field.name).chain(field.aliases.iter().copied())
+                                    })
+                                    .flatten()
+                                    .collect(),
+                            }))?;
                         let mut optional_context = Context { segments: vec![] };
                         let mut found = false;
                         let mut index = 0;
@@ -591,7 +666,16 @@ where
                             }
                         }
                         if !found {
-                            return Err(Error::UnrecognizedOption);
+                            return Err(Error::UnrecognizedOption {
+                                name: identifier.into(),
+                                expecting: options
+                                    .iter()
+                                    .map(|field| {
+                                        iter::once(field.name).chain(field.aliases.iter().copied())
+                                    })
+                                    .flatten()
+                                    .collect(),
+                            });
                         }
                     }
                     Token::EndOfOptions => {
@@ -749,7 +833,17 @@ where
                         }
                         Token::Optional(value) => {
                             let identifier =
-                                str::from_utf8(&value).or(Err(Error::UnrecognizedOption))?;
+                                str::from_utf8(&value).or(Err(Error::UnrecognizedOption {
+                                    name: String::from_utf8_lossy(&value).into(),
+                                    expecting: options
+                                        .iter()
+                                        .map(|field| {
+                                            iter::once(field.name)
+                                                .chain(field.aliases.iter().copied())
+                                        })
+                                        .flatten()
+                                        .collect(),
+                                }))?;
                             let mut optional_context = Context { segments: vec![] };
                             let mut found = false;
                             let mut index = 0;
@@ -783,7 +877,17 @@ where
                                 }
                             }
                             if !found {
-                                return Err(Error::UnrecognizedOption);
+                                return Err(Error::UnrecognizedOption {
+                                    name: identifier.into(),
+                                    expecting: options
+                                        .iter()
+                                        .map(|field| {
+                                            iter::once(field.name)
+                                                .chain(field.aliases.iter().copied())
+                                        })
+                                        .flatten()
+                                        .collect(),
+                                });
                             }
                         }
                         Token::EndOfOptions => {
@@ -901,7 +1005,17 @@ where
                         }
                         Token::Optional(value) => {
                             let identifier =
-                                str::from_utf8(&value).or(Err(Error::UnrecognizedOption))?;
+                                str::from_utf8(&value).or(Err(Error::UnrecognizedOption {
+                                    name: String::from_utf8_lossy(&value).into(),
+                                    expecting: options
+                                        .iter()
+                                        .map(|field| {
+                                            iter::once(field.name)
+                                                .chain(field.aliases.iter().copied())
+                                        })
+                                        .flatten()
+                                        .collect(),
+                                }))?;
                             let mut optional_context = Context { segments: vec![] };
                             let mut found = false;
                             let mut index = 0;
@@ -935,7 +1049,17 @@ where
                                 }
                             }
                             if !found {
-                                return Err(Error::UnrecognizedOption);
+                                return Err(Error::UnrecognizedOption {
+                                    name: identifier.into(),
+                                    expecting: options
+                                        .iter()
+                                        .map(|field| {
+                                            iter::once(field.name)
+                                                .chain(field.aliases.iter().copied())
+                                        })
+                                        .flatten()
+                                        .collect(),
+                                });
                             }
                         }
                         Token::EndOfOptions => {
