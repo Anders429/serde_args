@@ -11,7 +11,7 @@ use std::{
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) enum Error {
     MissingArguments,
-    UnexpectedArgument,
+    UnexpectedArguments(Vec<Vec<u8>>),
     UnrecognizedOption {
         name: String,
         expecting: Vec<&'static str>,
@@ -27,7 +27,21 @@ impl Display for Error {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
             Self::MissingArguments => formatter.write_str("missing required positional arguments"),
-            Self::UnexpectedArgument => formatter.write_str("unexpected positional argument"),
+            Self::UnexpectedArguments(arguments) => {
+                if arguments.len() == 1 {
+                    write!(
+                        formatter,
+                        "unexpected positional argument: {}",
+                        String::from_utf8_lossy(&arguments[0])
+                    )
+                } else {
+                    formatter.write_str("unexpected positional arguments:")?;
+                    for argument in arguments {
+                        write!(formatter, " {}", String::from_utf8_lossy(argument))?;
+                    }
+                    Ok(())
+                }
+            }
             Self::UnrecognizedOption { name, expecting } => {
                 // Find the most similar option.
                 let hint = expecting
@@ -248,8 +262,9 @@ where
     }
 
     // Ensure there are no remaining arguments.
-    if parsed_args.next().is_some() {
-        Err(Error::UnexpectedArgument)
+    let remaining: Vec<_> = parsed_args.collect();
+    if !remaining.is_empty() {
+        Err(Error::UnexpectedArguments(remaining))
     } else {
         parsed_context.context
     }
