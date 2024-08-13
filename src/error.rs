@@ -277,7 +277,7 @@ mod tests {
                     }
                 }
             ),
-            "ERROR: missing required positional arguments\n\nUSAGE: executable_name <bar>"
+            "ERROR: missing required positional arguments\n\nUSAGE: executable_name <bar>\n\nFor more information, use --help."
         )
     }
 
@@ -297,7 +297,7 @@ mod tests {
                     }
                 }
             ),
-            "ERROR: foo\n\nUSAGE: executable_name <bar>"
+            "ERROR: foo\n\nUSAGE: executable_name <bar>\n\nFor more information, use --help."
         )
     }
 }
