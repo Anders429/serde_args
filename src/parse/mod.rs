@@ -1,3 +1,5 @@
+mod levenshtein;
+
 use crate::trace::{Field, Shape};
 use std::{
     ffi::OsString,
@@ -11,7 +13,10 @@ pub(crate) enum Error {
     MissingArguments,
     UnexpectedArgument,
     UnrecognizedOption,
-    UnrecognizedVariant { name: String },
+    UnrecognizedVariant {
+        name: String,
+        expecting: Vec<&'static str>,
+    },
     Help,
 }
 
@@ -21,8 +26,24 @@ impl Display for Error {
             Self::MissingArguments => formatter.write_str("missing required positional arguments"),
             Self::UnexpectedArgument => formatter.write_str("unexpected positional argument"),
             Self::UnrecognizedOption => formatter.write_str("unrecognized optional flag"),
-            Self::UnrecognizedVariant { name } => {
-                write!(formatter, "unrecognized command: {}", name)
+            Self::UnrecognizedVariant { name, expecting } => {
+                // Find the most similar command.
+                let hint = expecting
+                    .iter()
+                    .map(|variant| (variant, levenshtein::distance(name, variant)))
+                    .filter(|(_, distance)| *distance < 5)
+                    .min_by_key(|(_, distance)| *distance)
+                    .map(|(name, _)| name);
+                // Write message.
+                write!(formatter, "unrecognized command: {}", name)?;
+                if let Some(variant) = hint {
+                    write!(
+                        formatter,
+                        "\n\n  tip: a similar command exists: {}",
+                        variant
+                    )?;
+                }
+                Ok(())
             }
             Self::Help => formatter.write_str("help requested"),
         }
@@ -345,10 +366,18 @@ where
             ref mut variants, ..
         } => {
             let variant_name = args.next_positional().ok_or(Error::MissingArguments)?;
-            let variant_name_str =
-                str::from_utf8(&variant_name).or(Err(Error::UnrecognizedVariant {
+            let variant_name_str = str::from_utf8(&variant_name).or_else(|_| {
+                Err(Error::UnrecognizedVariant {
                     name: String::from_utf8_lossy(&variant_name).into(),
-                }))?;
+                    expecting: variants
+                        .iter()
+                        .map(|variant| {
+                            iter::once(variant.name).chain(variant.aliases.iter().copied())
+                        })
+                        .flatten()
+                        .collect(),
+                })
+            })?;
 
             let mut variants_iter = variants.clone().into_iter();
             loop {
@@ -380,6 +409,13 @@ where
                 } else {
                     return Err(Error::UnrecognizedVariant {
                         name: variant_name_str.into(),
+                        expecting: variants
+                            .iter()
+                            .map(|variant| {
+                                iter::once(variant.name).chain(variant.aliases.iter().copied())
+                            })
+                            .flatten()
+                            .collect(),
                     });
                 }
             }
@@ -388,12 +424,20 @@ where
             ref mut variants, ..
         } => {
             let variant_name = args.next_positional().ok_or(Error::MissingArguments)?;
-            let variant_name_str =
-                str::from_utf8(&variant_name).or(Err(Error::UnrecognizedVariant {
+            let variant_name_str = str::from_utf8(&variant_name).or_else(|_| {
+                Err(Error::UnrecognizedVariant {
                     name: String::from_utf8_lossy(&variant_name).into(),
-                }))?;
+                    expecting: variants
+                        .iter()
+                        .map(|variant| {
+                            iter::once(variant.name).chain(variant.aliases.iter().copied())
+                        })
+                        .flatten()
+                        .collect(),
+                })
+            })?;
 
-            for variant in variants {
+            for variant in variants.iter_mut() {
                 if let Some(static_variant_name) = iter::once(variant.name)
                     .chain(variant.aliases.clone())
                     .find(|s| *s == variant_name_str)
@@ -407,6 +451,11 @@ where
 
             Err(Error::UnrecognizedVariant {
                 name: variant_name_str.into(),
+                expecting: variants
+                    .iter()
+                    .map(|variant| iter::once(variant.name).chain(variant.aliases.iter().copied()))
+                    .flatten()
+                    .collect(),
             })
         }
     }
@@ -635,16 +684,23 @@ where
             }
             Shape::Enum { variants, .. } => {
                 // Parse the variant.
-                loop {
+                'outer: loop {
                     let token = args.next_token().ok_or(Error::MissingArguments)?;
                     match token {
                         Token::Positional(variant_name) => {
-                            let variant_name_str = str::from_utf8(&variant_name).or(Err(
-                                Error::UnrecognizedVariant {
+                            let variant_name_str = str::from_utf8(&variant_name).or_else(|_| {
+                                Err(Error::UnrecognizedVariant {
                                     name: String::from_utf8_lossy(&variant_name).into(),
-                                },
-                            ))?;
-                            let mut found = false;
+                                    expecting: variants
+                                        .iter()
+                                        .map(|variant| {
+                                            iter::once(variant.name)
+                                                .chain(variant.aliases.iter().copied())
+                                        })
+                                        .flatten()
+                                        .collect(),
+                                })
+                            })?;
                             for variant in variants.clone() {
                                 if let Some(static_variant_name) = iter::once(variant.name)
                                     .chain(variant.aliases)
@@ -673,19 +729,23 @@ where
                                             closing_end_of_options = true;
                                         }
                                         context = parsed_context.context?;
-                                        found = true;
                                     } else {
                                         unreachable!()
                                     }
-                                    break;
+                                    break 'outer;
                                 }
                             }
-                            if !found {
-                                return Err(Error::UnrecognizedVariant {
-                                    name: variant_name_str.into(),
-                                });
-                            }
-                            break;
+                            return Err(Error::UnrecognizedVariant {
+                                name: variant_name_str.into(),
+                                expecting: variants
+                                    .iter()
+                                    .map(|variant| {
+                                        iter::once(variant.name)
+                                            .chain(variant.aliases.iter().copied())
+                                    })
+                                    .flatten()
+                                    .collect(),
+                            });
                         }
                         Token::Optional(value) => {
                             let identifier =
@@ -729,12 +789,19 @@ where
                         Token::EndOfOptions => {
                             let variant_name =
                                 args.next_positional().ok_or(Error::MissingArguments)?;
-                            let variant_name_str = str::from_utf8(&variant_name).or(Err(
-                                Error::UnrecognizedVariant {
+                            let variant_name_str = str::from_utf8(&variant_name).or_else(|_| {
+                                Err(Error::UnrecognizedVariant {
                                     name: String::from_utf8_lossy(&variant_name).into(),
-                                },
-                            ))?;
-                            let mut found = false;
+                                    expecting: variants
+                                        .iter()
+                                        .map(|variant| {
+                                            iter::once(variant.name)
+                                                .chain(variant.aliases.iter().copied())
+                                        })
+                                        .flatten()
+                                        .collect(),
+                                })
+                            })?;
                             for variant in variants.clone() {
                                 if let Some(static_variant_name) = iter::once(variant.name)
                                     .chain(variant.aliases)
@@ -755,19 +822,23 @@ where
                                             .push(Segment::Identifier(static_variant_name));
                                         context =
                                             parse_context_no_options(args, inner_shape, context)?;
-                                        found = true;
                                     } else {
                                         unreachable!();
                                     }
-                                    break;
+                                    break 'outer;
                                 }
                             }
-                            if !found {
-                                return Err(Error::UnrecognizedVariant {
-                                    name: variant_name_str.into(),
-                                });
-                            }
-                            break;
+                            return Err(Error::UnrecognizedVariant {
+                                name: variant_name_str.into(),
+                                expecting: variants
+                                    .iter()
+                                    .map(|variant| {
+                                        iter::once(variant.name)
+                                            .chain(variant.aliases.iter().copied())
+                                    })
+                                    .flatten()
+                                    .collect(),
+                            });
                         }
                     }
                 }
@@ -778,11 +849,19 @@ where
                     let token = args.next_token().ok_or(Error::MissingArguments)?;
                     match token {
                         Token::Positional(variant_name) => {
-                            let variant_name_str = str::from_utf8(&variant_name).or(Err(
-                                Error::UnrecognizedVariant {
+                            let variant_name_str = str::from_utf8(&variant_name).or_else(|_| {
+                                Err(Error::UnrecognizedVariant {
                                     name: String::from_utf8_lossy(&variant_name).into(),
-                                },
-                            ))?;
+                                    expecting: variants
+                                        .iter()
+                                        .map(|variant| {
+                                            iter::once(variant.name)
+                                                .chain(variant.aliases.iter().copied())
+                                        })
+                                        .flatten()
+                                        .collect(),
+                                })
+                            })?;
                             let mut found = false;
                             for mut variant in variants.clone() {
                                 if let Some(static_variant_name) = iter::once(variant.name)
@@ -808,6 +887,14 @@ where
                             if !found {
                                 return Err(Error::UnrecognizedVariant {
                                     name: variant_name_str.into(),
+                                    expecting: variants
+                                        .iter()
+                                        .map(|variant| {
+                                            iter::once(variant.name)
+                                                .chain(variant.aliases.iter().copied())
+                                        })
+                                        .flatten()
+                                        .collect(),
                                 });
                             }
                             break;
@@ -854,11 +941,19 @@ where
                         Token::EndOfOptions => {
                             let variant_name =
                                 args.next_positional().ok_or(Error::MissingArguments)?;
-                            let variant_name_str = str::from_utf8(&variant_name).or(Err(
-                                Error::UnrecognizedVariant {
+                            let variant_name_str = str::from_utf8(&variant_name).or_else(|_| {
+                                Err(Error::UnrecognizedVariant {
                                     name: String::from_utf8_lossy(&variant_name).into(),
-                                },
-                            ))?;
+                                    expecting: variants
+                                        .iter()
+                                        .map(|variant| {
+                                            iter::once(variant.name)
+                                                .chain(variant.aliases.iter().copied())
+                                        })
+                                        .flatten()
+                                        .collect(),
+                                })
+                            })?;
                             let mut found = false;
                             for mut variant in variants.clone() {
                                 if let Some(static_variant_name) = iter::once(variant.name)
@@ -880,6 +975,14 @@ where
                             if !found {
                                 return Err(Error::UnrecognizedVariant {
                                     name: variant_name_str.into(),
+                                    expecting: variants
+                                        .iter()
+                                        .map(|variant| {
+                                            iter::once(variant.name)
+                                                .chain(variant.aliases.iter().copied())
+                                        })
+                                        .flatten()
+                                        .collect(),
                                 });
                             }
                             break;
