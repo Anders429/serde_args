@@ -899,9 +899,7 @@ where
                                             if arguments.len() == 1
                                                 && matches!(
                                                     required_field.shape,
-                                                    Shape::Primitive { .. }
-                                                        | Shape::Enum { .. }
-                                                        | Shape::Variant { .. }
+                                                    Shape::Primitive { .. } | Shape::Enum { .. }
                                                 )
                                             {
                                                 *arguments.last_mut().expect("no arguments") =
