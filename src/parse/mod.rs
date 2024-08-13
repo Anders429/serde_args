@@ -256,25 +256,41 @@ where
     let context = parsed_context.context?;
 
     // Ensure there are no remaining arguments.
-    while let Some(token) = parsed_args.next_token() {
-        match token {
-            Token::Positional(value) => {
+    let mut end_of_options = parsed_context.closing_end_of_options;
+    loop {
+        if end_of_options {
+            if let Some(value) = parsed_args.next_positional() {
                 return Err(Error::UnexpectedArgument(value));
+            } else {
+                break;
             }
-            Token::Optional(value) => {
-                return Err(Error::UnrecognizedOption {
-                    name: String::from_utf8_lossy(&value).into(),
-                    expecting: vec!["help", "h"]
-                        .into_iter()
-                        .chain(shape.trailing_options().into_iter().flat_map(|field| {
-                            iter::once(field.name).chain(field.aliases.iter().copied())
-                        }))
-                        .collect(),
-                });
+        } else {
+            if let Some(token) = parsed_args.next_token() {
+                match token {
+                    Token::Positional(value) => {
+                        return Err(Error::UnexpectedArgument(value));
+                    }
+                    Token::Optional(value) => {
+                        return Err(Error::UnrecognizedOption {
+                            name: String::from_utf8_lossy(&value).into(),
+                            expecting: vec!["help", "h"]
+                                .into_iter()
+                                .chain(shape.trailing_options().into_iter().flat_map(|field| {
+                                    iter::once(field.name).chain(field.aliases.iter().copied())
+                                }))
+                                .collect(),
+                        });
+                    }
+                    Token::EndOfOptions => {
+                        end_of_options = true;
+                    }
+                }
+            } else {
+                break;
             }
-            Token::EndOfOptions => {}
         }
     }
+
     Ok(context)
 }
 
