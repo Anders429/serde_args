@@ -261,12 +261,14 @@ where
         }
     }
 
+    let context = parsed_context.context?;
+
     // Ensure there are no remaining arguments.
     let remaining: Vec<_> = parsed_args.collect();
     if !remaining.is_empty() {
         Err(Error::UnexpectedArguments(remaining))
     } else {
-        parsed_context.context
+        Ok(context)
     }
 }
 
