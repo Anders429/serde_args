@@ -614,6 +614,16 @@ mod tests {
     }
 
     #[test]
+    fn shape_empty_from_visitor() {
+        assert_eq!(
+            Shape::empty_from_visitor(&IgnoredAny),
+            Shape::Empty {
+                description: "anything at all".to_owned(),
+            }
+        );
+    }
+
+    #[test]
     fn shape_primitive_from_visitor() {
         assert_eq!(
             Shape::primitive_from_visitor(&IgnoredAny),
@@ -621,6 +631,94 @@ mod tests {
                 name: "anything at all".to_owned(),
                 description: "anything at all".to_owned(),
             }
+        );
+    }
+
+    #[test]
+    fn shape_empty_description() {
+        assert_eq!(
+            Shape::Empty {
+                description: "foo".into()
+            }
+            .description(),
+            "foo"
+        );
+    }
+
+    #[test]
+    fn shape_primitive_description() {
+        assert_eq!(
+            Shape::Primitive {
+                name: "foo".into(),
+                description: "bar".into(),
+            }
+            .description(),
+            "bar"
+        );
+    }
+
+    #[test]
+    fn shape_optional_description() {
+        assert_eq!(
+            Shape::Optional(Box::new(Shape::Primitive {
+                name: "foo".into(),
+                description: "bar".into(),
+            }))
+            .description(),
+            "bar"
+        );
+    }
+
+    #[test]
+    fn shape_struct_description() {
+        assert_eq!(
+            Shape::Struct {
+                name: "",
+                description: "foo".into(),
+                required: vec![Field {
+                    name: "bar",
+                    description: String::new(),
+                    aliases: Vec::new(),
+                    shape: Shape::Primitive {
+                        name: "baz".to_owned(),
+                        description: String::new(),
+                    },
+                },],
+                optional: vec![],
+            }
+            .description(),
+            "foo"
+        );
+    }
+
+    #[test]
+    fn shape_enum_description() {
+        assert_eq!(
+            Shape::Enum {
+                name: "foo",
+                description: "bar".into(),
+                variants: vec![],
+            }
+            .description(),
+            "bar"
+        );
+    }
+
+    #[test]
+    fn shape_variant_description() {
+        assert_eq!(
+            Shape::Variant {
+                name: "foo",
+                description: "bar".into(),
+                shape: Box::new(Shape::Primitive {
+                    name: "baz".to_owned(),
+                    description: String::new(),
+                }),
+                enum_name: "qux",
+                variants: vec![],
+            }
+            .description(),
+            "bar"
         );
     }
 
