@@ -723,6 +723,109 @@ mod tests {
     }
 
     #[test]
+    fn shape_empty_required_arguments() {
+        assert_eq!(
+            Shape::Empty {
+                description: String::new()
+            }
+            .required_arguments(),
+            vec![]
+        );
+    }
+
+    #[test]
+    fn shape_primitive_required_arguments() {
+        assert_eq!(
+            Shape::Primitive {
+                name: "foo".into(),
+                description: "bar".into()
+            }
+            .required_arguments(),
+            vec![("foo", "bar")]
+        );
+    }
+
+    #[test]
+    fn shape_optional_required_arguments() {
+        assert_eq!(
+            Shape::Optional(Box::new(Shape::Primitive {
+                name: "foo".into(),
+                description: "bar".into()
+            }))
+            .required_arguments(),
+            vec![]
+        );
+    }
+
+    #[test]
+    fn shape_struct_required_arguments() {
+        assert_eq!(
+            Shape::Struct {
+                name: "Struct",
+                description: String::new(),
+                required: vec![Field {
+                    name: "foo",
+                    description: "bar".into(),
+                    aliases: Vec::new(),
+                    shape: Shape::Primitive {
+                        name: "baz".to_owned(),
+                        description: String::new(),
+                    },
+                },],
+                optional: vec![Field {
+                    name: "qux",
+                    description: String::new(),
+                    aliases: Vec::new(),
+                    shape: Shape::Primitive {
+                        name: "quux".to_owned(),
+                        description: String::new(),
+                    },
+                },],
+            }
+            .required_arguments(),
+            vec![("foo", "bar")]
+        );
+    }
+
+    #[test]
+    fn shape_enum_required_arguments() {
+        assert_eq!(
+            Shape::Enum {
+                name: "foo",
+                description: "bar".into(),
+                variants: vec![Variant {
+                    name: "baz",
+                    description: "qux".into(),
+                    aliases: vec![],
+                    shape: Shape::Empty {
+                        description: String::new()
+                    },
+                }],
+            }
+            .required_arguments(),
+            vec![("foo", "bar")]
+        );
+    }
+
+    #[test]
+    fn shape_variant_required_arguments() {
+        assert_eq!(
+            Shape::Variant {
+                name: "foo",
+                description: "bar".into(),
+                shape: Box::new(Shape::Primitive {
+                    name: "baz".into(),
+                    description: "qux".into()
+                }),
+                variants: vec![],
+                enum_name: "quux",
+            }
+            .required_arguments(),
+            vec![("baz", "qux")]
+        );
+    }
+
+    #[test]
     fn shape_display_empty() {
         assert_eq!(
             format!(
