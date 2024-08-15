@@ -22,7 +22,7 @@ use std::{
     mem,
 };
 
-pub(crate) fn trace_seed_copy<'de, D>(seed: D) -> Result<Shape, Error>
+pub(crate) fn trace<'de, D>(seed: D) -> Result<Shape, Error>
 where
     D: Copy + DeserializeSeed<'de>,
 {

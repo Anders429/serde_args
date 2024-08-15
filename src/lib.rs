@@ -9,13 +9,13 @@ use de::Deserializer;
 use parse::parse;
 use serde::de::{Deserialize, DeserializeSeed};
 use std::{env, ffi::OsString, marker::PhantomData, path::PathBuf};
-use trace::trace_seed_copy;
+use trace::trace;
 
 pub fn from_args_seed<'de, D>(seed: D) -> Result<D::Value, Error>
 where
     D: Copy + DeserializeSeed<'de>,
 {
-    let mut shape = trace_seed_copy(seed)?;
+    let mut shape = trace(seed)?;
 
     let mut args = env::args_os();
     let executable_path: OsString = {
