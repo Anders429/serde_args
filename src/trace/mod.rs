@@ -1,12 +1,14 @@
 //! Trace the shape of the type to be deserialized.
 
 mod error;
+mod hash;
 mod keys;
 mod shape;
 
 pub(crate) use error::Error;
 pub(crate) use shape::{Field, Shape, Variant};
 
+use hash::IdentityHasher;
 use keys::{Fields, KeyInfo, Keys, Variants};
 use serde::{
     de,
@@ -493,21 +495,6 @@ impl<'de> de::Deserializer<'de> for KeyDeserializer {
         V: Visitor<'de>,
     {
         visitor.visit_str(self.key)
-    }
-}
-
-struct IdentityHasher(u64);
-
-impl Hasher for IdentityHasher {
-    fn finish(&self) -> u64 {
-        self.0
-    }
-
-    fn write(&mut self, bytes: &[u8]) {
-        for &byte in bytes.into_iter().rev() {
-            self.0 <<= 8;
-            self.0 |= u64::from(byte);
-        }
     }
 }
 
