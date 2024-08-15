@@ -1,11 +1,13 @@
 //! Trace the shape of the type to be deserialized.
 
 mod error;
+mod keys;
 mod shape;
 
 pub(crate) use error::Error;
 pub(crate) use shape::{Field, Shape, Variant};
 
+use keys::{Fields, KeyInfo, Keys, Variants};
 use serde::{
     de,
     de::{DeserializeSeed, Deserializer as _, Expected, MapAccess, Visitor},
@@ -15,7 +17,7 @@ use std::{
     fmt,
     fmt::{Display, Formatter},
     hash::{Hash, Hasher},
-    mem, slice,
+    mem,
 };
 
 pub(crate) fn trace_seed_copy<'de, D>(seed: D) -> Result<Shape, Error>
@@ -69,144 +71,6 @@ impl de::Error for Trace {
 }
 
 impl de::StdError for Trace {}
-
-#[derive(Debug, Eq, PartialEq)]
-struct KeyInfo {
-    /// Type-erased discriminant of the key.
-    discriminant: u64,
-    shape: Shape,
-}
-
-#[derive(Debug)]
-struct Fields {
-    name: &'static str,
-    description: String,
-    iter: slice::Iter<'static, &'static str>,
-    revisit: Option<&'static str>,
-    required_fields: Vec<(KeyInfo, (Vec<&'static str>, String))>,
-    optional_fields: Vec<(KeyInfo, (Vec<&'static str>, String))>,
-}
-
-impl From<Fields> for Shape {
-    fn from(fields: Fields) -> Self {
-        Shape::Struct {
-            name: fields.name,
-            description: fields.description,
-            required: fields
-                .required_fields
-                .into_iter()
-                .map(|(info, (mut names, description))| {
-                    let first = names.remove(0);
-                    Field {
-                        name: first,
-                        description,
-                        aliases: names,
-                        shape: info.shape,
-                    }
-                })
-                .collect(),
-            optional: fields
-                .optional_fields
-                .into_iter()
-                .map(|(info, (mut names, description))| {
-                    let first = names.remove(0);
-                    Field {
-                        name: first,
-                        description,
-                        aliases: names,
-                        shape: info.shape,
-                    }
-                })
-                .collect(),
-        }
-    }
-}
-
-#[derive(Debug)]
-struct Variants {
-    name: &'static str,
-    description: String,
-    iter: slice::Iter<'static, &'static str>,
-    revisit: Option<&'static str>,
-    variants: Vec<(KeyInfo, (Vec<&'static str>, String))>,
-}
-
-impl Variants {
-    fn new(name: &'static str, variants: &'static [&'static str], visitor: &dyn Expected) -> Self {
-        Self {
-            name,
-            description: format!("{}", visitor),
-            iter: variants.iter(),
-            revisit: None,
-            variants: Vec::new(),
-        }
-    }
-}
-
-impl From<Variants> for Shape {
-    fn from(variants: Variants) -> Self {
-        Shape::Enum {
-            name: variants.name,
-            description: variants.description,
-            variants: variants
-                .variants
-                .into_iter()
-                .map(|(info, (mut names, description))| {
-                    let first = names.remove(0);
-                    Variant {
-                        name: first,
-                        description,
-                        aliases: names,
-                        shape: info.shape,
-                    }
-                })
-                .collect(),
-        }
-    }
-}
-
-#[derive(Debug)]
-enum Keys {
-    None,
-    Fields(Fields),
-    Variants(Variants),
-}
-
-impl Keys {
-    fn get_fields_or_insert(&mut self, fields: Fields) -> Result<&mut Fields, Error> {
-        if let Keys::None = self {
-            *self = Keys::Fields(fields);
-        }
-
-        match self {
-            Keys::None => unreachable!(),
-            Keys::Fields(ref mut fields) => Ok(fields),
-            Keys::Variants(_) => Err(Error::CannotMixDeserializeStructAndDeserializeEnum),
-        }
-    }
-
-    fn get_variants_or_insert(&mut self, variants: Variants) -> Result<&mut Variants, Error> {
-        if let Keys::None = self {
-            *self = Keys::Variants(variants);
-        }
-
-        match self {
-            Keys::None => unreachable!(),
-            Keys::Fields(_) => Err(Error::CannotMixDeserializeStructAndDeserializeEnum),
-            Keys::Variants(ref mut variants) => Ok(variants),
-        }
-    }
-}
-
-impl From<Keys> for Shape {
-    fn from(keys: Keys) -> Self {
-        match keys {
-            Keys::None => unimplemented!("cannot deserialize shape from no keys"),
-            Keys::Fields(fields) => fields.into(),
-            Keys::Variants(variants) => variants.into(),
-        }
-    }
-}
 
 fn description_from_visitor(visitor: &dyn Expected) -> String {
     format!("{}", visitor)
@@ -759,8 +623,7 @@ impl<'de> de::VariantAccess<'de> for VariantAccess<'_> {
 #[cfg(test)]
 mod tests {
     use super::{
-        Deserializer, Error, Field, Fields, FullTrace, KeyInfo, Shape, Status, StructAccess, Trace,
-        Variant,
+        Deserializer, Error, Field, FullTrace, Shape, Status, StructAccess, Trace, Variant,
     };
     use claims::{assert_err, assert_err_eq, assert_ok, assert_ok_eq, assert_some_eq};
     use serde::{
@@ -769,160 +632,6 @@ mod tests {
     };
     use serde_derive::Deserialize;
     use std::{fmt, fmt::Formatter, marker::PhantomData};
-
-    #[test]
-    fn shape_from_fields_empty() {
-        assert_eq!(
-            Shape::from(Fields {
-                name: "",
-                description: String::new(),
-                iter: [].iter(),
-                revisit: None,
-                required_fields: vec![],
-                optional_fields: vec![],
-            }),
-            Shape::Struct {
-                name: "",
-                description: String::new(),
-                required: vec![],
-                optional: vec![],
-            }
-        );
-    }
-
-    #[test]
-    fn shape_from_fields_single() {
-        assert_eq!(
-            Shape::from(Fields {
-                name: "",
-                description: String::new(),
-                iter: [].iter(),
-                revisit: None,
-                required_fields: vec![(
-                    KeyInfo {
-                        discriminant: 0,
-                        shape: Shape::Primitive {
-                            name: "foo".to_owned(),
-                            description: String::new(),
-                        },
-                    },
-                    (vec!["bar"], String::new())
-                ),],
-                optional_fields: vec![],
-            }),
-            Shape::Struct {
-                name: "",
-                description: String::new(),
-                required: vec![Field {
-                    name: "bar",
-                    description: String::new(),
-                    aliases: Vec::new(),
-                    shape: Shape::Primitive {
-                        name: "foo".to_owned(),
-                        description: String::new(),
-                    },
-                },],
-                optional: vec![],
-            }
-        );
-    }
-
-    #[test]
-    fn shape_from_fields_multiple() {
-        assert_eq!(
-            Shape::from(Fields {
-                name: "",
-                description: String::new(),
-                iter: [].iter(),
-                revisit: None,
-                required_fields: vec![
-                    (
-                        KeyInfo {
-                            discriminant: 0,
-                            shape: Shape::Primitive {
-                                name: "foo".to_owned(),
-                                description: String::new(),
-                            },
-                        },
-                        (vec!["bar"], String::new()),
-                    ),
-                    (
-                        KeyInfo {
-                            discriminant: 1,
-                            shape: Shape::Primitive {
-                                description: String::new(),
-                                name: "baz".to_owned(),
-                            },
-                        },
-                        (vec!["qux"], String::new()),
-                    ),
-                ],
-                optional_fields: vec![],
-            }),
-            Shape::Struct {
-                name: "",
-                description: String::new(),
-                required: vec![
-                    Field {
-                        name: "bar",
-                        description: String::new(),
-                        aliases: Vec::new(),
-                        shape: Shape::Primitive {
-                            name: "foo".to_owned(),
-                            description: String::new(),
-                        },
-                    },
-                    Field {
-                        name: "qux",
-                        description: String::new(),
-                        aliases: Vec::new(),
-                        shape: Shape::Primitive {
-                            name: "baz".to_owned(),
-                            description: String::new(),
-                        },
-                    },
-                ],
-                optional: vec![],
-            }
-        );
-    }
-
-    #[test]
-    fn shape_from_fields_aliases() {
-        assert_eq!(
-            Shape::from(Fields {
-                name: "",
-                description: String::new(),
-                iter: [].iter(),
-                revisit: None,
-                required_fields: vec![(
-                    KeyInfo {
-                        discriminant: 0,
-                        shape: Shape::Primitive {
-                            name: "foo".to_owned(),
-                            description: String::new(),
-                        },
-                    },
-                    (vec!["bar", "baz", "qux"], String::new()),
-                ),],
-                optional_fields: vec![],
-            }),
-            Shape::Struct {
-                name: "",
-                description: String::new(),
-                required: vec![Field {
-                    name: "bar",
-                    description: String::new(),
-                    aliases: vec!["baz", "qux"],
-                    shape: Shape::Primitive {
-                        name: "foo".to_owned(),
-                        description: String::new(),
-                    },
-                },],
-                optional: vec![],
-            }
-        );
-    }
 
     #[test]
     fn status_display_success() {
@@ -940,19 +649,6 @@ mod tests {
     #[test]
     fn status_display_continue() {
         assert_eq!(format!("{}", Status::Continue), "continue processing")
-    }
-
-    #[test]
-    fn error_display_not_self_describing() {
-        assert_eq!(format!("{}", Error::NotSelfDescribing), "cannot deserialize as self-describing; use of `Deserializer::deserialize_any()` or `Deserializer::deserialize_ignored_any()` is not allowed");
-    }
-
-    #[test]
-    fn error_display_unsupported_identifier_deserialization() {
-        assert_eq!(
-            format!("{}", Error::UnsupportedIdentifierDeserialization),
-            "identifiers must be deserialized with `deserialize_identifier()`"
-        );
     }
 
     #[test]
