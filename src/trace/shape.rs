@@ -1285,6 +1285,320 @@ mod tests {
     }
 
     #[test]
+    fn shape_empty_variant_groups() {
+        assert_eq!(
+            Shape::Empty {
+                description: String::new()
+            }
+            .variant_groups(),
+            vec![]
+        );
+    }
+
+    #[test]
+    fn shape_primitive_variant_groups() {
+        assert_eq!(
+            Shape::Primitive {
+                name: "foo".into(),
+                description: "bar".into()
+            }
+            .variant_groups(),
+            vec![]
+        );
+    }
+
+    #[test]
+    fn shape_optional_variant_groups() {
+        assert_eq!(
+            Shape::Optional(Box::new(Shape::Empty {
+                description: String::new()
+            }))
+            .variant_groups(),
+            vec![]
+        );
+    }
+
+    #[test]
+    fn shape_optional_containing_enum_variant_groups() {
+        assert_eq!(
+            Shape::Optional(Box::new(Shape::Enum {
+                name: "Enum",
+                description: String::new(),
+                variants: vec![
+                    Variant {
+                        name: "foo",
+                        description: "bar".into(),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new()
+                        },
+                    },
+                    Variant {
+                        name: "baz",
+                        description: "qux".into(),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new()
+                        },
+                    },
+                ],
+            }))
+            .variant_groups(),
+            vec![(
+                "Enum",
+                vec![
+                    &Variant {
+                        name: "foo",
+                        description: "bar".into(),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new()
+                        },
+                    },
+                    &Variant {
+                        name: "baz",
+                        description: "qux".into(),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new()
+                        },
+                    },
+                ]
+            )]
+        );
+    }
+
+    #[test]
+    fn shape_struct_no_enums_variant_groups() {
+        assert_eq!(
+            Shape::Struct {
+                name: "Struct",
+                description: String::new(),
+                required: vec![
+                    Field {
+                        name: "foo",
+                        description: "bar".into(),
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "baz".to_owned(),
+                            description: String::new(),
+                        },
+                    },
+                    Field {
+                        name: "qux",
+                        description: String::new(),
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "quux".to_owned(),
+                            description: String::new(),
+                        },
+                    },
+                ],
+                optional: vec![],
+            }
+            .variant_groups(),
+            vec![]
+        );
+    }
+
+    #[test]
+    fn shape_struct_containing_enums_variant_groups() {
+        assert_eq!(
+            Shape::Struct {
+                name: "Struct",
+                description: String::new(),
+                required: vec![
+                    Field {
+                        name: "foo",
+                        description: "bar".into(),
+                        aliases: Vec::new(),
+                        shape: Shape::Enum {
+                            name: "Enum1",
+                            description: String::new(),
+                            variants: vec![
+                                Variant {
+                                    name: "a",
+                                    description: "b".into(),
+                                    aliases: vec![],
+                                    shape: Shape::Empty {
+                                        description: String::new()
+                                    },
+                                },
+                                Variant {
+                                    name: "c",
+                                    description: "d".into(),
+                                    aliases: vec![],
+                                    shape: Shape::Empty {
+                                        description: String::new()
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    Field {
+                        name: "qux",
+                        description: String::new(),
+                        aliases: Vec::new(),
+                        shape: Shape::Enum {
+                            name: "Enum2",
+                            description: String::new(),
+                            variants: vec![
+                                Variant {
+                                    name: "e",
+                                    description: "f".into(),
+                                    aliases: vec![],
+                                    shape: Shape::Empty {
+                                        description: String::new()
+                                    },
+                                },
+                                Variant {
+                                    name: "g",
+                                    description: "h".into(),
+                                    aliases: vec![],
+                                    shape: Shape::Empty {
+                                        description: String::new()
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                ],
+                optional: vec![],
+            }
+            .variant_groups(),
+            vec![
+                (
+                    "Enum1",
+                    vec![
+                        &Variant {
+                            name: "a",
+                            description: "b".into(),
+                            aliases: vec![],
+                            shape: Shape::Empty {
+                                description: String::new()
+                            },
+                        },
+                        &Variant {
+                            name: "c",
+                            description: "d".into(),
+                            aliases: vec![],
+                            shape: Shape::Empty {
+                                description: String::new()
+                            },
+                        },
+                    ]
+                ),
+                (
+                    "Enum2",
+                    vec![
+                        &Variant {
+                            name: "e",
+                            description: "f".into(),
+                            aliases: vec![],
+                            shape: Shape::Empty {
+                                description: String::new()
+                            },
+                        },
+                        &Variant {
+                            name: "g",
+                            description: "h".into(),
+                            aliases: vec![],
+                            shape: Shape::Empty {
+                                description: String::new()
+                            },
+                        },
+                    ]
+                )
+            ]
+        );
+    }
+
+    #[test]
+    fn shape_enum_variant_groups() {
+        assert_eq!(
+            Shape::Enum {
+                name: "Enum",
+                description: String::new(),
+                variants: vec![
+                    Variant {
+                        name: "foo",
+                        description: "bar".into(),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new()
+                        },
+                    },
+                    Variant {
+                        name: "baz",
+                        description: "qux".into(),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new()
+                        },
+                    },
+                ],
+            }
+            .variant_groups(),
+            vec![(
+                "Enum",
+                vec![
+                    &Variant {
+                        name: "foo",
+                        description: "bar".into(),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new()
+                        },
+                    },
+                    &Variant {
+                        name: "baz",
+                        description: "qux".into(),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new()
+                        },
+                    },
+                ]
+            )]
+        );
+    }
+
+    #[test]
+    fn shape_variant_variant_groups() {
+        assert_eq!(
+            Shape::Variant {
+                name: "foo",
+                description: String::new(),
+                shape: Box::new(Shape::Primitive {
+                    name: "bar".to_owned(),
+                    description: String::new(),
+                }),
+                enum_name: "baz",
+                variants: vec![
+                    Variant {
+                        name: "foo",
+                        description: "bar".into(),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new()
+                        },
+                    },
+                    Variant {
+                        name: "baz",
+                        description: "qux".into(),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new()
+                        },
+                    },
+                ],
+            }
+            .variant_groups(),
+            vec![]
+        );
+    }
+
+    #[test]
     fn shape_display_empty() {
         assert_eq!(
             format!(
