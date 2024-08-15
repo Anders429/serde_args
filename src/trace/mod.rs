@@ -1,7 +1,9 @@
 //! Trace the shape of the type to be deserialized.
 
+mod error;
 mod shape;
 
+pub(crate) use error::Error;
 pub(crate) use shape::{Field, Shape, Variant};
 
 use serde::{
@@ -44,23 +46,6 @@ impl Display for Status {
         match self {
             Self::Success(shape) => write!(formatter, "success: {}", shape),
             Self::Continue => formatter.write_str("continue processing"),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) enum Error {
-    NotSelfDescribing,
-    UnsupportedIdentifierDeserialization,
-    CannotMixDeserializeStructAndDeserializeEnum,
-}
-
-impl Display for Error {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        match self {
-            Self::NotSelfDescribing => formatter.write_str("cannot deserialize as self-describing; use of `Deserializer::deserialize_any()` or `Deserializer::deserialize_ignored_any()` is not allowed"),
-            Self::UnsupportedIdentifierDeserialization => formatter.write_str("identifiers must be deserialized with `deserialize_identifier()`"),
-            Self::CannotMixDeserializeStructAndDeserializeEnum => formatter.write_str("cannot deserialize using both `deserialize_struct()` and `deserialize_enum()` on same type on seperate calls"),
         }
     }
 }
