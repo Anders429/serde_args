@@ -165,7 +165,9 @@ impl Shape {
                 optional,
                 ..
             } => {
-                result.push((name, optional.iter().collect()));
+                if !optional.is_empty() {
+                    result.push((name, optional.iter().collect()));
+                }
                 for required_field in required {
                     result.extend(required_field.shape.optional_groups());
                 }
@@ -822,6 +824,463 @@ mod tests {
             }
             .required_arguments(),
             vec![("baz", "qux")]
+        );
+    }
+
+    #[test]
+    fn shape_empty_optional_groups() {
+        assert_eq!(
+            Shape::Empty {
+                description: String::new()
+            }
+            .optional_groups(),
+            vec![]
+        );
+    }
+
+    #[test]
+    fn shape_primitive_optional_groups() {
+        assert_eq!(
+            Shape::Primitive {
+                name: "foo".into(),
+                description: "bar".into()
+            }
+            .optional_groups(),
+            vec![]
+        );
+    }
+
+    #[test]
+    fn shape_optional_optional_groups() {
+        assert_eq!(
+            Shape::Optional(Box::new(Shape::Primitive {
+                name: "foo".into(),
+                description: "bar".into()
+            }))
+            .optional_groups(),
+            vec![]
+        );
+    }
+
+    #[test]
+    fn shape_optional_struct_optional_groups() {
+        assert_eq!(
+            Shape::Optional(Box::new(Shape::Struct {
+                name: "Struct",
+                description: String::new(),
+                required: vec![Field {
+                    name: "foo",
+                    description: "bar".into(),
+                    aliases: Vec::new(),
+                    shape: Shape::Primitive {
+                        name: "baz".to_owned(),
+                        description: String::new(),
+                    },
+                },],
+                optional: vec![Field {
+                    name: "qux",
+                    description: String::new(),
+                    aliases: Vec::new(),
+                    shape: Shape::Primitive {
+                        name: "quux".to_owned(),
+                        description: String::new(),
+                    },
+                },],
+            }))
+            .optional_groups(),
+            vec![(
+                "Struct",
+                vec![&Field {
+                    name: "qux",
+                    description: String::new(),
+                    aliases: Vec::new(),
+                    shape: Shape::Primitive {
+                        name: "quux".to_owned(),
+                        description: String::new(),
+                    },
+                },]
+            )]
+        );
+    }
+
+    #[test]
+    fn shape_struct_no_options_optional_groups() {
+        assert_eq!(
+            Shape::Struct {
+                name: "Struct",
+                description: String::new(),
+                required: vec![
+                    Field {
+                        name: "foo",
+                        description: "bar".into(),
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "baz".to_owned(),
+                            description: String::new(),
+                        },
+                    },
+                    Field {
+                        name: "qux",
+                        description: String::new(),
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "quux".to_owned(),
+                            description: String::new(),
+                        },
+                    },
+                ],
+                optional: vec![],
+            }
+            .optional_groups(),
+            vec![],
+        );
+    }
+
+    #[test]
+    fn shape_struct_with_options_optional_groups() {
+        assert_eq!(
+            Shape::Struct {
+                name: "Struct",
+                description: String::new(),
+                required: vec![],
+                optional: vec![
+                    Field {
+                        name: "foo",
+                        description: "bar".into(),
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "baz".to_owned(),
+                            description: String::new(),
+                        },
+                    },
+                    Field {
+                        name: "qux",
+                        description: String::new(),
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "quux".to_owned(),
+                            description: String::new(),
+                        },
+                    },
+                ],
+            }
+            .optional_groups(),
+            vec![(
+                "Struct",
+                vec![
+                    &Field {
+                        name: "foo",
+                        description: "bar".into(),
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "baz".to_owned(),
+                            description: String::new(),
+                        },
+                    },
+                    &Field {
+                        name: "qux",
+                        description: String::new(),
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "quux".to_owned(),
+                            description: String::new(),
+                        },
+                    },
+                ]
+            )],
+        );
+    }
+
+    #[test]
+    fn shape_struct_nested_optional_groups() {
+        assert_eq!(
+            Shape::Struct {
+                name: "Struct",
+                description: String::new(),
+                required: vec![
+                    Field {
+                        name: "foo",
+                        description: "bar".into(),
+                        aliases: Vec::new(),
+                        shape: Shape::Struct {
+                            name: "Nested",
+                            description: String::new(),
+                            required: vec![],
+                            optional: vec![
+                                Field {
+                                    name: "foo",
+                                    description: "bar".into(),
+                                    aliases: Vec::new(),
+                                    shape: Shape::Primitive {
+                                        name: "baz".to_owned(),
+                                        description: String::new(),
+                                    },
+                                },
+                                Field {
+                                    name: "qux",
+                                    description: String::new(),
+                                    aliases: Vec::new(),
+                                    shape: Shape::Primitive {
+                                        name: "quux".to_owned(),
+                                        description: String::new(),
+                                    },
+                                },
+                            ],
+                        }
+                    },
+                    Field {
+                        name: "qux",
+                        description: String::new(),
+                        aliases: Vec::new(),
+                        shape: Shape::Struct {
+                            name: "NotIncluded",
+                            description: String::new(),
+                            required: vec![
+                                Field {
+                                    name: "foo",
+                                    description: "bar".into(),
+                                    aliases: Vec::new(),
+                                    shape: Shape::Primitive {
+                                        name: "baz".to_owned(),
+                                        description: String::new(),
+                                    },
+                                },
+                                Field {
+                                    name: "qux",
+                                    description: String::new(),
+                                    aliases: Vec::new(),
+                                    shape: Shape::Primitive {
+                                        name: "quux".to_owned(),
+                                        description: String::new(),
+                                    },
+                                },
+                            ],
+                            optional: vec![],
+                        }
+                    },
+                ],
+                optional: vec![Field {
+                    name: "qux",
+                    description: String::new(),
+                    aliases: Vec::new(),
+                    shape: Shape::Struct {
+                        name: "NotIncluded",
+                        description: String::new(),
+                        required: vec![
+                            Field {
+                                name: "foo",
+                                description: "bar".into(),
+                                aliases: Vec::new(),
+                                shape: Shape::Primitive {
+                                    name: "baz".to_owned(),
+                                    description: String::new(),
+                                },
+                            },
+                            Field {
+                                name: "qux",
+                                description: String::new(),
+                                aliases: Vec::new(),
+                                shape: Shape::Primitive {
+                                    name: "quux".to_owned(),
+                                    description: String::new(),
+                                },
+                            },
+                        ],
+                        optional: vec![],
+                    }
+                },],
+            }
+            .optional_groups(),
+            vec![
+                (
+                    "Struct",
+                    vec![&Field {
+                        name: "qux",
+                        description: String::new(),
+                        aliases: Vec::new(),
+                        shape: Shape::Struct {
+                            name: "NotIncluded",
+                            description: String::new(),
+                            required: vec![
+                                Field {
+                                    name: "foo",
+                                    description: "bar".into(),
+                                    aliases: Vec::new(),
+                                    shape: Shape::Primitive {
+                                        name: "baz".to_owned(),
+                                        description: String::new(),
+                                    },
+                                },
+                                Field {
+                                    name: "qux",
+                                    description: String::new(),
+                                    aliases: Vec::new(),
+                                    shape: Shape::Primitive {
+                                        name: "quux".to_owned(),
+                                        description: String::new(),
+                                    },
+                                },
+                            ],
+                            optional: vec![],
+                        }
+                    },]
+                ),
+                (
+                    "Nested",
+                    vec![
+                        &Field {
+                            name: "foo",
+                            description: "bar".into(),
+                            aliases: Vec::new(),
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned(),
+                                description: String::new(),
+                            },
+                        },
+                        &Field {
+                            name: "qux",
+                            description: String::new(),
+                            aliases: Vec::new(),
+                            shape: Shape::Primitive {
+                                name: "quux".to_owned(),
+                                description: String::new(),
+                            },
+                        },
+                    ]
+                ),
+            ],
+        );
+    }
+
+    #[test]
+    fn shape_enum_optional_groups() {
+        assert_eq!(
+            Shape::Enum {
+                name: "foo",
+                description: String::new(),
+                variants: vec![Variant {
+                    name: "baz",
+                    description: "qux".into(),
+                    aliases: vec![],
+                    shape: Shape::Struct {
+                        name: "Struct",
+                        description: String::new(),
+                        required: vec![],
+                        optional: vec![
+                            Field {
+                                name: "foo",
+                                description: "bar".into(),
+                                aliases: Vec::new(),
+                                shape: Shape::Primitive {
+                                    name: "baz".to_owned(),
+                                    description: String::new(),
+                                },
+                            },
+                            Field {
+                                name: "qux",
+                                description: String::new(),
+                                aliases: Vec::new(),
+                                shape: Shape::Primitive {
+                                    name: "quux".to_owned(),
+                                    description: String::new(),
+                                },
+                            },
+                        ],
+                    },
+                }],
+            }
+            .optional_groups(),
+            vec![]
+        );
+    }
+
+    #[test]
+    fn shape_variant_optional_groups() {
+        assert_eq!(
+            Shape::Variant {
+                name: "foo",
+                description: String::new(),
+                shape: Box::new(Shape::Struct {
+                    name: "Struct",
+                    description: String::new(),
+                    required: vec![],
+                    optional: vec![
+                        Field {
+                            name: "foo",
+                            description: "bar".into(),
+                            aliases: Vec::new(),
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned(),
+                                description: String::new(),
+                            },
+                        },
+                        Field {
+                            name: "qux",
+                            description: String::new(),
+                            aliases: Vec::new(),
+                            shape: Shape::Primitive {
+                                name: "quux".to_owned(),
+                                description: String::new(),
+                            },
+                        },
+                    ],
+                },),
+                variants: vec![Variant {
+                    name: "baz",
+                    description: "qux".into(),
+                    aliases: vec![],
+                    shape: Shape::Struct {
+                        name: "Struct",
+                        description: String::new(),
+                        required: vec![],
+                        optional: vec![
+                            Field {
+                                name: "foo",
+                                description: "bar".into(),
+                                aliases: Vec::new(),
+                                shape: Shape::Primitive {
+                                    name: "baz".to_owned(),
+                                    description: String::new(),
+                                },
+                            },
+                            Field {
+                                name: "qux",
+                                description: String::new(),
+                                aliases: Vec::new(),
+                                shape: Shape::Primitive {
+                                    name: "quux".to_owned(),
+                                    description: String::new(),
+                                },
+                            },
+                        ],
+                    },
+                }],
+                enum_name: "Enum",
+            }
+            .optional_groups(),
+            vec![(
+                "Struct",
+                vec![
+                    &Field {
+                        name: "foo",
+                        description: "bar".into(),
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "baz".to_owned(),
+                            description: String::new(),
+                        },
+                    },
+                    &Field {
+                        name: "qux",
+                        description: String::new(),
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "quux".to_owned(),
+                            description: String::new(),
+                        },
+                    },
+                ]
+            )]
         );
     }
 
