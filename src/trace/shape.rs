@@ -1599,6 +1599,290 @@ mod tests {
     }
 
     #[test]
+    fn shape_empty_trailing_options() {
+        assert_eq!(
+            Shape::Empty {
+                description: String::new()
+            }
+            .trailing_options(),
+            Vec::<&Field>::new()
+        );
+    }
+
+    #[test]
+    fn shape_primitive_trailing_options() {
+        assert_eq!(
+            Shape::Primitive {
+                name: String::new(),
+                description: String::new()
+            }
+            .trailing_options(),
+            Vec::<&Field>::new()
+        );
+    }
+
+    #[test]
+    fn shape_optional_trailing_options() {
+        assert_eq!(
+            Shape::Optional(Box::new(Shape::Primitive {
+                name: String::new(),
+                description: String::new()
+            }))
+            .trailing_options(),
+            Vec::<&Field>::new()
+        );
+    }
+
+    #[test]
+    fn shape_optional_struct_trailing_options() {
+        assert_eq!(
+            Shape::Optional(Box::new(Shape::Struct {
+                name: "Struct",
+                description: String::new(),
+                required: vec![],
+                optional: vec![
+                    Field {
+                        name: "foo",
+                        description: "bar".into(),
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "baz".to_owned(),
+                            description: String::new(),
+                        },
+                    },
+                    Field {
+                        name: "qux",
+                        description: String::new(),
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "quux".to_owned(),
+                            description: String::new(),
+                        },
+                    },
+                ],
+            }))
+            .trailing_options(),
+            Vec::<&Field>::new()
+        );
+    }
+
+    #[test]
+    fn shape_struct_trailing_options() {
+        assert_eq!(
+            Shape::Struct {
+                name: "Struct",
+                description: String::new(),
+                required: vec![],
+                optional: vec![
+                    Field {
+                        name: "foo",
+                        description: "bar".into(),
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "baz".to_owned(),
+                            description: String::new(),
+                        },
+                    },
+                    Field {
+                        name: "qux",
+                        description: String::new(),
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "quux".to_owned(),
+                            description: String::new(),
+                        },
+                    },
+                ],
+            }
+            .trailing_options(),
+            vec![
+                &Field {
+                    name: "foo",
+                    description: "bar".into(),
+                    aliases: Vec::new(),
+                    shape: Shape::Primitive {
+                        name: "baz".to_owned(),
+                        description: String::new(),
+                    },
+                },
+                &Field {
+                    name: "qux",
+                    description: String::new(),
+                    aliases: Vec::new(),
+                    shape: Shape::Primitive {
+                        name: "quux".to_owned(),
+                        description: String::new(),
+                    },
+                },
+            ],
+        );
+    }
+
+    #[test]
+    fn shape_struct_no_options_trailing_options() {
+        assert_eq!(
+            Shape::Struct {
+                name: "Struct",
+                description: String::new(),
+                required: vec![
+                    Field {
+                        name: "foo",
+                        description: "bar".into(),
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "baz".to_owned(),
+                            description: String::new(),
+                        },
+                    },
+                    Field {
+                        name: "qux",
+                        description: String::new(),
+                        aliases: Vec::new(),
+                        shape: Shape::Primitive {
+                            name: "quux".to_owned(),
+                            description: String::new(),
+                        },
+                    },
+                ],
+                optional: vec![],
+            }
+            .trailing_options(),
+            Vec::<&Field>::new(),
+        );
+    }
+
+    #[test]
+    fn shape_enum_trailing_options() {
+        assert_eq!(
+            Shape::Enum {
+                name: "foo",
+                description: String::new(),
+                variants: vec![],
+            }
+            .trailing_options(),
+            Vec::<&Field>::new()
+        );
+    }
+
+    #[test]
+    fn shape_enum_containing_struct_trailing_options() {
+        assert_eq!(
+            Shape::Enum {
+                name: "foo",
+                description: String::new(),
+                variants: vec![Variant {
+                    name: "baz",
+                    description: "qux".into(),
+                    aliases: vec![],
+                    shape: Shape::Struct {
+                        name: "Struct",
+                        description: String::new(),
+                        required: vec![],
+                        optional: vec![
+                            Field {
+                                name: "foo",
+                                description: "bar".into(),
+                                aliases: Vec::new(),
+                                shape: Shape::Primitive {
+                                    name: "baz".to_owned(),
+                                    description: String::new(),
+                                },
+                            },
+                            Field {
+                                name: "qux",
+                                description: String::new(),
+                                aliases: Vec::new(),
+                                shape: Shape::Primitive {
+                                    name: "quux".to_owned(),
+                                    description: String::new(),
+                                },
+                            },
+                        ],
+                    },
+                }],
+            }
+            .trailing_options(),
+            Vec::<&Field>::new()
+        );
+    }
+
+    #[test]
+    fn shape_variant_trailing_options() {
+        assert_eq!(
+            Shape::Variant {
+                name: "foo",
+                description: String::new(),
+                shape: Box::new(Shape::Primitive {
+                    name: "bar".to_owned(),
+                    description: String::new(),
+                }),
+                enum_name: "baz",
+                variants: vec![],
+            }
+            .trailing_options(),
+            Vec::<&Field>::new()
+        );
+    }
+
+    #[test]
+    fn shape_variant_containing_struct_trailing_options() {
+        assert_eq!(
+            Shape::Variant {
+                name: "foo",
+                description: String::new(),
+                shape: Box::new(Shape::Struct {
+                    name: "Struct",
+                    description: String::new(),
+                    required: vec![],
+                    optional: vec![
+                        Field {
+                            name: "foo",
+                            description: "bar".into(),
+                            aliases: Vec::new(),
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned(),
+                                description: String::new(),
+                            },
+                        },
+                        Field {
+                            name: "qux",
+                            description: String::new(),
+                            aliases: Vec::new(),
+                            shape: Shape::Primitive {
+                                name: "quux".to_owned(),
+                                description: String::new(),
+                            },
+                        },
+                    ],
+                }),
+                enum_name: "baz",
+                variants: vec![],
+            }
+            .trailing_options(),
+            vec![
+                &Field {
+                    name: "foo",
+                    description: "bar".into(),
+                    aliases: Vec::new(),
+                    shape: Shape::Primitive {
+                        name: "baz".to_owned(),
+                        description: String::new(),
+                    },
+                },
+                &Field {
+                    name: "qux",
+                    description: String::new(),
+                    aliases: Vec::new(),
+                    shape: Shape::Primitive {
+                        name: "quux".to_owned(),
+                        description: String::new(),
+                    },
+                },
+            ]
+        );
+    }
+
+    #[test]
     fn shape_display_empty() {
         assert_eq!(
             format!(
