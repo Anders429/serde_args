@@ -1,5 +1,6 @@
 mod de;
 mod error;
+mod key;
 mod parse;
 mod trace;
 

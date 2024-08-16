@@ -2,7 +2,10 @@ pub(crate) mod error;
 
 pub(crate) use error::Error;
 
-use crate::parse::{Context, ContextIter, Segment};
+use crate::{
+    key,
+    parse::{Context, ContextIter, Segment},
+};
 use serde::{
     de,
     de::{DeserializeSeed, Deserializer as _, Error as _, MapAccess, Unexpected, Visitor},
@@ -518,31 +521,12 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     }
 }
 
-struct KeyDeserializer {
-    key: &'static str,
-}
-
-impl<'de> de::Deserializer<'de> for KeyDeserializer {
+impl key::DeserializerError for Deserializer {
     type Error = Error;
 
-    fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>,
-    {
+    fn unsupported() -> Self::Error {
+        // Any errors deserializing keys should have been found during tracing.
         unreachable!()
-    }
-
-    forward_to_deserialize_any! {
-        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
-        bytes byte_buf option unit unit_struct newtype_struct seq tuple
-        tuple_struct map struct enum ignored_any
-    }
-
-    fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>,
-    {
-        visitor.visit_str(self.key)
     }
 }
 
@@ -898,7 +882,9 @@ impl<'de> MapAccess<'de> for StructAccess {
                 match field_context.next() {
                     Some(Segment::Identifier(field)) => {
                         self.field_context = Some(field_context);
-                        Ok(Some(seed.deserialize(KeyDeserializer { key: field })?))
+                        Ok(Some(seed.deserialize(
+                            key::Deserializer::<Deserializer>::new(field),
+                        )?))
                     }
                     _ => unreachable!(),
                 }
@@ -939,7 +925,7 @@ impl<'de> de::EnumAccess<'de> for EnumAccess {
     {
         match self.context.next() {
             Some(Segment::Identifier(variant)) => Ok((
-                seed.deserialize(KeyDeserializer { key: variant })?,
+                seed.deserialize(key::Deserializer::<Deserializer>::new(variant))?,
                 VariantAccess {
                     context: self.context,
                 },

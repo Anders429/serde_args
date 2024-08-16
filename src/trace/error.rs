@@ -1,3 +1,4 @@
+use serde::de;
 use std::{
     fmt,
     fmt::{Display, Formatter},
@@ -19,6 +20,17 @@ impl Display for Error {
         }
     }
 }
+
+impl de::Error for Error {
+    fn custom<T>(_msg: T) -> Self
+    where
+        T: Display,
+    {
+        todo!()
+    }
+}
+
+impl de::StdError for Error {}
 
 #[cfg(test)]
 mod tests {
