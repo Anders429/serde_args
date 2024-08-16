@@ -611,15 +611,15 @@ impl<'de> de::VariantAccess<'de> for VariantAccess<'_> {
 #[cfg(test)]
 mod tests {
     use super::{
-        Deserializer, EnumAccess, Error, Field, FullTrace, Shape, Status, StructAccess, Trace,
-        Variant, VariantAccess,
+        Deserializer, EnumAccess, Error, Field, FullTrace, KeyDeserializer, Shape, Status,
+        StructAccess, Trace, Variant, VariantAccess,
     };
     use claims::{assert_err, assert_err_eq, assert_ok, assert_ok_eq, assert_some_eq};
     use serde::{
         de,
         de::{
-            Deserialize, EnumAccess as _, Error as _, IgnoredAny, MapAccess, Unexpected,
-            VariantAccess as _, Visitor,
+            Deserialize, Deserializer as _, EnumAccess as _, Error as _, IgnoredAny, MapAccess,
+            Unexpected, VariantAccess as _, Visitor,
         },
     };
     use serde_derive::Deserialize;
@@ -1729,6 +1729,330 @@ mod tests {
                 FullTrace(Err(Error::NotSelfDescribing))
             ),
             "error: cannot deserialize as self-describing; use of `Deserializer::deserialize_any()` or `Deserializer::deserialize_ignored_any()` is not allowed"
+        );
+    }
+
+    #[test]
+    fn key_deserializer_identifier() {
+        struct KeyVisitor;
+
+        impl<'de> Visitor<'de> for KeyVisitor {
+            type Value = String;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("identifier")
+            }
+
+            fn visit_str<E>(self, string: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(string.into())
+            }
+        }
+
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_ok_eq!(key_deserializer.deserialize_identifier(KeyVisitor), "foo");
+    }
+
+    #[test]
+    fn key_deserialize_any() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_any(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_ignored_any() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_ignored_any(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_bool() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_bool(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_i8() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_i8(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_i16() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_i16(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_i32() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_i32(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_i64() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_i64(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_i128() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_i128(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_u8() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_u8(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_u16() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_u16(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_u32() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_u32(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_u64() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_u64(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_u128() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_u128(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_f32() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_f32(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_f64() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_f64(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_char() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_char(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_str() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_str(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_string() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_string(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_bytes() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_bytes(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_byte_buf() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_byte_buf(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_option() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_option(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_unit() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_unit(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_unit_struct() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_unit_struct("bar", IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_newtype_struct() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_newtype_struct("bar", IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_seq() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_seq(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_tuple() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_tuple(3, IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_tuple_struct() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_tuple_struct("bar", 3, IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_map() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_map(IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_struct() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_struct("bar", &["baz", "qux"], IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
+        );
+    }
+
+    #[test]
+    fn key_deserialize_enum() {
+        let key_deserializer = KeyDeserializer { key: "foo" };
+
+        assert_err_eq!(
+            assert_err!(key_deserializer.deserialize_enum("bar", &["baz", "qux"], IgnoredAny)).0,
+            Error::UnsupportedIdentifierDeserialization
         );
     }
 
