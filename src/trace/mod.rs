@@ -78,7 +78,7 @@ fn description_from_visitor(visitor: &dyn Expected) -> String {
     format!("{}", visitor)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 struct Deserializer {
     keys: Keys,
     recursive_deserializer: Option<Box<Deserializer>>,
@@ -561,6 +561,7 @@ impl<'a, 'de> de::EnumAccess<'de> for &'a mut EnumAccess<'_> {
     }
 }
 
+#[derive(Debug, Eq, PartialEq)]
 struct VariantAccess<'a> {
     name: &'static str,
     recursive_deserializer: &'a mut Option<Box<Deserializer>>,
@@ -610,15 +611,19 @@ impl<'de> de::VariantAccess<'de> for VariantAccess<'_> {
 #[cfg(test)]
 mod tests {
     use super::{
-        Deserializer, Error, Field, FullTrace, Shape, Status, StructAccess, Trace, Variant,
+        Deserializer, EnumAccess, Error, Field, FullTrace, Shape, Status, StructAccess, Trace,
+        Variant, VariantAccess,
     };
     use claims::{assert_err, assert_err_eq, assert_ok, assert_ok_eq, assert_some_eq};
     use serde::{
         de,
-        de::{Deserialize, Error as _, IgnoredAny, MapAccess, Unexpected, Visitor},
+        de::{
+            Deserialize, EnumAccess as _, Error as _, IgnoredAny, MapAccess, Unexpected,
+            VariantAccess as _, Visitor,
+        },
     };
     use serde_derive::Deserialize;
-    use std::{fmt, fmt::Formatter, marker::PhantomData};
+    use std::{fmt, fmt::Formatter};
 
     #[test]
     fn status_display_success() {
@@ -1832,7 +1837,7 @@ mod tests {
     }
 
     #[test]
-    fn struct_access_next_value_seed() {
+    fn enum_access_variant() {
         #[derive(Debug, Eq, PartialEq)]
         enum Key {
             Foo,
@@ -1870,74 +1875,165 @@ mod tests {
         }
 
         let mut discriminant = 0;
-        let mut struct_access = StructAccess {
-            field: "bar",
+        let mut enum_access = EnumAccess {
+            variant: "bar",
             discriminant: &mut discriminant,
             recursive_deserializer: &mut None,
         };
 
-        assert_some_eq!(assert_ok!(struct_access.next_key::<Key>()), Key::Bar);
+        let (key, variant_access) = assert_ok!(enum_access.variant::<Key>());
+        assert_eq!(key, Key::Bar);
+        assert_eq!(
+            variant_access,
+            VariantAccess {
+                name: "bar",
+                recursive_deserializer: &mut None,
+            }
+        );
+        assert_eq!(discriminant, 1);
+    }
+
+    #[test]
+    fn variant_access_unit_variant() {
+        let variant_access = VariantAccess {
+            name: "foo",
+            recursive_deserializer: &mut None,
+        };
+
         assert_ok_eq!(
-            assert_err!(struct_access.next_value_seed(PhantomData::<i32>)).0,
-            Status::Success(Shape::Primitive {
-                name: "i32".to_owned(),
-                description: "i32".to_owned(),
+            assert_err!(variant_access.unit_variant()).0,
+            Status::Success(Shape::Empty {
+                description: String::new()
             })
         );
     }
 
     #[test]
-    fn struct_access_next_entry() {
-        #[derive(Debug, Eq, PartialEq)]
-        enum Key {
-            Foo,
-            Bar,
-        }
-
-        impl<'de> Deserialize<'de> for Key {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: de::Deserializer<'de>,
-            {
-                struct KeyVisitor;
-
-                impl<'de> Visitor<'de> for KeyVisitor {
-                    type Value = Key;
-
-                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
-                        formatter.write_str("`foo` or `bar`")
-                    }
-
-                    fn visit_str<E>(self, string: &str) -> Result<Self::Value, E>
-                    where
-                        E: de::Error,
-                    {
-                        match string {
-                            "foo" => Ok(Key::Foo),
-                            "bar" => Ok(Key::Bar),
-                            _ => Err(E::invalid_value(Unexpected::Str(string), &self)),
-                        }
-                    }
-                }
-
-                deserializer.deserialize_identifier(KeyVisitor)
-            }
-        }
-
-        let mut discriminant = 0;
-        let mut struct_access = StructAccess {
-            field: "bar",
-            discriminant: &mut discriminant,
+    fn variant_access_newtype_variant() {
+        let variant_access = VariantAccess {
+            name: "foo",
             recursive_deserializer: &mut None,
         };
 
         assert_ok_eq!(
-            assert_err!(struct_access.next_entry::<Key, i32>()).0,
+            assert_err!(variant_access.newtype_variant::<u64>()).0,
             Status::Success(Shape::Primitive {
-                name: "i32".to_owned(),
-                description: "i32".to_owned(),
+                name: "u64".into(),
+                description: "u64".into()
             })
         );
-        assert_eq!(discriminant, 1);
+    }
+
+    #[test]
+    fn variant_access_struct_variant() {
+        #[derive(Debug)]
+        #[allow(unused)]
+        struct Struct {
+            bar: u64,
+            baz: (),
+        }
+
+        #[derive(Deserialize)]
+        #[serde(field_identifier)]
+        #[serde(rename_all = "lowercase")]
+        enum StructField {
+            Bar,
+            Baz,
+        }
+
+        struct StructVisitor;
+
+        impl<'de> Visitor<'de> for StructVisitor {
+            type Value = Struct;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("struct variant")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: MapAccess<'de>,
+            {
+                let mut bar = None;
+                let mut baz = None;
+
+                while let Some(field) = map.next_key()? {
+                    match field {
+                        StructField::Bar => {
+                            if bar.is_some() {
+                                return Err(de::Error::duplicate_field("bar"));
+                            }
+                            bar = Some(map.next_value()?);
+                        }
+                        StructField::Baz => {
+                            if baz.is_some() {
+                                return Err(de::Error::duplicate_field("baz"));
+                            }
+                            baz = Some(map.next_value()?);
+                        }
+                    }
+                }
+                Ok(Struct {
+                    bar: bar.ok_or_else(|| de::Error::missing_field("bar"))?,
+                    baz: baz.ok_or_else(|| de::Error::missing_field("baz"))?,
+                })
+            }
+        }
+
+        // This recursive deserializer is populated and used on subsequent calls.
+        let mut recursive_deserializer = None;
+
+        // First field.
+        let variant_access = VariantAccess {
+            name: "foo",
+            recursive_deserializer: &mut recursive_deserializer,
+        };
+        assert_ok_eq!(
+            assert_err!(variant_access.struct_variant(&["bar", "baz"], StructVisitor)).0,
+            Status::Continue
+        );
+
+        // Second field.
+        let variant_access = VariantAccess {
+            name: "foo",
+            recursive_deserializer: &mut recursive_deserializer,
+        };
+        assert_ok_eq!(
+            assert_err!(variant_access.struct_variant(&["bar", "baz"], StructVisitor)).0,
+            Status::Continue
+        );
+
+        // Final pass.
+        let variant_access = VariantAccess {
+            name: "foo",
+            recursive_deserializer: &mut recursive_deserializer,
+        };
+        assert_ok_eq!(
+            assert_err!(variant_access.struct_variant(&["bar", "baz"], StructVisitor)).0,
+            Status::Success(Shape::Struct {
+                name: "foo",
+                description: "struct variant".into(),
+                required: vec![
+                    Field {
+                        name: "bar",
+                        description: String::new(),
+                        aliases: vec![],
+                        shape: Shape::Primitive {
+                            name: "u64".into(),
+                            description: "u64".into()
+                        },
+                    },
+                    Field {
+                        name: "baz",
+                        description: String::new(),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: "unit".into()
+                        },
+                    }
+                ],
+                optional: vec![],
+            })
+        );
     }
 }
