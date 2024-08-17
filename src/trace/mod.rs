@@ -573,6 +573,7 @@ mod tests {
         Deserializer, EnumAccess, Error, Field, Shape, Status, StructAccess, Trace, Variant,
         VariantAccess,
     };
+    use crate::key::DeserializerError;
     use claims::{assert_err, assert_err_eq, assert_ok, assert_ok_eq, assert_some_eq};
     use serde::{
         de,
@@ -1663,6 +1664,14 @@ mod tests {
                     },
                 ],
             })
+        );
+    }
+
+    #[test]
+    fn key_deserializer_unsupported() {
+        assert_eq!(
+            Deserializer::unsupported(),
+            Error::UnsupportedIdentifierDeserialization
         );
     }
 

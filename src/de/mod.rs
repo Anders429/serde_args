@@ -712,7 +712,10 @@ impl<'de> de::VariantAccess<'de> for VariantAccess {
 #[cfg(test)]
 mod tests {
     use super::{Deserializer, Error};
-    use crate::parse::{Context, Segment};
+    use crate::{
+        key::DeserializerError,
+        parse::{Context, Segment},
+    };
     use claims::{assert_err_eq, assert_ok_eq};
     use serde::{
         de,
@@ -1923,5 +1926,11 @@ mod tests {
             Enum::deserialize(deserializer),
             Error::unknown_variant("foo", &["Unit"])
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "entered unreachable code")]
+    fn key_deserializer_unsupported() {
+        Deserializer::unsupported();
     }
 }
