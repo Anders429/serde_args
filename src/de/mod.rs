@@ -711,7 +711,7 @@ impl<'de> de::VariantAccess<'de> for VariantAccess {
 
 #[cfg(test)]
 mod tests {
-    use super::{Deserializer, Error};
+    use super::{Deserializer, Error, FieldDeserializer};
     use crate::{
         key::DeserializerError,
         parse::{Context, Segment},
@@ -1932,5 +1932,17 @@ mod tests {
     #[should_panic(expected = "entered unreachable code")]
     fn key_deserializer_unsupported() {
         Deserializer::unsupported();
+    }
+
+    #[test]
+    fn field_deserializer_option() {
+        let deserializer = FieldDeserializer {
+            context: Context {
+                segments: vec![Segment::Value("42".into())],
+            }
+            .into_iter(),
+        };
+
+        assert_ok_eq!(Option::<u64>::deserialize(deserializer), Some(42));
     }
 }
