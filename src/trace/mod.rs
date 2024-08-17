@@ -578,8 +578,8 @@ mod tests {
     use serde::{
         de,
         de::{
-            Deserialize, EnumAccess as _, Error as _, IgnoredAny, MapAccess, Unexpected,
-            VariantAccess as _, Visitor,
+            Deserialize, EnumAccess as _, Error as _, IgnoredAny, MapAccess, VariantAccess as _,
+            Visitor,
         },
     };
     use serde_derive::Deserialize;
@@ -1677,40 +1677,12 @@ mod tests {
 
     #[test]
     fn struct_access_next_key() {
-        #[derive(Debug, Eq, PartialEq)]
+        #[derive(Debug, Deserialize, Eq, PartialEq)]
+        #[serde(field_identifier)]
+        #[serde(rename_all = "lowercase")]
         enum Key {
             Foo,
             Bar,
-        }
-
-        impl<'de> Deserialize<'de> for Key {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: de::Deserializer<'de>,
-            {
-                struct KeyVisitor;
-
-                impl<'de> Visitor<'de> for KeyVisitor {
-                    type Value = Key;
-
-                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
-                        formatter.write_str("`foo` or `bar`")
-                    }
-
-                    fn visit_str<E>(self, string: &str) -> Result<Self::Value, E>
-                    where
-                        E: de::Error,
-                    {
-                        match string {
-                            "foo" => Ok(Key::Foo),
-                            "bar" => Ok(Key::Bar),
-                            _ => Err(E::invalid_value(Unexpected::Str(string), &self)),
-                        }
-                    }
-                }
-
-                deserializer.deserialize_identifier(KeyVisitor)
-            }
         }
 
         let mut discriminant = 0;
@@ -1726,40 +1698,12 @@ mod tests {
 
     #[test]
     fn struct_access_next_value() {
-        #[derive(Debug, Eq, PartialEq)]
+        #[derive(Debug, Deserialize, Eq, PartialEq)]
+        #[serde(field_identifier)]
+        #[serde(rename_all = "lowercase")]
         enum Key {
             Foo,
             Bar,
-        }
-
-        impl<'de> Deserialize<'de> for Key {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: de::Deserializer<'de>,
-            {
-                struct KeyVisitor;
-
-                impl<'de> Visitor<'de> for KeyVisitor {
-                    type Value = Key;
-
-                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
-                        formatter.write_str("`foo` or `bar`")
-                    }
-
-                    fn visit_str<E>(self, string: &str) -> Result<Self::Value, E>
-                    where
-                        E: de::Error,
-                    {
-                        match string {
-                            "foo" => Ok(Key::Foo),
-                            "bar" => Ok(Key::Bar),
-                            _ => Err(E::invalid_value(Unexpected::Str(string), &self)),
-                        }
-                    }
-                }
-
-                deserializer.deserialize_identifier(KeyVisitor)
-            }
         }
 
         let mut discriminant = 0;
@@ -1781,40 +1725,12 @@ mod tests {
 
     #[test]
     fn enum_access_variant() {
-        #[derive(Debug, Eq, PartialEq)]
+        #[derive(Debug, Deserialize, Eq, PartialEq)]
+        #[serde(variant_identifier)]
+        #[serde(rename_all = "lowercase")]
         enum Key {
             Foo,
             Bar,
-        }
-
-        impl<'de> Deserialize<'de> for Key {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: de::Deserializer<'de>,
-            {
-                struct KeyVisitor;
-
-                impl<'de> Visitor<'de> for KeyVisitor {
-                    type Value = Key;
-
-                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
-                        formatter.write_str("`foo` or `bar`")
-                    }
-
-                    fn visit_str<E>(self, string: &str) -> Result<Self::Value, E>
-                    where
-                        E: de::Error,
-                    {
-                        match string {
-                            "foo" => Ok(Key::Foo),
-                            "bar" => Ok(Key::Bar),
-                            _ => Err(E::invalid_value(Unexpected::Str(string), &self)),
-                        }
-                    }
-                }
-
-                deserializer.deserialize_identifier(KeyVisitor)
-            }
         }
 
         let mut discriminant = 0;
