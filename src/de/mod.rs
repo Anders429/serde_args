@@ -711,7 +711,7 @@ impl<'de> de::VariantAccess<'de> for VariantAccess {
 
 #[cfg(test)]
 mod tests {
-    use super::{Deserializer, Error, FieldDeserializer, StructAccess};
+    use super::{Deserializer, EnumAccess, Error, FieldDeserializer, StructAccess};
     use crate::{
         key::DeserializerError,
         parse::{Context, Segment},
@@ -719,7 +719,9 @@ mod tests {
     use claims::{assert_err_eq, assert_none, assert_ok, assert_ok_eq, assert_some_eq};
     use serde::{
         de,
-        de::{Deserialize, Error as _, IgnoredAny, MapAccess, Unexpected, Visitor},
+        de::{
+            Deserialize, EnumAccess as _, Error as _, IgnoredAny, MapAccess, Unexpected, Visitor,
+        },
     };
     use serde_derive::Deserialize;
     use std::{fmt, fmt::Formatter};
@@ -1999,5 +2001,29 @@ mod tests {
 
         assert_some_eq!(assert_ok!(struct_access.next_key::<Key>()), Key::Foo);
         assert_ok_eq!(struct_access.next_value::<u64>(), 42);
+    }
+
+    #[test]
+    fn enum_access_variant() {
+        #[derive(Debug, Deserialize, Eq, PartialEq)]
+        #[serde(variant_identifier)]
+        #[serde(rename_all = "lowercase")]
+        enum Key {
+            Foo,
+        }
+
+        let enum_access = EnumAccess {
+            context: Context {
+                segments: vec![Segment::Identifier("foo"), Segment::Value("42".into())],
+            }
+            .into_iter(),
+        };
+
+        let (key, variant) = assert_ok!(enum_access.variant::<Key>());
+        assert_eq!(key, Key::Foo);
+        assert_eq!(
+            variant.context.collect::<Vec<_>>(),
+            vec![Segment::Value("42".into())]
+        );
     }
 }
