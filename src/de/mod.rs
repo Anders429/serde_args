@@ -711,15 +711,15 @@ impl<'de> de::VariantAccess<'de> for VariantAccess {
 
 #[cfg(test)]
 mod tests {
-    use super::{Deserializer, Error, FieldDeserializer};
+    use super::{Deserializer, Error, FieldDeserializer, StructAccess};
     use crate::{
         key::DeserializerError,
         parse::{Context, Segment},
     };
-    use claims::{assert_err_eq, assert_ok_eq};
+    use claims::{assert_err_eq, assert_none, assert_ok, assert_ok_eq, assert_some_eq};
     use serde::{
         de,
-        de::{Deserialize, Error as _, IgnoredAny, Unexpected, Visitor},
+        de::{Deserialize, Error as _, IgnoredAny, MapAccess, Unexpected, Visitor},
     };
     use serde_derive::Deserialize;
     use std::{fmt, fmt::Formatter};
@@ -1944,5 +1944,60 @@ mod tests {
         };
 
         assert_ok_eq!(Option::<u64>::deserialize(deserializer), Some(42));
+    }
+
+    #[test]
+    fn struct_access_next_key_none() {
+        let mut struct_access = StructAccess {
+            struct_context: Context { segments: vec![] }.into_iter(),
+            field_context: None,
+        };
+
+        assert_none!(assert_ok!(struct_access.next_key::<()>()));
+    }
+
+    #[test]
+    fn struct_access_next_key_some() {
+        #[derive(Debug, Deserialize, Eq, PartialEq)]
+        #[serde(field_identifier)]
+        #[serde(rename_all = "lowercase")]
+        enum Key {
+            Foo,
+        }
+
+        let mut struct_access = StructAccess {
+            struct_context: Context {
+                segments: vec![Segment::Context(Context {
+                    segments: vec![Segment::Identifier("foo")],
+                })],
+            }
+            .into_iter(),
+            field_context: None,
+        };
+
+        assert_some_eq!(assert_ok!(struct_access.next_key::<Key>()), Key::Foo);
+    }
+
+    #[test]
+    fn struct_access_next_value() {
+        #[derive(Debug, Deserialize, Eq, PartialEq)]
+        #[serde(field_identifier)]
+        #[serde(rename_all = "lowercase")]
+        enum Key {
+            Foo,
+        }
+
+        let mut struct_access = StructAccess {
+            struct_context: Context {
+                segments: vec![Segment::Context(Context {
+                    segments: vec![Segment::Identifier("foo"), Segment::Value("42".into())],
+                })],
+            }
+            .into_iter(),
+            field_context: None,
+        };
+
+        assert_some_eq!(assert_ok!(struct_access.next_key::<Key>()), Key::Foo);
+        assert_ok_eq!(struct_access.next_value::<u64>(), 42);
     }
 }
