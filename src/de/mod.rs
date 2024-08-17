@@ -711,7 +711,7 @@ impl<'de> de::VariantAccess<'de> for VariantAccess {
 
 #[cfg(test)]
 mod tests {
-    use super::{Deserializer, EnumAccess, Error, FieldDeserializer, StructAccess};
+    use super::{Deserializer, EnumAccess, Error, FieldDeserializer, StructAccess, VariantAccess};
     use crate::{
         key::DeserializerError,
         parse::{Context, Segment},
@@ -720,7 +720,8 @@ mod tests {
     use serde::{
         de,
         de::{
-            Deserialize, EnumAccess as _, Error as _, IgnoredAny, MapAccess, Unexpected, Visitor,
+            Deserialize, EnumAccess as _, Error as _, IgnoredAny, MapAccess, Unexpected,
+            VariantAccess as _, Visitor,
         },
     };
     use serde_derive::Deserialize;
@@ -2024,6 +2025,103 @@ mod tests {
         assert_eq!(
             variant.context.collect::<Vec<_>>(),
             vec![Segment::Value("42".into())]
+        );
+    }
+
+    #[test]
+    fn variant_access_unit_variant() {
+        let variant_access = VariantAccess {
+            context: Context { segments: vec![] }.into_iter(),
+        };
+
+        assert_ok!(variant_access.unit_variant());
+    }
+
+    #[test]
+    fn variant_access_newtype_variant() {
+        let variant_access = VariantAccess {
+            context: Context {
+                segments: vec![Segment::Value("42".into())],
+            }
+            .into_iter(),
+        };
+
+        assert_ok_eq!(variant_access.newtype_variant::<u64>(), 42);
+    }
+
+    #[test]
+    fn variant_access_struct_variant() {
+        #[derive(Debug, Eq, PartialEq)]
+        #[allow(unused)]
+        struct Struct {
+            bar: u64,
+            baz: (),
+        }
+
+        #[derive(Deserialize)]
+        #[serde(field_identifier)]
+        #[serde(rename_all = "lowercase")]
+        enum StructField {
+            Bar,
+            Baz,
+        }
+
+        struct StructVisitor;
+
+        impl<'de> Visitor<'de> for StructVisitor {
+            type Value = Struct;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("struct variant")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: MapAccess<'de>,
+            {
+                let mut bar = None;
+                let mut baz = None;
+
+                while let Some(field) = map.next_key()? {
+                    match field {
+                        StructField::Bar => {
+                            if bar.is_some() {
+                                return Err(de::Error::duplicate_field("bar"));
+                            }
+                            bar = Some(map.next_value()?);
+                        }
+                        StructField::Baz => {
+                            if baz.is_some() {
+                                return Err(de::Error::duplicate_field("baz"));
+                            }
+                            baz = Some(map.next_value()?);
+                        }
+                    }
+                }
+                Ok(Struct {
+                    bar: bar.ok_or_else(|| de::Error::missing_field("bar"))?,
+                    baz: baz.ok_or_else(|| de::Error::missing_field("baz"))?,
+                })
+            }
+        }
+
+        let variant_access = VariantAccess {
+            context: Context {
+                segments: vec![
+                    Segment::Context(Context {
+                        segments: vec![Segment::Identifier("bar"), Segment::Value("42".into())],
+                    }),
+                    Segment::Context(Context {
+                        segments: vec![Segment::Identifier("baz")],
+                    }),
+                ],
+            }
+            .into_iter(),
+        };
+
+        assert_ok_eq!(
+            variant_access.struct_variant(&["bar", "baz"], StructVisitor),
+            Struct { bar: 42, baz: () }
         );
     }
 }
