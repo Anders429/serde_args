@@ -1,45 +1,11 @@
+mod context;
 mod error;
 
+pub(crate) use context::{Context, ContextIter, Segment};
 pub(crate) use error::Error;
 
 use crate::trace::{Field, Shape};
 use std::{ffi::OsString, iter, str, vec};
-
-#[derive(Debug, Eq, PartialEq)]
-pub(crate) enum Segment {
-    Identifier(&'static str),
-    Value(Vec<u8>),
-    Context(Context),
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub(crate) struct Context {
-    pub(crate) segments: Vec<Segment>,
-}
-
-impl IntoIterator for Context {
-    type IntoIter = ContextIter;
-    type Item = Segment;
-
-    fn into_iter(self) -> Self::IntoIter {
-        ContextIter {
-            segments: self.segments.into_iter(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct ContextIter {
-    segments: vec::IntoIter<Segment>,
-}
-
-impl Iterator for ContextIter {
-    type Item = Segment;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.segments.next()
-    }
-}
 
 enum Token {
     Positional(Vec<u8>),
