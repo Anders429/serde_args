@@ -1,6 +1,6 @@
 use std::cmp::min;
 
-pub(crate) fn distance(a: &str, b: &str) -> usize {
+pub(crate) fn levenshtein(a: &str, b: &str) -> usize {
     let b_count = b.chars().count();
     let mut cache = (1..(b_count + 1)).collect::<Vec<_>>();
 
@@ -28,40 +28,40 @@ pub(crate) fn distance(a: &str, b: &str) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use super::distance;
+    use super::levenshtein;
 
     #[test]
-    fn distance_empty() {
-        assert_eq!(distance("", ""), 0);
+    fn levenshtein_empty() {
+        assert_eq!(levenshtein("", ""), 0);
     }
 
     #[test]
-    fn distance_left_string_empty() {
-        assert_eq!(distance("", "foo"), 3);
+    fn levenshtein_left_string_empty() {
+        assert_eq!(levenshtein("", "foo"), 3);
     }
 
     #[test]
-    fn distance_right_string_empty() {
-        assert_eq!(distance("foo", ""), 3);
+    fn levenshtein_right_string_empty() {
+        assert_eq!(levenshtein("foo", ""), 3);
     }
 
     #[test]
-    fn distance_both_strings_same_length() {
-        assert_eq!(distance("foo", "bar"), 3);
+    fn levenshtein_both_strings_same_length() {
+        assert_eq!(levenshtein("foo", "bar"), 3);
     }
 
     #[test]
-    fn distance_substitutions_and_insertions() {
-        assert_eq!(distance("kitten", "sitting"), 3);
+    fn levenshtein_substitutions_and_insertions() {
+        assert_eq!(levenshtein("kitten", "sitting"), 3);
     }
 
     #[test]
-    fn distance_deletion() {
-        assert_eq!(distance("uniformed", "uninformed"), 1);
+    fn levenshtein_deletion() {
+        assert_eq!(levenshtein("uniformed", "uninformed"), 1);
     }
 
     #[test]
-    fn distance_similar_start_and_end() {
-        assert_eq!(distance("saturday", "sunday"), 3);
+    fn levenshtein_similar_start_and_end() {
+        assert_eq!(levenshtein("saturday", "sunday"), 3);
     }
 }
