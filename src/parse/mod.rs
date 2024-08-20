@@ -134,9 +134,30 @@ where
                         }
                     }
                 }
-                Shape::Primitive { .. } | Shape::Struct { .. } | Shape::Enum { .. } => {
+                Shape::Primitive { .. } | Shape::Enum { .. } => {
                     if let Some(optional) = args.next_optional() {
                         args.revisit = Some(optional);
+                        let optional_context = Context { segments: vec![] };
+                        context
+                            .segments
+                            .push(Segment::Context(parse_context_no_options(
+                                args,
+                                optional_shape,
+                                optional_context,
+                            )?));
+                    }
+                }
+                Shape::Struct { ref required, .. } => {
+                    if let Some(optional) = args.next_optional() {
+                        // If the value we extracted is empty, we only revisit it if there is at
+                        // least one required field that is not an empty field.
+                        if !optional.is_empty()
+                            || required
+                                .iter()
+                                .any(|field| !matches!(field.shape, Shape::Empty { .. }))
+                        {
+                            args.revisit = Some(optional);
+                        }
                         let optional_context = Context { segments: vec![] };
                         context
                             .segments
@@ -1123,6 +1144,21 @@ mod tests {
     }
 
     #[test]
+    fn parse_primitive_no_args() {
+        assert_err_eq!(
+            parse(
+                Vec::<&str>::new(),
+                &mut Shape::Primitive {
+                    name: "bar".to_owned(),
+                    description: String::new(),
+                }
+            ),
+            // No arguments at all when arguments are expected should trigger help.
+            Error::Help
+        );
+    }
+
+    #[test]
     fn parse_primitive_end_of_args() {
         assert_err_eq!(
             parse(
@@ -1133,6 +1169,63 @@ mod tests {
                 }
             ),
             Error::MissingArguments(vec!["bar".to_owned()])
+        );
+    }
+
+    #[test]
+    fn parse_primitive_after_end_of_args() {
+        assert_ok_eq!(
+            parse(
+                vec!["--", "foo"],
+                &mut Shape::Primitive {
+                    name: "bar".to_owned(),
+                    description: String::new(),
+                }
+            ),
+            Context {
+                segments: vec![Segment::Value("foo".into())],
+            }
+        );
+    }
+
+    #[test]
+    fn parse_optional_empty() {
+        assert_ok_eq!(
+            parse(
+                ["-"],
+                &mut Shape::Optional(Box::new(Shape::Empty {
+                    description: String::new(),
+                }))
+            ),
+            Context {
+                segments: vec![Segment::Context(Context { segments: vec![] })],
+            }
+        );
+    }
+
+    #[test]
+    fn parse_optional_empty_not_present() {
+        assert_ok_eq!(
+            parse(
+                Vec::<&str>::new(),
+                &mut Shape::Optional(Box::new(Shape::Empty {
+                    description: String::new(),
+                }))
+            ),
+            Context { segments: vec![] }
+        );
+    }
+
+    #[test]
+    fn parse_optional_empty_end_of_options() {
+        assert_ok_eq!(
+            parse(
+                ["--"],
+                &mut Shape::Optional(Box::new(Shape::Empty {
+                    description: String::new(),
+                }))
+            ),
+            Context { segments: vec![] }
         );
     }
 
@@ -1150,6 +1243,480 @@ mod tests {
                 segments: vec![Segment::Context(Context {
                     segments: vec![Segment::Value("foo".into())]
                 })],
+            }
+        );
+    }
+
+    #[test]
+    fn parse_optional_primitive_not_present() {
+        assert_ok_eq!(
+            parse(
+                Vec::<&str>::new(),
+                &mut Shape::Optional(Box::new(Shape::Primitive {
+                    name: "bar".to_owned(),
+                    description: String::new(),
+                }))
+            ),
+            Context { segments: vec![] }
+        );
+    }
+
+    #[test]
+    fn parse_optional_primitive_empty_value() {
+        assert_ok_eq!(
+            parse(
+                ["-"],
+                &mut Shape::Optional(Box::new(Shape::Primitive {
+                    name: "bar".to_owned(),
+                    description: String::new(),
+                }))
+            ),
+            Context {
+                segments: vec![Segment::Context(Context {
+                    segments: vec![Segment::Value("".into())]
+                })],
+            }
+        );
+    }
+
+    #[test]
+    fn parse_optional_primitive_end_of_options() {
+        assert_ok_eq!(
+            parse(
+                ["--"],
+                &mut Shape::Optional(Box::new(Shape::Primitive {
+                    name: "bar".to_owned(),
+                    description: String::new(),
+                }))
+            ),
+            Context { segments: vec![] }
+        );
+    }
+
+    #[test]
+    fn parse_optional_struct_empty() {
+        assert_ok_eq!(
+            parse(
+                ["-"],
+                &mut Shape::Optional(Box::new(Shape::Struct {
+                    name: "",
+                    description: String::new(),
+                    required: vec![],
+                    optional: vec![],
+                }))
+            ),
+            Context {
+                segments: vec![Segment::Context(Context { segments: vec![] })]
+            }
+        );
+    }
+
+    #[test]
+    fn parse_optional_struct_end_of_options() {
+        assert_ok_eq!(
+            parse(
+                ["--"],
+                &mut Shape::Optional(Box::new(Shape::Struct {
+                    name: "",
+                    description: String::new(),
+                    required: vec![],
+                    optional: vec![],
+                }))
+            ),
+            Context { segments: vec![] }
+        );
+    }
+
+    #[test]
+    fn parse_optional_struct_empty_not_present() {
+        assert_ok_eq!(
+            parse(
+                Vec::<&str>::new(),
+                &mut Shape::Optional(Box::new(Shape::Struct {
+                    name: "",
+                    description: String::new(),
+                    required: vec![],
+                    optional: vec![],
+                }))
+            ),
+            Context { segments: vec![] }
+        );
+    }
+
+    #[test]
+    fn parse_optional_struct_single_field() {
+        assert_ok_eq!(
+            parse(
+                ["--foo"],
+                &mut Shape::Optional(Box::new(Shape::Struct {
+                    name: "",
+                    description: String::new(),
+                    required: vec![Field {
+                        name: "bar",
+                        description: String::new(),
+                        aliases: vec![],
+                        shape: Shape::Primitive {
+                            name: "baz".to_owned(),
+                            description: String::new(),
+                        }
+                    }],
+                    optional: vec![],
+                }))
+            ),
+            Context {
+                segments: vec![Segment::Context(Context {
+                    segments: vec![Segment::Context(Context {
+                        segments: vec![Segment::Identifier("bar"), Segment::Value("foo".into())]
+                    })],
+                })]
+            }
+        );
+    }
+
+    #[test]
+    fn parse_optional_struct_single_field_not_present() {
+        assert_ok_eq!(
+            parse(
+                Vec::<&str>::new(),
+                &mut Shape::Optional(Box::new(Shape::Struct {
+                    name: "",
+                    description: String::new(),
+                    required: vec![Field {
+                        name: "bar",
+                        description: String::new(),
+                        aliases: vec![],
+                        shape: Shape::Primitive {
+                            name: "baz".to_owned(),
+                            description: String::new(),
+                        }
+                    }],
+                    optional: vec![],
+                }))
+            ),
+            Context { segments: vec![] }
+        );
+    }
+
+    #[test]
+    fn parse_optional_struct_single_field_empty_string() {
+        assert_ok_eq!(
+            parse(
+                ["-"],
+                &mut Shape::Optional(Box::new(Shape::Struct {
+                    name: "",
+                    description: String::new(),
+                    required: vec![Field {
+                        name: "bar",
+                        description: String::new(),
+                        aliases: vec![],
+                        shape: Shape::Primitive {
+                            name: "baz".to_owned(),
+                            description: String::new(),
+                        }
+                    }],
+                    optional: vec![],
+                }))
+            ),
+            Context {
+                segments: vec![Segment::Context(Context {
+                    segments: vec![Segment::Context(Context {
+                        segments: vec![Segment::Identifier("bar"), Segment::Value("".into())]
+                    })],
+                })]
+            }
+        );
+    }
+
+    #[test]
+    fn parse_optional_struct_single_field_empty_string_first_required_field_empty() {
+        assert_ok_eq!(
+            parse(
+                ["-"],
+                &mut Shape::Optional(Box::new(Shape::Struct {
+                    name: "",
+                    description: String::new(),
+                    required: vec![
+                        Field {
+                            name: "baz",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Empty {
+                                description: String::new(),
+                            }
+                        },
+                        Field {
+                            name: "bar",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned(),
+                                description: String::new(),
+                            }
+                        }
+                    ],
+                    optional: vec![],
+                }))
+            ),
+            Context {
+                segments: vec![Segment::Context(Context {
+                    segments: vec![
+                        Segment::Context(Context {
+                            segments: vec![Segment::Identifier("baz")],
+                        }),
+                        Segment::Context(Context {
+                            segments: vec![Segment::Identifier("bar"), Segment::Value("".into())]
+                        })
+                    ],
+                })]
+            }
+        );
+    }
+
+    #[test]
+    fn parse_optional_struct_all_required_fields_empty() {
+        assert_ok_eq!(
+            parse(
+                ["-"],
+                &mut Shape::Optional(Box::new(Shape::Struct {
+                    name: "",
+                    description: String::new(),
+                    required: vec![
+                        Field {
+                            name: "bar",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Empty {
+                                description: String::new(),
+                            }
+                        },
+                        Field {
+                            name: "baz",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Empty {
+                                description: String::new(),
+                            }
+                        },
+                    ],
+                    optional: vec![],
+                }))
+            ),
+            Context {
+                segments: vec![Segment::Context(Context {
+                    segments: vec![
+                        Segment::Context(Context {
+                            segments: vec![Segment::Identifier("bar")]
+                        }),
+                        Segment::Context(Context {
+                            segments: vec![Segment::Identifier("baz")]
+                        })
+                    ],
+                })]
+            }
+        );
+    }
+
+    #[test]
+    fn parse_optional_struct_multiple_fields() {
+        assert_ok_eq!(
+            parse(
+                ["--foo", "123"],
+                &mut Shape::Optional(Box::new(Shape::Struct {
+                    name: "",
+                    description: String::new(),
+                    required: vec![
+                        Field {
+                            name: "bar",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned(),
+                                description: String::new(),
+                            }
+                        },
+                        Field {
+                            name: "qux",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "quux".to_owned(),
+                                description: String::new(),
+                            }
+                        }
+                    ],
+                    optional: vec![],
+                }))
+            ),
+            Context {
+                segments: vec![Segment::Context(Context {
+                    segments: vec![
+                        Segment::Context(Context {
+                            segments: vec![
+                                Segment::Identifier("bar"),
+                                Segment::Value("foo".into())
+                            ]
+                        }),
+                        Segment::Context(Context {
+                            segments: vec![
+                                Segment::Identifier("qux"),
+                                Segment::Value("123".into())
+                            ]
+                        })
+                    ],
+                })]
+            }
+        );
+    }
+
+    #[test]
+    fn parse_optional_struct_required_and_optional_fields() {
+        assert_ok_eq!(
+            parse(
+                ["--foo", "123", "--baz", "quux"],
+                &mut Shape::Optional(Box::new(Shape::Struct {
+                    name: "",
+                    description: String::new(),
+                    required: vec![
+                        Field {
+                            name: "bar",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned(),
+                                description: String::new(),
+                            }
+                        },
+                        Field {
+                            name: "qux",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "quux".to_owned(),
+                                description: String::new(),
+                            }
+                        }
+                    ],
+                    optional: vec![Field {
+                        name: "baz",
+                        description: String::new(),
+                        aliases: vec![],
+                        shape: Shape::Primitive {
+                            name: "string".to_owned(),
+                            description: String::new(),
+                        }
+                    }],
+                }))
+            ),
+            Context {
+                segments: vec![Segment::Context(Context {
+                    segments: vec![
+                        Segment::Context(Context {
+                            segments: vec![
+                                Segment::Identifier("bar"),
+                                Segment::Value("foo".into())
+                            ]
+                        }),
+                        Segment::Context(Context {
+                            segments: vec![
+                                Segment::Identifier("qux"),
+                                Segment::Value("123".into())
+                            ]
+                        }),
+                        Segment::Context(Context {
+                            segments: vec![
+                                Segment::Identifier("baz"),
+                                Segment::Value("quux".into())
+                            ]
+                        })
+                    ],
+                })]
+            }
+        );
+    }
+
+    #[test]
+    fn parse_optional_struct_optional_fields_from_outer_context_not_allowed() {
+        assert_err_eq!(
+            parse(
+                ["--foo", "--help", "123", "--baz", "quux"],
+                &mut Shape::Optional(Box::new(Shape::Struct {
+                    name: "",
+                    description: String::new(),
+                    required: vec![
+                        Field {
+                            name: "bar",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned(),
+                                description: String::new(),
+                            }
+                        },
+                        Field {
+                            name: "qux",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "quux".to_owned(),
+                                description: String::new(),
+                            }
+                        }
+                    ],
+                    optional: vec![Field {
+                        name: "baz",
+                        description: String::new(),
+                        aliases: vec![],
+                        shape: Shape::Primitive {
+                            name: "string".to_owned(),
+                            description: String::new(),
+                        }
+                    }],
+                }))
+            ),
+            Error::UnrecognizedOption {
+                name: "help".into(),
+                expecting: vec!["baz".into()]
+            }
+        );
+    }
+
+    #[test]
+    fn parse_optional_struct_only_optional_fields() {
+        assert_ok_eq!(
+            parse(
+                ["-", "--baz", "quux"],
+                &mut Shape::Optional(Box::new(Shape::Struct {
+                    name: "",
+                    description: String::new(),
+                    required: vec![],
+                    optional: vec![
+                        Field {
+                            name: "bar",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned(),
+                                description: String::new(),
+                            }
+                        },
+                        Field {
+                            name: "baz",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "string".to_owned(),
+                                description: String::new(),
+                            }
+                        }
+                    ],
+                }))
+            ),
+            Context {
+                segments: vec![Segment::Context(Context {
+                    segments: vec![Segment::Context(Context {
+                        segments: vec![Segment::Identifier("baz"), Segment::Value("quux".into())]
+                    })],
+                })]
             }
         );
     }
@@ -1525,6 +2092,176 @@ mod tests {
                     }),
                     Segment::Context(Context {
                         segments: vec![Segment::Identifier("quux"), Segment::Value("456".into())],
+                    }),
+                ]
+            }
+        );
+    }
+
+    #[test]
+    fn parse_struct_mixed_fields_end_of_options() {
+        assert_ok_eq!(
+            parse(
+                vec!["123", "--bar", "foo", "--", "--qux"],
+                &mut Shape::Struct {
+                    name: "",
+                    description: String::new(),
+                    required: vec![
+                        Field {
+                            name: "foo",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned(),
+                                description: String::new(),
+                            },
+                        },
+                        Field {
+                            name: "quux",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned(),
+                                description: String::new(),
+                            },
+                        },
+                    ],
+                    optional: vec![
+                        Field {
+                            name: "bar",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned(),
+                                description: String::new(),
+                            },
+                        },
+                        Field {
+                            name: "qux",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned(),
+                                description: String::new(),
+                            },
+                        },
+                        Field {
+                            name: "missing",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned(),
+                                description: String::new(),
+                            }
+                        },
+                    ]
+                }
+            ),
+            Context {
+                segments: vec![
+                    Segment::Context(Context {
+                        segments: vec![Segment::Identifier("foo"), Segment::Value("123".into())],
+                    }),
+                    Segment::Context(Context {
+                        segments: vec![Segment::Identifier("bar"), Segment::Value("foo".into())],
+                    }),
+                    Segment::Context(Context {
+                        segments: vec![Segment::Identifier("quux"), Segment::Value("--qux".into())],
+                    }),
+                ]
+            }
+        );
+    }
+
+    #[test]
+    fn parse_struct_nested_end_of_options() {
+        assert_ok_eq!(
+            parse(
+                vec!["--", "--qux", "123", "--bar", "foo"],
+                &mut Shape::Struct {
+                    name: "",
+                    description: String::new(),
+                    required: vec![
+                        Field {
+                            name: "quux",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned(),
+                                description: String::new(),
+                            },
+                        },
+                        Field {
+                            name: "inner_struct",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Struct {
+                                name: "",
+                                description: String::new(),
+                                required: vec![Field {
+                                    name: "foo",
+                                    description: String::new(),
+                                    aliases: vec![],
+                                    shape: Shape::Primitive {
+                                        name: "baz".to_owned(),
+                                        description: String::new(),
+                                    },
+                                },],
+                                optional: vec![Field {
+                                    name: "bar",
+                                    description: String::new(),
+                                    aliases: vec![],
+                                    shape: Shape::Primitive {
+                                        name: "baz".to_owned(),
+                                        description: String::new(),
+                                    },
+                                },],
+                            }
+                        },
+                    ],
+                    optional: vec![
+                        Field {
+                            name: "qux",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned(),
+                                description: String::new(),
+                            },
+                        },
+                        Field {
+                            name: "missing",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Primitive {
+                                name: "baz".to_owned(),
+                                description: String::new(),
+                            },
+                        },
+                    ],
+                }
+            ),
+            Context {
+                segments: vec![
+                    Segment::Context(Context {
+                        segments: vec![Segment::Identifier("quux"), Segment::Value("--qux".into())],
+                    }),
+                    Segment::Context(Context {
+                        segments: vec![
+                            Segment::Identifier("inner_struct"),
+                            Segment::Context(Context {
+                                segments: vec![
+                                    Segment::Identifier("foo"),
+                                    Segment::Value("123".into())
+                                ],
+                            }),
+                            Segment::Context(Context {
+                                segments: vec![
+                                    Segment::Identifier("bar"),
+                                    Segment::Value("foo".into()),
+                                ]
+                            }),
+                        ],
                     }),
                 ]
             }
