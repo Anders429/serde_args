@@ -118,6 +118,7 @@ fn empty() {
 
     assert_run_err!(Command::new("tests/from_args/empty").args(["foo"]), "ERROR: unexpected positional argument: foo\n\nUSAGE: {name} \n\nFor more information, use --help.\n");
     assert_run_err!(Command::new("tests/from_args/empty").args(["--foo"]), "ERROR: unrecognized optional flag: --foo\n\n  tip: a similar option exists: --help\n\nUSAGE: {name} \n\nFor more information, use --help.\n");
+    assert_run_err!(Command::new("tests/from_args/empty").args(["--", "--"]), "ERROR: unexpected positional argument: --\n\nUSAGE: {name} \n\nFor more information, use --help.\n");
     assert_run_err!(
         Command::new("tests/from_args/empty").args(["-h"]),
         "unit\n\nUSAGE: {name} \n\nOverride Options:\n  -h --help  Display this message.\n"
@@ -125,5 +126,45 @@ fn empty() {
     assert_run_err!(
         Command::new("tests/from_args/empty").args(["--help"]),
         "unit\n\nUSAGE: {name} \n\nOverride Options:\n  -h --help  Display this message.\n"
+    );
+    assert_run_err!(Command::new("tests/from_args/empty").args(["--", "-h"]), "ERROR: unexpected positional argument: -h\n\nUSAGE: {name} \n\nFor more information, use --help.\n");
+    assert_run_err!(Command::new("tests/from_args/empty").args(["--", "--help"]), "ERROR: unexpected positional argument: --help\n\nUSAGE: {name} \n\nFor more information, use --help.\n");
+}
+
+#[test]
+fn primitive() {
+    assert_run_ok!(Command::new("tests/from_args/primitive").args(["42"]));
+    assert_run_ok!(Command::new("tests/from_args/primitive").args(["--", "42"]));
+    assert_run_ok!(Command::new("tests/from_args/primitive").args(["42", "--"]));
+
+    assert_run_err!(Command::new("tests/from_args/primitive").args(["foo"]), "ERROR: invalid type: expected u64, found foo\n\nUSAGE: {name} <u64>\n\nFor more information, use --help.\n");
+    assert_run_err!(Command::new("tests/from_args/primitive").args(["-42"]), "ERROR: invalid type: expected u64, found -42\n\nUSAGE: {name} <u64>\n\nFor more information, use --help.\n");
+    assert_run_err!(
+        Command::new("tests/from_args/primitive").args(["-h"]),
+        "u64\n\nUSAGE: {name} <u64>\n\nRequired Arguments:\n  <u64>  u64\n\nOverride Options:\n  -h --help  Display this message.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/primitive").args(["--help"]),
+        "u64\n\nUSAGE: {name} <u64>\n\nRequired Arguments:\n  <u64>  u64\n\nOverride Options:\n  -h --help  Display this message.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/primitive").args(["42", "--help"]),
+        "u64\n\nUSAGE: {name} <u64>\n\nRequired Arguments:\n  <u64>  u64\n\nOverride Options:\n  -h --help  Display this message.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/primitive").args(["--", "-h"]),
+        "ERROR: invalid type: expected u64, found -h\n\nUSAGE: {name} <u64>\n\nFor more information, use --help.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/primitive").args(["--", "--help"]),
+        "ERROR: invalid type: expected u64, found --help\n\nUSAGE: {name} <u64>\n\nFor more information, use --help.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/primitive").args(["--", "42", "-h"]),
+        "ERROR: unexpected positional argument: -h\n\nUSAGE: {name} <u64>\n\nFor more information, use --help.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/primitive").args(["--", "42", "--help"]),
+        "ERROR: unexpected positional argument: --help\n\nUSAGE: {name} <u64>\n\nFor more information, use --help.\n"
     );
 }

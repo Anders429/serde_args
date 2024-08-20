@@ -15,22 +15,42 @@ where
     Arg: Into<OsString>,
 {
     let mut parsed_args = ParsedArgs::new(args.into_iter().map(|arg| arg.into()));
+    let mut override_options = vec![Field {
+        name: "help",
+        description: "Display this message.".into(),
+        aliases: vec!["h"],
+        shape: Shape::Empty {
+            description: String::new(),
+        },
+    }];
     let parsed_context = parse_context(
         &mut parsed_args,
         shape,
-        &mut vec![Field {
-            name: "help",
-            description: "Display this message.".into(),
-            aliases: vec!["h"],
-            shape: Shape::Empty {
-                description: String::new(),
-            },
-        }],
+        &mut override_options,
         Context { segments: vec![] },
     );
 
+    // Parse any remaining options that are at the end of the tokens.
+    // This should just include things like `--help`.
+    let options = if parsed_context.closing_end_of_options {
+        parsed_context.options
+    } else {
+        let closing_parsed_context = parse_context(
+            &mut parsed_args,
+            &mut Shape::Empty {
+                description: String::new(),
+            },
+            &mut override_options,
+            Context { segments: vec![] },
+        );
+        let _ = closing_parsed_context.context?;
+        let mut options = parsed_context.options;
+        options.extend(closing_parsed_context.options);
+        options
+    };
+
     // Handle overriding options.
-    for (option_name, _option_context) in parsed_context.options {
+    for (option_name, _option_context) in options {
         match option_name {
             "help" | "h" => return Err(Error::Help),
             _ => {
