@@ -260,7 +260,9 @@ impl Display for Shape {
                         formatter.write_char(' ')?;
                     }
                     Display::fmt(field, formatter)?;
-                    for field in required_iter {
+                    for field in
+                        required_iter.filter(|field| !matches!(field.shape, Shape::Empty { .. }))
+                    {
                         formatter.write_char(' ')?;
                         Display::fmt(field, formatter)?;
                     }

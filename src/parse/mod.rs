@@ -231,7 +231,11 @@ where
                                         }
                                         // Append any more missing arguments.
                                         arguments.extend(
-                                            required_iter.map(|field| field.name.to_owned()),
+                                            required_iter
+                                                .filter(|field| {
+                                                    !matches!(field.shape, Shape::Empty { .. })
+                                                })
+                                                .map(|field| field.name.to_owned()),
                                         );
                                         Error::MissingArguments(arguments)
                                     } else {
@@ -267,7 +271,11 @@ where
                                         }
                                         // Append any more missing arguments.
                                         arguments.extend(
-                                            required_iter.map(|field| field.name.to_owned()),
+                                            required_iter
+                                                .filter(|field| {
+                                                    !matches!(field.shape, Shape::Empty { .. })
+                                                })
+                                                .map(|field| field.name.to_owned()),
                                         );
                                         Error::MissingArguments(arguments)
                                     } else {
@@ -674,7 +682,11 @@ where
                                             }
                                             // Append any more missing arguments.
                                             arguments.extend(
-                                                required_iter.map(|field| field.name.to_owned()),
+                                                required_iter
+                                                    .filter(|field| {
+                                                        !matches!(field.shape, Shape::Empty { .. })
+                                                    })
+                                                    .map(|field| field.name.to_owned()),
                                             );
                                             Error::MissingArguments(arguments)
                                         } else {
@@ -724,7 +736,11 @@ where
                                             }
                                             // Append any more missing arguments.
                                             arguments.extend(
-                                                required_iter.map(|field| field.name.to_owned()),
+                                                required_iter
+                                                    .filter(|field| {
+                                                        !matches!(field.shape, Shape::Empty { .. })
+                                                    })
+                                                    .map(|field| field.name.to_owned()),
                                             );
                                             Error::MissingArguments(arguments)
                                         } else {
