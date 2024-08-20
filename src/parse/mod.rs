@@ -1,113 +1,13 @@
 mod context;
 mod error;
+mod token;
 
 pub(crate) use context::{Context, ContextIter, Segment};
 pub(crate) use error::Error;
 
 use crate::trace::{Field, Shape};
 use std::{ffi::OsString, iter, str, vec};
-
-enum Token {
-    Positional(Vec<u8>),
-    Optional(Vec<u8>),
-    EndOfOptions,
-}
-
-struct ParsedArgs<Args> {
-    args: Args,
-    revisit: Option<Vec<u8>>,
-    consumed_token: bool,
-}
-
-impl<Args> ParsedArgs<Args> {
-    fn new(args: Args) -> Self {
-        Self {
-            args,
-            revisit: None,
-            consumed_token: false,
-        }
-    }
-}
-
-impl<Args> ParsedArgs<Args>
-where
-    Args: Iterator<Item = OsString>,
-{
-    fn next_token(&mut self) -> Option<Token> {
-        if let Some(token) = self.next() {
-            if let Some(short_token) = token.strip_prefix(b"-") {
-                if short_token.is_empty() {
-                    // A single `-` is an empty optional token.
-                    Some(Token::Optional(Vec::new()))
-                } else {
-                    if let Some(long_token) = short_token.strip_prefix(b"-") {
-                        if long_token.is_empty() {
-                            Some(Token::EndOfOptions)
-                        } else {
-                            Some(Token::Optional(long_token.to_vec()))
-                        }
-                    } else {
-                        // This is only an option if there is a single character.
-                        if short_token.len() > 4 {
-                            Some(Token::Positional(token))
-                        } else {
-                            if let Ok(short_token_str) = str::from_utf8(short_token) {
-                                if short_token_str.chars().count() == 1 {
-                                    Some(Token::Optional(short_token.to_vec()))
-                                } else {
-                                    Some(Token::Positional(token))
-                                }
-                            } else {
-                                Some(Token::Positional(token))
-                            }
-                        }
-                    }
-                }
-            } else {
-                Some(Token::Positional(token))
-            }
-        } else {
-            None
-        }
-    }
-
-    fn next_positional(&mut self) -> Option<Vec<u8>> {
-        self.next()
-    }
-
-    fn next_optional(&mut self) -> Option<Vec<u8>> {
-        if let Some(token) = self.next_token() {
-            match token {
-                Token::Optional(token) => Some(token),
-                Token::EndOfOptions => None,
-                Token::Positional(token) => {
-                    self.revisit = Some(token);
-                    None
-                }
-            }
-        } else {
-            None
-        }
-    }
-}
-
-impl<Args> Iterator for ParsedArgs<Args>
-where
-    Args: Iterator<Item = OsString>,
-{
-    type Item = Vec<u8>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let value = self
-            .revisit
-            .take()
-            .or_else(|| self.args.next().map(|os_str| os_str.into_encoded_bytes()));
-        if value.is_some() {
-            self.consumed_token = true;
-        }
-        value
-    }
-}
+use token::{ParsedArgs, Token};
 
 pub(crate) fn parse<Arg, Args>(args: Args, shape: &mut Shape) -> Result<Context, Error>
 where
