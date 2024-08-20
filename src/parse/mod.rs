@@ -1109,7 +1109,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::{parse, Context, Error, Segment};
-    use crate::trace::{Field, Shape};
+    use crate::trace::{Field, Shape, Variant};
     use claims::{assert_err_eq, assert_ok_eq};
 
     #[test]
@@ -1722,6 +1722,133 @@ mod tests {
     }
 
     #[test]
+    fn parse_optional_enum() {
+        assert_ok_eq!(
+            parse(
+                ["--foo"],
+                &mut Shape::Optional(Box::new(Shape::Enum {
+                    name: "Enum",
+                    description: String::new(),
+                    variants: vec![Variant {
+                        name: "foo",
+                        description: String::new(),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new(),
+                        }
+                    }],
+                }))
+            ),
+            Context {
+                segments: vec![Segment::Context(Context {
+                    segments: vec![Segment::Identifier("foo")],
+                })]
+            }
+        );
+    }
+
+    #[test]
+    fn parse_optional_enum_short() {
+        assert_ok_eq!(
+            parse(
+                ["-f"],
+                &mut Shape::Optional(Box::new(Shape::Enum {
+                    name: "Enum",
+                    description: String::new(),
+                    variants: vec![Variant {
+                        name: "foo",
+                        description: String::new(),
+                        aliases: vec!["f"],
+                        shape: Shape::Empty {
+                            description: String::new(),
+                        }
+                    }],
+                }))
+            ),
+            Context {
+                segments: vec![Segment::Context(Context {
+                    segments: vec![Segment::Identifier("f")],
+                })]
+            }
+        );
+    }
+
+    #[test]
+    fn parse_optional_enum_not_present() {
+        assert_ok_eq!(
+            parse(
+                Vec::<&str>::new(),
+                &mut Shape::Optional(Box::new(Shape::Enum {
+                    name: "Enum",
+                    description: String::new(),
+                    variants: vec![Variant {
+                        name: "foo",
+                        description: String::new(),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new(),
+                        }
+                    }],
+                }))
+            ),
+            Context { segments: vec![] }
+        );
+    }
+
+    #[test]
+    fn parse_optional_enum_with_value() {
+        assert_ok_eq!(
+            parse(
+                ["--foo", "bar"],
+                &mut Shape::Optional(Box::new(Shape::Enum {
+                    name: "Enum",
+                    description: String::new(),
+                    variants: vec![Variant {
+                        name: "foo",
+                        description: String::new(),
+                        aliases: vec![],
+                        shape: Shape::Primitive {
+                            name: "string".into(),
+                            description: String::new(),
+                        }
+                    }],
+                }))
+            ),
+            Context {
+                segments: vec![Segment::Context(Context {
+                    segments: vec![Segment::Identifier("foo"), Segment::Value("bar".into())],
+                })]
+            }
+        );
+    }
+
+    #[test]
+    fn parse_optional_enum_empty_variant() {
+        assert_ok_eq!(
+            parse(
+                ["-"],
+                &mut Shape::Optional(Box::new(Shape::Enum {
+                    name: "Enum",
+                    description: String::new(),
+                    variants: vec![Variant {
+                        name: "",
+                        description: String::new(),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new(),
+                        }
+                    }],
+                }))
+            ),
+            Context {
+                segments: vec![Segment::Context(Context {
+                    segments: vec![Segment::Identifier("")],
+                })]
+            }
+        );
+    }
+
+    #[test]
     fn parse_struct_empty() {
         assert_ok_eq!(
             parse(
@@ -2264,6 +2391,137 @@ mod tests {
                         ],
                     }),
                 ]
+            }
+        );
+    }
+
+    #[test]
+    fn parse_enum() {
+        assert_ok_eq!(
+            parse(
+                ["foo"],
+                &mut Shape::Enum {
+                    name: "Enum",
+                    description: String::new(),
+                    variants: vec![Variant {
+                        name: "foo",
+                        description: String::new(),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new(),
+                        }
+                    }],
+                }
+            ),
+            Context {
+                segments: vec![Segment::Identifier("foo")],
+            }
+        );
+    }
+
+    #[test]
+    fn parse_enum_from_multiple_variants() {
+        assert_ok_eq!(
+            parse(
+                ["bar"],
+                &mut Shape::Enum {
+                    name: "Enum",
+                    description: String::new(),
+                    variants: vec![
+                        Variant {
+                            name: "foo",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Empty {
+                                description: String::new(),
+                            }
+                        },
+                        Variant {
+                            name: "bar",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Empty {
+                                description: String::new(),
+                            }
+                        }
+                    ],
+                }
+            ),
+            Context {
+                segments: vec![Segment::Identifier("bar")],
+            }
+        );
+    }
+
+    #[test]
+    fn parse_enum_alias() {
+        assert_ok_eq!(
+            parse(
+                ["f"],
+                &mut Shape::Enum {
+                    name: "Enum",
+                    description: String::new(),
+                    variants: vec![Variant {
+                        name: "foo",
+                        description: String::new(),
+                        aliases: vec!["f"],
+                        shape: Shape::Empty {
+                            description: String::new(),
+                        }
+                    }],
+                }
+            ),
+            Context {
+                segments: vec![Segment::Identifier("f")],
+            }
+        );
+    }
+
+    #[test]
+    fn parse_enum_with_value() {
+        assert_ok_eq!(
+            parse(
+                ["foo", "bar"],
+                &mut Shape::Enum {
+                    name: "Enum",
+                    description: String::new(),
+                    variants: vec![Variant {
+                        name: "foo",
+                        description: String::new(),
+                        aliases: vec![],
+                        shape: Shape::Primitive {
+                            name: "string".into(),
+                            description: String::new(),
+                        }
+                    }],
+                }
+            ),
+            Context {
+                segments: vec![Segment::Identifier("foo"), Segment::Value("bar".into())],
+            }
+        );
+    }
+
+    #[test]
+    fn parse_enum_after_end_of_options() {
+        assert_ok_eq!(
+            parse(
+                ["--", "foo"],
+                &mut Shape::Enum {
+                    name: "Enum",
+                    description: String::new(),
+                    variants: vec![Variant {
+                        name: "foo",
+                        description: String::new(),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new(),
+                        }
+                    }],
+                }
+            ),
+            Context {
+                segments: vec![Segment::Identifier("foo")],
             }
         );
     }
