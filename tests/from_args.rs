@@ -264,3 +264,48 @@ fn required_fields() {
         "ERROR: unrecognized optional flag: -3\n\n  tip: a similar option exists: -h\n\nUSAGE: {name} <foo> <baz>\n\nFor more information, use --help.\n"
     );
 }
+
+#[test]
+fn optional_fields() {
+    assert_run_ok!(Command::new("tests/from_args/optional_fields"));
+    assert_run_ok!(Command::new("tests/from_args/optional_fields").args(["--foo", "hello"]));
+    assert_run_ok!(Command::new("tests/from_args/optional_fields").args(["--bar"]));
+    assert_run_ok!(Command::new("tests/from_args/optional_fields").args(["--baz", "42"]));
+    assert_run_ok!(Command::new("tests/from_args/optional_fields")
+        .args(["--foo", "hello", "--baz", "42", "--bar"]));
+    assert_run_ok!(Command::new("tests/from_args/optional_fields")
+        .args(["--foo", "hello", "--baz", "--", "-3",]));
+
+    assert_run_err!(
+        Command::new("tests/from_args/optional_fields").args(["--qux"]),
+        "ERROR: unrecognized optional flag: --qux\n\n  tip: a similar option exists: --foo\n\nUSAGE: {name} [options]\n\nFor more information, use --help.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/optional_fields").args(["--foo"]),
+        "ERROR: missing required positional argument: <a string>\n\nUSAGE: {name} [options]\n\nFor more information, use --help.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/optional_fields").args(["--baz"]),
+        "ERROR: missing required positional argument: <i64>\n\nUSAGE: {name} [options]\n\nFor more information, use --help.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/optional_fields").args(["--bar", "--", "--foo"]),
+        "ERROR: unexpected positional argument: --foo\n\nUSAGE: {name} [options]\n\nFor more information, use --help.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/optional_fields").args(["--foo", "hello", "--baz", "42", "--bar", "--help"]),
+        "struct Args\n\nUSAGE: {name} [options]\n\nGlobal Options:\n  --foo <a string>  \n  --bar             \n  --baz <i64>       \n\nOverride Options:\n  -h --help  Display this message.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/optional_fields").args(["--foo", "hello", "--baz", "-h", "42", "--bar"]),
+        "struct Args\n\nUSAGE: {name} [options]\n\nGlobal Options:\n  --foo <a string>  \n  --bar             \n  --baz <i64>       \n\nOverride Options:\n  -h --help  Display this message.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/optional_fields").args(["foo"]),
+        "ERROR: unexpected positional argument: foo\n\nUSAGE: {name} [options]\n\nFor more information, use --help.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/optional_fields").args(["--", "--foo"]),
+        "ERROR: unexpected positional argument: --foo\n\nUSAGE: {name} [options]\n\nFor more information, use --help.\n"
+    );
+}
