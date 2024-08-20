@@ -246,7 +246,10 @@ impl std::error::Error for Error {}
 #[cfg(test)]
 mod tests {
     use super::{
-        super::{de, parse, trace, trace::Shape},
+        super::{
+            de, parse, trace,
+            trace::{Field, Shape, Variant},
+        },
         Error, Kind, UsageError,
     };
 
@@ -299,6 +302,175 @@ mod tests {
                 }
             ),
             "ERROR: foo\n\nUSAGE: executable_name <bar>\n\nFor more information, use --help."
+        )
+    }
+
+    #[test]
+    fn display_usage_error_help_empty() {
+        assert_eq!(
+            format!(
+                "{}",
+                Error {
+                    kind: Kind::Usage {
+                        error: UsageError::Parsing(parse::Error::Help),
+                        executable_path: "executable_name".into(),
+                        shape: Shape::Empty {
+                            description: "description".into(),
+                        },
+                    }
+                }
+            ),
+            "description\n\nUSAGE: executable_name \n\nOverride Options:\n  -h --help  Display this message."
+        )
+    }
+
+    #[test]
+    fn display_usage_error_help_primitive() {
+        assert_eq!(
+            format!(
+                "{}",
+                Error {
+                    kind: Kind::Usage {
+                        error: UsageError::Parsing(parse::Error::Help),
+                        executable_path: "executable_name".into(),
+                        shape: Shape::Primitive {
+                            name: "name".into(),
+                            description: "description".into(),
+                        },
+                    }
+                }
+            ),
+            "description\n\nUSAGE: executable_name <name>\n\nRequired Arguments:\n  <name>  description\n\nOverride Options:\n  -h --help  Display this message."
+        )
+    }
+
+    #[test]
+    fn display_usage_error_help_optional() {
+        assert_eq!(
+            format!(
+                "{}",
+                Error {
+                    kind: Kind::Usage {
+                        error: UsageError::Parsing(parse::Error::Help),
+                        executable_path: "executable_name".into(),
+                        shape: Shape::Optional(Box::new(Shape::Primitive {
+                            name: "name".into(),
+                            description: "description".into(),
+                        })),
+                    }
+                }
+            ),
+            "description\n\nUSAGE: executable_name [--<name>]\n\nOverride Options:\n  -h --help  Display this message."
+        )
+    }
+
+    #[test]
+    fn display_usage_error_help_struct() {
+        assert_eq!(
+            format!(
+                "{}",
+                Error {
+                    kind: Kind::Usage {
+                        error: UsageError::Parsing(parse::Error::Help),
+                        executable_path: "executable_name".into(),
+                        shape: Shape::Struct {
+                            name: "name".into(),
+                            description: "description".into(),
+                            required: vec![Field {
+                                name: "foo",
+                                description: "foo bar".into(),
+                                aliases: vec![],
+                                shape: Shape::Primitive {
+                                    name: "not shown".into(),
+                                    description: "not shown".into(),
+                                }
+                            }],
+                            optional: vec![
+                                Field {
+                                    name: "bar",
+                                    description: "bar baz".into(),
+                                    aliases: vec!["b"],
+                                    shape: Shape::Primitive {
+                                        name: "u64".into(),
+                                        description: "not shown".into(),
+                                    }
+                                }
+                            ],
+                        },
+                    }
+                }
+            ),
+            "description\n\nUSAGE: executable_name [options] <foo>\n\nRequired Arguments:\n  <foo>  foo bar\n\nGlobal Options:\n  -b --bar <u64>  bar baz\n\nOverride Options:\n  -h --help  Display this message."
+        )
+    }
+
+    #[test]
+    fn display_usage_error_help_enum() {
+        assert_eq!(
+            format!(
+                "{}",
+                Error {
+                    kind: Kind::Usage {
+                        error: UsageError::Parsing(parse::Error::Help),
+                        executable_path: "executable_name".into(),
+                        shape: Shape::Enum {
+                            name: "name".into(),
+                            description: "description".into(),
+                            variants: vec![
+                                Variant {
+                                    name: "foo",
+                                    description: "bar".into(),
+                                    aliases: vec!["f"],
+                                    shape: Shape::Empty {description: "not shown".into()},
+                                },
+                                Variant {
+                                    name: "baz",
+                                    description: "qux".into(),
+                                    aliases: vec![],
+                                    shape: Shape::Primitive {name: "i32".into(), description: "not shown".into()},
+                                }
+                            ],
+                        },
+                    }
+                }
+            ),
+            "description\n\nUSAGE: executable_name <name>\n\nRequired Arguments:\n  <name>  description\n\nOverride Options:\n  -h --help  Display this message.\n\nname Variants:\n  foo f      bar\n  baz <i32>  qux"
+        )
+    }
+
+    #[test]
+    fn display_usage_error_help_variant() {
+        assert_eq!(
+            format!(
+                "{}",
+                Error {
+                    kind: Kind::Usage {
+                        error: UsageError::Parsing(parse::Error::Help),
+                        executable_path: "executable_name".into(),
+                        shape: Shape::Variant {
+                            name: "f".into(),
+                            description: "bar".into(),
+                            shape: Box::new(Shape::Primitive {name: "i32".into(), description: "i32 description".into()}),
+                            variants: vec![
+                                Variant {
+                                    name: "foo",
+                                    description: "bar".into(),
+                                    aliases: vec!["f"],
+                                    shape: Shape::Empty {description: "not shown".into()},
+                                },
+                                Variant {
+                                    name: "baz",
+                                    description: "qux".into(),
+                                    aliases: vec![],
+                                    shape: Shape::Primitive {name: "i32".into(), description: "not shown".into()},
+                                }
+                            ],
+                            enum_name: "name",
+                        },
+                    }
+                }
+            ),
+            "bar\n\nUSAGE: executable_name f <i32>\n\nRequired Arguments:\n  <i32>  i32 description\n\nOverride Options:\n  -h --help  Display this message."
         )
     }
 }
