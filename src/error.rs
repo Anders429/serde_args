@@ -141,8 +141,9 @@ impl Display for Kind {
                         }
 
                         // Write override options.
-                        formatter
-                            .write_str("\n\nOverride Options:\n  --help  Display this message.")?;
+                        formatter.write_str(
+                            "\n\nOverride Options:\n  -h --help  Display this message.",
+                        )?;
 
                         // Write commands.
                         let variant_groups = shape.variant_groups();

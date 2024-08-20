@@ -47,8 +47,17 @@ impl Display for Error {
             }
             Self::UnrecognizedOption { name, expecting } => {
                 // Find the most similar option.
+                let name_count = name.chars().count();
                 let hint = expecting
                     .iter()
+                    .filter(|field| {
+                        // Only compare long options with long options and short options with short options.
+                        if name_count == 1 {
+                            field.chars().count() == 1
+                        } else {
+                            field.chars().count() != 1
+                        }
+                    })
                     .map(|field| (field, distance::levenshtein(name, field)))
                     .filter(|(_, distance)| *distance < 5)
                     .min_by_key(|(_, distance)| *distance)
