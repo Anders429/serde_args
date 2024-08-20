@@ -1,0 +1,8 @@
+[package]
+name = "option"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+serde_args = {path = "../../.."}

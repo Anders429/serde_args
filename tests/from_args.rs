@@ -168,3 +168,39 @@ fn primitive() {
         "ERROR: unexpected positional argument: --help\n\nUSAGE: {name} <u64>\n\nFor more information, use --help.\n"
     );
 }
+
+#[test]
+fn option() {
+    assert_run_ok!(Command::new("tests/from_args/option"));
+    assert_run_ok!(Command::new("tests/from_args/option").args(["--"]));
+    assert_run_ok!(Command::new("tests/from_args/option").args(["--foo"]));
+    assert_run_ok!(Command::new("tests/from_args/option").args(["-"]));
+    assert_run_ok!(Command::new("tests/from_args/option").args(["-", "--"]));
+    assert_run_ok!(Command::new("tests/from_args/option").args(["-h"]));
+    assert_run_ok!(Command::new("tests/from_args/option").args(["--help"]));
+
+    assert_run_err!(
+        Command::new("tests/from_args/option").args(["--", "--foo"]),
+        "ERROR: unrecognized optional flag: --foo\n\n  tip: a similar option exists: --help\n\nUSAGE: {name} [--<a string>]\n\nFor more information, use --help.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/option").args(["--", "-"]),
+        "ERROR: unrecognized optional flag: -\n\n  tip: a similar option exists: -h\n\nUSAGE: {name} [--<a string>]\n\nFor more information, use --help.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/option").args(["--", "-h"]),
+        "a string\n\nUSAGE: {name} [--<a string>]\n\nOverride Options:\n  -h --help  Display this message.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/option").args(["--", "--help"]),
+        "a string\n\nUSAGE: {name} [--<a string>]\n\nOverride Options:\n  -h --help  Display this message.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/option").args(["--foo", "-h"]),
+        "a string\n\nUSAGE: {name} [--<a string>]\n\nOverride Options:\n  -h --help  Display this message.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/option").args(["--foo", "--help"]),
+        "a string\n\nUSAGE: {name} [--<a string>]\n\nOverride Options:\n  -h --help  Display this message.\n"
+    );
+}

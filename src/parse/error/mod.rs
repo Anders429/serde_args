@@ -52,7 +52,7 @@ impl Display for Error {
                     .iter()
                     .filter(|field| {
                         // Only compare long options with long options and short options with short options.
-                        if name_count == 1 {
+                        if name_count <= 1 {
                             field.chars().count() == 1
                         } else {
                             field.chars().count() != 1
@@ -66,7 +66,7 @@ impl Display for Error {
                 write!(
                     formatter,
                     "unrecognized optional flag: {}",
-                    if name.chars().count() == 1 {
+                    if name.chars().count() <= 1 {
                         format!("-{}", name)
                     } else {
                         format!("--{}", name)

@@ -534,11 +534,19 @@ where
                             }
                             if !found {
                                 // The argument could belong to a neighboring context.
-                                args.revisit = Some({
-                                    let mut bytes = vec![b'-', b'-'];
-                                    bytes.extend(value);
-                                    bytes
-                                });
+                                if identifier.chars().count() <= 1 {
+                                    args.revisit = Some({
+                                        let mut bytes = vec![b'-'];
+                                        bytes.extend(value);
+                                        bytes
+                                    });
+                                } else {
+                                    args.revisit = Some({
+                                        let mut bytes = vec![b'-', b'-'];
+                                        bytes.extend(value);
+                                        bytes
+                                    });
+                                }
                                 break;
                             }
                         }
