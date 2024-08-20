@@ -309,3 +309,60 @@ fn optional_fields() {
         "ERROR: unexpected positional argument: --foo\n\nUSAGE: {name} [options]\n\nFor more information, use --help.\n"
     );
 }
+
+#[test]
+fn r#enum() {
+    assert_run_ok!(Command::new("tests/from_args/enum").args(["foo"]));
+    assert_run_ok!(Command::new("tests/from_args/enum").args(["bar", "42"]));
+    assert_run_ok!(Command::new("tests/from_args/enum").args(["baz"]));
+    assert_run_ok!(Command::new("tests/from_args/enum").args(["baz", "--"]));
+    assert_run_ok!(Command::new("tests/from_args/enum").args(["baz", "-"]));
+    assert_run_ok!(Command::new("tests/from_args/enum").args(["baz", "--foo"]));
+    assert_run_ok!(Command::new("tests/from_args/enum").args(["qux", "hello"]));
+    assert_run_ok!(Command::new("tests/from_args/enum").args(["qux", "--optional", "hi", "hello"]));
+    assert_run_ok!(Command::new("tests/from_args/enum").args(["qux", "hello", "--optional", "hi"]));
+    assert_run_ok!(Command::new("tests/from_args/enum").args([
+        "qux",
+        "--optional",
+        "hi",
+        "--",
+        "--help"
+    ]));
+
+    assert_run_err!(
+        Command::new("tests/from_args/enum").args(["--"]),
+        "ERROR: missing required positional argument: <Command>\n\nUSAGE: {name} <Command>\n\nFor more information, use --help.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/enum"),
+        "enum Command\n\nUSAGE: {name} <Command>\n\nRequired Arguments:\n  <Command>  enum Command\n\nOverride Options:\n  -h --help  Display this message.\n\nCommand Variants:\n  foo                       \n  bar <u8>                  \n  baz [--<a string>]        \n  qux [options] <required>  \n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/enum").args(["-h"]),
+        "enum Command\n\nUSAGE: {name} <Command>\n\nRequired Arguments:\n  <Command>  enum Command\n\nOverride Options:\n  -h --help  Display this message.\n\nCommand Variants:\n  foo                       \n  bar <u8>                  \n  baz [--<a string>]        \n  qux [options] <required>  \n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/enum").args(["--help"]),
+        "enum Command\n\nUSAGE: {name} <Command>\n\nRequired Arguments:\n  <Command>  enum Command\n\nOverride Options:\n  -h --help  Display this message.\n\nCommand Variants:\n  foo                       \n  bar <u8>                  \n  baz [--<a string>]        \n  qux [options] <required>  \n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/enum").args(["--help", "foo"]),
+        "USAGE: {name} foo \n\nOverride Options:\n  -h --help  Display this message.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/enum").args(["bar", "--help"]),
+        "USAGE: {name} bar <u8>\n\nRequired Arguments:\n  <u8>  u8\n\nOverride Options:\n  -h --help  Display this message.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/enum").args(["baz", "--", "--help"]),
+        "USAGE: {name} baz [--<a string>]\n\nOverride Options:\n  -h --help  Display this message.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/enum").args(["qux", "--help", "foo"]),
+        "USAGE: {name} qux [qux options] <required>\n\nRequired Arguments:\n  <required>  \n\nGlobal Options:\n  --optional <a string>  \n\nOverride Options:\n  -h --help  Display this message.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/enum").args(["quux"]),
+        "ERROR: unrecognized command: quux\n\n  tip: a similar command exists: qux\n\nUSAGE: {name} <Command>\n\nFor more information, use --help.\n"
+    );
+}
