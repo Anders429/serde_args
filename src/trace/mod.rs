@@ -1996,6 +1996,107 @@ mod tests {
     }
 
     #[test]
+    fn trace_struct_with_field_descriptions_aliases() {
+        #[allow(dead_code)]
+        struct Struct {
+            foo: String,
+            bar: u32,
+        }
+
+        impl<'de> Deserialize<'de> for Struct {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                #[derive(Deserialize)]
+                #[serde(field_identifier)]
+                #[serde(rename_all = "lowercase")]
+                enum Key {
+                    #[serde(alias = "f")]
+                    Foo,
+                    #[serde(alias = "b")]
+                    Bar,
+                }
+
+                struct StructVisitor;
+
+                impl<'de> Visitor<'de> for StructVisitor {
+                    type Value = Struct;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        match formatter.width() {
+                            Some(0) => formatter.write_str("foo description"),
+                            Some(1) => formatter.write_str("bar description"),
+                            _ => formatter.write_str("Struct description"),
+                        }
+                    }
+
+                    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+                    where
+                        A: MapAccess<'de>,
+                    {
+                        let mut foo = None;
+                        let mut bar = None;
+
+                        while let Some(key) = map.next_key()? {
+                            match key {
+                                Key::Foo => {
+                                    if foo.is_some() {
+                                        return Err(de::Error::duplicate_field("foo"));
+                                    }
+                                    foo = Some(map.next_value()?);
+                                }
+                                Key::Bar => {
+                                    if bar.is_some() {
+                                        return Err(de::Error::duplicate_field("bar"));
+                                    }
+                                    bar = Some(map.next_value()?);
+                                }
+                            }
+                        }
+
+                        Ok(Struct {
+                            foo: foo.ok_or_else(|| de::Error::missing_field("foo"))?,
+                            bar: bar.ok_or_else(|| de::Error::missing_field("bar"))?,
+                        })
+                    }
+                }
+
+                deserializer.deserialize_struct("Struct", &["foo", "f", "bar", "b"], StructVisitor)
+            }
+        }
+
+        assert_ok_eq!(
+            trace(PhantomData::<Struct>),
+            Shape::Struct {
+                name: "Struct",
+                description: "Struct description".into(),
+                required: vec![
+                    Field {
+                        name: "foo",
+                        description: "foo description".into(),
+                        aliases: vec!["f"],
+                        shape: Shape::Primitive {
+                            name: "a string".into(),
+                            description: "a string".into(),
+                        }
+                    },
+                    Field {
+                        name: "bar",
+                        description: "bar description".into(),
+                        aliases: vec!["b"],
+                        shape: Shape::Primitive {
+                            name: "u32".into(),
+                            description: "u32".into(),
+                        }
+                    },
+                ],
+                optional: vec![],
+            }
+        );
+    }
+
+    #[test]
     fn trace_enum_with_variant_descriptions() {
         enum Enum {
             Foo,
@@ -2061,6 +2162,83 @@ mod tests {
                         name: "bar",
                         description: "bar description".into(),
                         aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new(),
+                        },
+                    },
+                ],
+            }
+        );
+    }
+
+    #[test]
+    fn trace_enum_with_variant_descriptions_aliases() {
+        enum Enum {
+            Foo,
+            Bar,
+        }
+
+        impl<'de> Deserialize<'de> for Enum {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                #[derive(Deserialize)]
+                #[serde(variant_identifier)]
+                #[serde(rename_all = "lowercase")]
+                enum Key {
+                    #[serde(alias = "f")]
+                    Foo,
+                    #[serde(alias = "b")]
+                    Bar,
+                }
+
+                struct EnumVisitor;
+
+                impl<'de> Visitor<'de> for EnumVisitor {
+                    type Value = Enum;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        match formatter.width() {
+                            Some(0) => formatter.write_str("foo description"),
+                            Some(1) => formatter.write_str("bar description"),
+                            _ => formatter.write_str("Enum description"),
+                        }
+                    }
+
+                    fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>
+                    where
+                        A: de::EnumAccess<'de>,
+                    {
+                        match data.variant()? {
+                            (Key::Foo, variant) => variant.unit_variant().map(|_| Enum::Foo),
+                            (Key::Bar, variant) => variant.unit_variant().map(|_| Enum::Bar),
+                        }
+                    }
+                }
+
+                deserializer.deserialize_enum("Enum", &["foo", "f", "bar", "b"], EnumVisitor)
+            }
+        }
+
+        assert_ok_eq!(
+            trace(PhantomData::<Enum>),
+            Shape::Enum {
+                name: "Enum",
+                description: "Enum description".into(),
+                variants: vec![
+                    Variant {
+                        name: "foo",
+                        description: "foo description".into(),
+                        aliases: vec!["f"],
+                        shape: Shape::Empty {
+                            description: String::new(),
+                        },
+                    },
+                    Variant {
+                        name: "bar",
+                        description: "bar description".into(),
+                        aliases: vec!["b"],
                         shape: Shape::Empty {
                             description: String::new(),
                         },
