@@ -10,18 +10,18 @@ use syn::{
 };
 
 #[derive(Debug)]
-struct Documentation {
-    exprs: Vec<Expr>,
+struct Documentation<'a> {
+    exprs: Vec<&'a Expr>,
 }
 
-impl From<&Vec<Attribute>> for Documentation {
-    fn from(attrs: &Vec<Attribute>) -> Self {
+impl<'a> From<&'a Vec<Attribute>> for Documentation<'a> {
+    fn from(attrs: &'a Vec<Attribute>) -> Self {
         let mut exprs = Vec::new();
         for attr in attrs {
             if let Meta::NameValue(name_value) = &attr.meta {
                 if let Some(ident) = name_value.path.get_ident() {
                     if *ident == "doc" {
-                        exprs.push(name_value.value.clone());
+                        exprs.push(&name_value.value);
                     }
                 }
             }
@@ -31,9 +31,9 @@ impl From<&Vec<Attribute>> for Documentation {
 }
 
 #[derive(Debug)]
-struct Descriptions {
-    container: Documentation,
-    keys: Vec<Documentation>,
+struct Descriptions<'a> {
+    container: Documentation<'a>,
+    keys: Vec<Documentation<'a>>,
 }
 
 fn parse_descriptions(item: &Item) -> Result<Descriptions, TokenStream> {
