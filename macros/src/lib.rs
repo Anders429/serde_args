@@ -1,34 +1,3 @@
-//! This needs to convert from something like:
-//!
-//! ```rust
-//! #[serde_args::help]
-//! #[derive(Deserialize)]
-//! struct Foo {}
-//! ```
-//!
-//! to:
-//!
-//! ```rust
-//! struct FakeFoo {}
-//!
-//! impl<'de> Deserialize<'de> for FakeFoo {
-//!     // Implementation...
-//!     todo!()
-//! }
-//!
-//! impl From<FakeFoo>
-//!
-//! #[derive(Deserialize)]
-//! #[serde(from = "Foo")]
-//! struct Foo {}
-//! ```
-//!
-//! Basically, the idea is to offload the help stuff (which will be in a custom visitor used in the
-//! deserialization implementation) to another struct, and then use the built-in `serde(from)`
-//! attribute to forward the deserialization to it.
-
-// Use this as a basis: https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=cdca656337fc7c54b124f5ef12312f47
-
 use proc_macro::TokenStream;
 use proc_macro2::{Delimiter, Group, Span, TokenStream as TokenStream2};
 use quote::quote;
