@@ -14,6 +14,22 @@ struct Documentation {
     exprs: Vec<Expr>,
 }
 
+impl From<Vec<Attribute>> for Documentation {
+    fn from(attrs: Vec<Attribute>) -> Self {
+        let mut exprs = Vec::new();
+        for attr in attrs {
+            if let Meta::NameValue(name_value) = attr.meta {
+                if let Some(ident) = name_value.path.get_ident() {
+                    if *ident == "doc" {
+                        exprs.push(name_value.value);
+                    }
+                }
+            }
+        }
+        Self { exprs }
+    }
+}
+
 #[derive(Debug)]
 struct Descriptions {
     container: Documentation,
@@ -23,64 +39,25 @@ struct Descriptions {
 fn parse_descriptions(item: TokenStream) -> parse::Result<Descriptions> {
     match parse2(item)? {
         Item::Enum(item) => {
-            // Extract the container description from the enum's documentation
-            let mut container = Documentation { exprs: vec![] };
-            for attr in item.attrs {
-                if let Meta::NameValue(name_value) = attr.meta {
-                    if let Some(ident) = name_value.path.get_ident() {
-                        if *ident == "doc" {
-                            container.exprs.push(name_value.value);
-                        }
-                    }
-                }
-            }
+            let container = Documentation::from(item.attrs);
 
             // Extract variant information.
             let mut keys = vec![];
             for variant in item.variants {
-                let mut key = Documentation { exprs: vec![] };
-                for attr in variant.attrs {
-                    if let Meta::NameValue(name_value) = attr.meta {
-                        if let Some(ident) = name_value.path.get_ident() {
-                            if *ident == "doc" {
-                                key.exprs.push(name_value.value);
-                            }
-                        }
-                    }
-                }
-                keys.push(key);
+                keys.push(Documentation::from(variant.attrs));
             }
 
             Ok(Descriptions { container, keys })
         }
         Item::Struct(item) => {
             // Extract the container description from the struct's documentation.
-            let mut container = Documentation { exprs: vec![] };
-            for attr in item.attrs {
-                if let Meta::NameValue(name_value) = attr.meta {
-                    if let Some(ident) = name_value.path.get_ident() {
-                        if *ident == "doc" {
-                            container.exprs.push(name_value.value);
-                        }
-                    }
-                }
-            }
+            let container = Documentation::from(item.attrs);
 
             // Extract field information.
             if let Fields::Named(fields) = item.fields {
                 let mut keys = vec![];
                 for field in Fields::from(fields) {
-                    let mut key = Documentation { exprs: vec![] };
-                    for attr in field.attrs {
-                        if let Meta::NameValue(name_value) = attr.meta {
-                            if let Some(ident) = name_value.path.get_ident() {
-                                if *ident == "doc" {
-                                    key.exprs.push(name_value.value);
-                                }
-                            }
-                        }
-                    }
-                    keys.push(key);
+                    keys.push(Documentation::from(field.attrs));
                 }
 
                 Ok(Descriptions { container, keys })
