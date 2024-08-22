@@ -14,14 +14,14 @@ struct Documentation {
     exprs: Vec<Expr>,
 }
 
-impl From<Vec<Attribute>> for Documentation {
-    fn from(attrs: Vec<Attribute>) -> Self {
+impl From<&Vec<Attribute>> for Documentation {
+    fn from(attrs: &Vec<Attribute>) -> Self {
         let mut exprs = Vec::new();
         for attr in attrs {
-            if let Meta::NameValue(name_value) = attr.meta {
+            if let Meta::NameValue(name_value) = &attr.meta {
                 if let Some(ident) = name_value.path.get_ident() {
                     if *ident == "doc" {
-                        exprs.push(name_value.value);
+                        exprs.push(name_value.value.clone());
                     }
                 }
             }
@@ -36,28 +36,28 @@ struct Descriptions {
     keys: Vec<Documentation>,
 }
 
-fn parse_descriptions(item: TokenStream) -> parse::Result<Descriptions> {
-    match parse2(item)? {
+fn parse_descriptions(item: &Item) -> Result<Descriptions, TokenStream> {
+    match item {
         Item::Enum(item) => {
-            let container = Documentation::from(item.attrs);
+            let container = Documentation::from(&item.attrs);
 
             // Extract variant information.
             let mut keys = vec![];
-            for variant in item.variants {
-                keys.push(Documentation::from(variant.attrs));
+            for variant in &item.variants {
+                keys.push(Documentation::from(&variant.attrs));
             }
 
             Ok(Descriptions { container, keys })
         }
         Item::Struct(item) => {
             // Extract the container description from the struct's documentation.
-            let container = Documentation::from(item.attrs);
+            let container = Documentation::from(&item.attrs);
 
             // Extract field information.
-            if let Fields::Named(fields) = item.fields {
+            if let fields @ Fields::Named(_) = &item.fields {
                 let mut keys = vec![];
-                for field in Fields::from(fields) {
-                    keys.push(Documentation::from(field.attrs));
+                for field in fields {
+                    keys.push(Documentation::from(&field.attrs));
                 }
 
                 Ok(Descriptions { container, keys })
@@ -65,13 +65,15 @@ fn parse_descriptions(item: TokenStream) -> parse::Result<Descriptions> {
                 Err(parse::Error::new(
                     Span::call_site(),
                     "cannot use `serde_args::help` on struct with non-named fields",
-                ))
+                )
+                .into_compile_error())
             }
         }
         item => Err(parse::Error::new(
             Span::call_site(),
             format!("cannot use `serde_args::help` macro on {:?} item", item),
-        )),
+        )
+        .into_compile_error()),
     }
 }
 
@@ -490,7 +492,10 @@ fn parse_visibility(item: TokenStream) -> parse::Result<Visibility> {
 
 pub(super) fn process(item: TokenStream) -> parse::Result<TokenStream> {
     // Parse the descriptions from the container.
-    let descriptions = parse_descriptions(item.clone())?;
+    let descriptions = match parse_descriptions(&parse2(item.clone())?) {
+        Ok(descriptions) => descriptions,
+        Err(error) => return Ok(error),
+    };
     let visibility = parse_visibility(item.clone())?;
     let ident = parse_identifier(item.clone())?;
 
