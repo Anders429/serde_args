@@ -474,30 +474,31 @@ fn phase_3(item: TokenStream) -> parse::Result<TokenStream> {
     })
 }
 
-fn parse_identifier(item: TokenStream) -> parse::Result<Ident> {
-    match parse2(item)? {
-        Item::Enum(item) => Ok(item.ident),
-        Item::Struct(item) => Ok(item.ident),
+fn parse_identifier(item: &Item) -> &Ident {
+    match item {
+        Item::Enum(item) => &item.ident,
+        Item::Struct(item) => &item.ident,
         _ => todo!(),
     }
 }
 
-fn parse_visibility(item: TokenStream) -> parse::Result<Visibility> {
-    match parse2(item)? {
-        Item::Enum(item) => Ok(item.vis),
-        Item::Struct(item) => Ok(item.vis),
+fn parse_visibility(item: &Item) -> &Visibility {
+    match item {
+        Item::Enum(item) => &item.vis,
+        Item::Struct(item) => &item.vis,
         _ => todo!(),
     }
 }
 
 pub(super) fn process(item: TokenStream) -> parse::Result<TokenStream> {
     // Parse the descriptions from the container.
-    let descriptions = match parse_descriptions(&parse2(item.clone())?) {
+    let parsed_item = parse2(item.clone())?;
+    let descriptions = match parse_descriptions(&parsed_item) {
         Ok(descriptions) => descriptions,
         Err(error) => return Ok(error),
     };
-    let visibility = parse_visibility(item.clone())?;
-    let ident = parse_identifier(item.clone())?;
+    let visibility = parse_visibility(&parsed_item);
+    let ident = parse_identifier(&parsed_item);
 
     // Extract the container.
     let phase_1 = phase_1(item.clone(), &ident)?;
