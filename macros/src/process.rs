@@ -474,31 +474,45 @@ fn phase_3(item: TokenStream) -> parse::Result<TokenStream> {
     })
 }
 
-fn parse_identifier(item: &Item) -> &Ident {
+fn parse_identifier(item: &Item) -> Result<&Ident, TokenStream> {
     match item {
-        Item::Enum(item) => &item.ident,
-        Item::Struct(item) => &item.ident,
-        _ => todo!(),
+        Item::Enum(item) => Ok(&item.ident),
+        Item::Struct(item) => Ok(&item.ident),
+        item => Err(parse::Error::new(
+            Span::call_site(),
+            format!("cannot use `serde_args::help` macro on {:?} item", item),
+        )
+        .into_compile_error()),
     }
 }
 
-fn parse_visibility(item: &Item) -> &Visibility {
+fn parse_visibility(item: &Item) -> Result<&Visibility, TokenStream> {
     match item {
-        Item::Enum(item) => &item.vis,
-        Item::Struct(item) => &item.vis,
-        _ => todo!(),
+        Item::Enum(item) => Ok(&item.vis),
+        Item::Struct(item) => Ok(&item.vis),
+        item => Err(parse::Error::new(
+            Span::call_site(),
+            format!("cannot use `serde_args::help` macro on {:?} item", item),
+        )
+        .into_compile_error()),
     }
+}
+
+macro_rules! return_error {
+    ($result: expr) => {
+        match $result {
+            Ok(value) => value,
+            Err(error) => return Ok(error),
+        }
+    };
 }
 
 pub(super) fn process(item: TokenStream) -> parse::Result<TokenStream> {
     // Parse the descriptions from the container.
     let parsed_item = parse2(item.clone())?;
-    let descriptions = match parse_descriptions(&parsed_item) {
-        Ok(descriptions) => descriptions,
-        Err(error) => return Ok(error),
-    };
-    let visibility = parse_visibility(&parsed_item);
-    let ident = parse_identifier(&parsed_item);
+    let descriptions = return_error!(parse_descriptions(&parsed_item));
+    let visibility = return_error!(parse_visibility(&parsed_item));
+    let ident = return_error!(parse_identifier(&parsed_item));
 
     // Extract the container.
     let phase_1 = phase_1(item.clone(), &ident)?;
