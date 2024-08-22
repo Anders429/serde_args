@@ -212,13 +212,83 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
 
     fn deserialize_newtype_struct<V>(
         self,
-        _name: &'static str,
+        struct_name: &'static str,
         visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_newtype_struct(self)
+        fn key_description_from_visitor(visitor: &dyn Expected, key: usize) -> String {
+            format!("{:#key$}", visitor)
+        }
+        // If the contained type is a struct or enum, we attempt to overwrite descriptions using
+        // this visitor.
+        match mem::replace(&mut self.keys, Keys::None) {
+            Keys::None => {
+                match visitor.visit_newtype_struct(
+                    self.recursive_deserializer
+                        .get_or_insert(Box::new(Deserializer::new()))
+                        .as_mut(),
+                ) {
+                    passthrough @ Ok(_)
+                    | passthrough @ Err(Trace(Err(_)))
+                    | passthrough @ Err(Trace(Ok(Status::Continue))) => passthrough,
+                    Err(Trace(Ok(Status::Success(shape)))) => {
+                        self.keys = Keys::Newtype(shape);
+                        Err(Trace(Ok(Status::Continue)))
+                    }
+                }
+            }
+            Keys::Newtype(mut shape) => {
+                // Extract descriptions.
+                let container_description = description_from_visitor(&visitor);
+                match &mut shape {
+                    Shape::Empty { description } => *description = container_description,
+                    Shape::Primitive { name, description } => {
+                        *name = struct_name.into();
+                        *description = container_description;
+                    }
+                    Shape::Optional(_) => {}
+                    Shape::Struct {
+                        name,
+                        description,
+                        required,
+                        optional,
+                    } => {
+                        *name = struct_name;
+                        if !container_description.is_empty() {
+                            *description = container_description.clone();
+                        }
+                        for field in required.iter_mut().chain(optional.iter_mut()) {
+                            let description = key_description_from_visitor(&visitor, field.index);
+                            if description != container_description && !description.is_empty() {
+                                field.description = description;
+                            }
+                        }
+                    }
+                    Shape::Enum {
+                        name,
+                        description,
+                        variants,
+                    } => {
+                        *name = struct_name;
+                        if !container_description.is_empty() {
+                            *description = container_description.clone();
+                        }
+                        for (index, variant) in variants.iter_mut().enumerate() {
+                            let description = key_description_from_visitor(&visitor, index);
+                            if description != container_description && !description.is_empty() {
+                                variant.description = description;
+                            }
+                        }
+                    }
+                    Shape::Variant { .. } => unreachable!(),
+                }
+
+                Err(Trace(Ok(Status::Success(shape))))
+            }
+            Keys::Fields(_) | Keys::Variants(_) => unimplemented!(),
+        }
     }
 
     fn deserialize_seq<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
@@ -314,7 +384,8 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                             shape: *shape,
                                         };
                                         let mut found = false;
-                                        for (info, (names, _)) in fields.optional_fields.iter_mut()
+                                        for (info, (names, _, _)) in
+                                            fields.optional_fields.iter_mut()
                                         {
                                             if *info == key_info {
                                                 found = true;
@@ -323,9 +394,15 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                             }
                                         }
                                         if !found {
-                                            fields
-                                                .optional_fields
-                                                .push((key_info, (vec![field], description)));
+                                            fields.optional_fields.push((
+                                                key_info,
+                                                (
+                                                    vec![field],
+                                                    description,
+                                                    fields.required_fields.len()
+                                                        + fields.optional_fields.len(),
+                                                ),
+                                            ));
                                         }
                                     }
                                     shape @ _ => {
@@ -335,7 +412,8 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                             shape,
                                         };
                                         let mut found = false;
-                                        for (info, (names, _)) in fields.required_fields.iter_mut()
+                                        for (info, (names, _, _)) in
+                                            fields.required_fields.iter_mut()
                                         {
                                             if *info == key_info {
                                                 found = true;
@@ -344,9 +422,15 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                             }
                                         }
                                         if !found {
-                                            fields
-                                                .required_fields
-                                                .push((key_info, (vec![field], description)));
+                                            fields.required_fields.push((
+                                                key_info,
+                                                (
+                                                    vec![field],
+                                                    description,
+                                                    fields.required_fields.len()
+                                                        + fields.optional_fields.len(),
+                                                ),
+                                            ));
                                         }
                                     }
                                 }
@@ -1030,11 +1114,17 @@ mod tests {
 
         let mut deserializer = Deserializer::new();
 
+        // Deserialize inner type.
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        // Get full deserialization result.
         assert_ok_eq!(
             assert_err!(Newtype::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Primitive {
-                name: "i32".to_owned(),
-                description: "i32".to_owned(),
+                name: "Newtype".to_owned(),
+                description: "tuple struct Newtype".to_owned(),
             })
         );
     }
@@ -1074,6 +1164,7 @@ mod tests {
                             name: "usize".to_owned(),
                             description: "usize".to_owned(),
                         },
+                        index: 0,
                     },
                     Field {
                         name: "bar",
@@ -1083,6 +1174,7 @@ mod tests {
                             name: "a string".to_owned(),
                             description: "a string".to_owned(),
                         },
+                        index: 1,
                     },
                 ],
                 optional: vec![],
@@ -1177,6 +1269,7 @@ mod tests {
                             name: "usize".to_owned(),
                             description: "usize".to_owned(),
                         },
+                        index: 0,
                     },
                     Field {
                         name: "b",
@@ -1186,6 +1279,7 @@ mod tests {
                             name: "a string".to_owned(),
                             description: "a string".to_owned(),
                         },
+                        index: 1,
                     },
                 ],
                 optional: vec![],
@@ -1227,6 +1321,7 @@ mod tests {
                         name: "a string".to_owned(),
                         description: "a string".to_owned(),
                     },
+                    index: 1,
                 },],
                 optional: vec![Field {
                     name: "foo",
@@ -1236,6 +1331,7 @@ mod tests {
                         name: "usize".to_owned(),
                         description: "usize".to_owned(),
                     },
+                    index: 0,
                 },],
             })
         );
@@ -1293,9 +1389,11 @@ mod tests {
                                     name: "usize".to_owned(),
                                     description: "usize".to_owned(),
                                 },
+                                index: 0,
                             },],
                             optional: vec![],
-                        }
+                        },
+                        index: 0,
                     },
                     Field {
                         name: "bar",
@@ -1304,7 +1402,8 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "isize".to_owned(),
                             description: "isize".to_owned(),
-                        }
+                        },
+                        index: 1,
                     }
                 ],
                 optional: vec![],
@@ -1336,12 +1435,17 @@ mod tests {
             assert_err!(Newtype::deserialize(&mut deserializer)).0,
             Status::Continue
         );
+        // Obtain information about the newtype struct.
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
         // Get deserialization result.
         assert_ok_eq!(
             assert_err!(Newtype::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Struct {
-                name: "Struct",
-                description: "struct Struct".into(),
+                name: "Newtype",
+                description: "tuple struct Newtype".into(),
                 required: vec![
                     Field {
                         name: "foo",
@@ -1351,6 +1455,7 @@ mod tests {
                             name: "usize".to_owned(),
                             description: "usize".to_owned(),
                         },
+                        index: 0,
                     },
                     Field {
                         name: "bar",
@@ -1360,6 +1465,7 @@ mod tests {
                             name: "a string".to_owned(),
                             description: "a string".to_owned(),
                         },
+                        index: 1,
                     },
                 ],
                 optional: vec![],
@@ -1458,6 +1564,7 @@ mod tests {
                                     name: "a string".to_owned(),
                                     description: "a string".to_owned(),
                                 },
+                                index: 1,
                             },],
                             optional: vec![Field {
                                 name: "foo",
@@ -1467,6 +1574,7 @@ mod tests {
                                     name: "usize".to_owned(),
                                     description: "usize".to_owned(),
                                 },
+                                index: 0,
                             },],
                         },
                     },
@@ -1881,6 +1989,7 @@ mod tests {
                             name: "u64".into(),
                             description: "u64".into()
                         },
+                        index: 0,
                     },
                     Field {
                         name: "baz",
@@ -1889,6 +1998,7 @@ mod tests {
                         shape: Shape::Empty {
                             description: "unit".into()
                         },
+                        index: 1,
                     }
                 ],
                 optional: vec![],
@@ -1978,7 +2088,8 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "a string".into(),
                             description: "a string".into(),
-                        }
+                        },
+                        index: 0,
                     },
                     Field {
                         name: "bar",
@@ -1987,7 +2098,8 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "u32".into(),
                             description: "u32".into(),
-                        }
+                        },
+                        index: 1,
                     },
                 ],
                 optional: vec![],
@@ -2079,7 +2191,8 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "a string".into(),
                             description: "a string".into(),
-                        }
+                        },
+                        index: 0,
                     },
                     Field {
                         name: "bar",
@@ -2088,7 +2201,8 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "u32".into(),
                             description: "u32".into(),
-                        }
+                        },
+                        index: 1,
                     },
                 ],
                 optional: vec![],

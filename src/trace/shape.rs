@@ -10,6 +10,7 @@ pub(crate) struct Field {
     pub(crate) description: String,
     pub(crate) aliases: Vec<&'static str>,
     pub(crate) shape: Shape,
+    pub(crate) index: usize,
 }
 
 impl Field {
@@ -296,6 +297,7 @@ mod tests {
                     shape: Shape::Empty {
                         description: String::new()
                     },
+                    index: 0,
                 }
             ),
             ""
@@ -315,6 +317,7 @@ mod tests {
                         name: "bar".to_owned(),
                         description: String::new(),
                     },
+                    index: 0,
                 }
             ),
             "<foo>"
@@ -333,6 +336,7 @@ mod tests {
                     shape: Shape::Optional(Box::new(Shape::Empty {
                         description: String::new(),
                     })),
+                    index: 0,
                 }
             ),
             "[--foo]"
@@ -352,6 +356,7 @@ mod tests {
                         name: "bar".to_owned(),
                         description: String::new(),
                     })),
+                    index: 0,
                 }
             ),
             "[--foo <bar>]"
@@ -371,6 +376,7 @@ mod tests {
                         name: "bar".to_owned(),
                         description: String::new(),
                     })))),
+                    index: 0,
                 }
             ),
             "[--foo [--<bar>]]"
@@ -398,6 +404,7 @@ mod tests {
                                     name: "foo".to_owned(),
                                     description: String::new(),
                                 },
+                                index: 0,
                             },
                             Field {
                                 name: "baz",
@@ -407,10 +414,12 @@ mod tests {
                                     name: "foo".to_owned(),
                                     description: String::new(),
                                 },
+                                index: 1,
                             },
                         ],
                         optional: vec![],
                     })),
+                    index: 0,
                 }
             ),
             "[--foo <bar> <baz>]"
@@ -431,6 +440,7 @@ mod tests {
                         description: String::new(),
                         variants: vec![],
                     })),
+                    index: 0,
                 }
             ),
             "[--foo <bar>]"
@@ -456,6 +466,7 @@ mod tests {
                         variants: vec![],
                         enum_name: "qux",
                     })),
+                    index: 0,
                 }
             ),
             "[--foo bar <baz>]"
@@ -537,7 +548,8 @@ mod tests {
                             shape: Shape::Primitive {
                                 name: "baz".to_owned(),
                                 description: String::new(),
-                            }
+                            },
+                            index: 0,
                         },],
                         optional: vec![Field {
                             name: "qux",
@@ -546,7 +558,8 @@ mod tests {
                             shape: Shape::Primitive {
                                 name: "quux".to_owned(),
                                 description: String::new(),
-                            }
+                            },
+                            index: 1,
                         },],
                     },
                 }
@@ -687,6 +700,7 @@ mod tests {
                         name: "baz".to_owned(),
                         description: String::new(),
                     },
+                    index: 0,
                 },],
                 optional: vec![],
             }
@@ -775,6 +789,7 @@ mod tests {
                         name: "baz".to_owned(),
                         description: String::new(),
                     },
+                    index: 0,
                 },],
                 optional: vec![Field {
                     name: "qux",
@@ -784,6 +799,7 @@ mod tests {
                         name: "quux".to_owned(),
                         description: String::new(),
                     },
+                    index: 1,
                 },],
             }
             .required_arguments(),
@@ -878,6 +894,7 @@ mod tests {
                         name: "baz".to_owned(),
                         description: String::new(),
                     },
+                    index: 0,
                 },],
                 optional: vec![Field {
                     name: "qux",
@@ -887,6 +904,7 @@ mod tests {
                         name: "quux".to_owned(),
                         description: String::new(),
                     },
+                    index: 1,
                 },],
             }))
             .optional_groups(),
@@ -900,6 +918,7 @@ mod tests {
                         name: "quux".to_owned(),
                         description: String::new(),
                     },
+                    index: 1,
                 },]
             )]
         );
@@ -920,6 +939,7 @@ mod tests {
                             name: "baz".to_owned(),
                             description: String::new(),
                         },
+                        index: 0,
                     },
                     Field {
                         name: "qux",
@@ -929,6 +949,7 @@ mod tests {
                             name: "quux".to_owned(),
                             description: String::new(),
                         },
+                        index: 1,
                     },
                 ],
                 optional: vec![],
@@ -954,6 +975,7 @@ mod tests {
                             name: "baz".to_owned(),
                             description: String::new(),
                         },
+                        index: 0,
                     },
                     Field {
                         name: "qux",
@@ -963,6 +985,7 @@ mod tests {
                             name: "quux".to_owned(),
                             description: String::new(),
                         },
+                        index: 1,
                     },
                 ],
             }
@@ -978,6 +1001,7 @@ mod tests {
                             name: "baz".to_owned(),
                             description: String::new(),
                         },
+                        index: 0,
                     },
                     &Field {
                         name: "qux",
@@ -987,6 +1011,7 @@ mod tests {
                             name: "quux".to_owned(),
                             description: String::new(),
                         },
+                        index: 1,
                     },
                 ]
             )],
@@ -1017,6 +1042,7 @@ mod tests {
                                         name: "baz".to_owned(),
                                         description: String::new(),
                                     },
+                                    index: 0,
                                 },
                                 Field {
                                     name: "qux",
@@ -1026,9 +1052,11 @@ mod tests {
                                         name: "quux".to_owned(),
                                         description: String::new(),
                                     },
+                                    index: 1,
                                 },
                             ],
-                        }
+                        },
+                        index: 0,
                     },
                     Field {
                         name: "qux",
@@ -1046,6 +1074,7 @@ mod tests {
                                         name: "baz".to_owned(),
                                         description: String::new(),
                                     },
+                                    index: 0,
                                 },
                                 Field {
                                     name: "qux",
@@ -1055,10 +1084,12 @@ mod tests {
                                         name: "quux".to_owned(),
                                         description: String::new(),
                                     },
+                                    index: 1,
                                 },
                             ],
                             optional: vec![],
-                        }
+                        },
+                        index: 1,
                     },
                 ],
                 optional: vec![Field {
@@ -1077,6 +1108,7 @@ mod tests {
                                     name: "baz".to_owned(),
                                     description: String::new(),
                                 },
+                                index: 0,
                             },
                             Field {
                                 name: "qux",
@@ -1086,10 +1118,12 @@ mod tests {
                                     name: "quux".to_owned(),
                                     description: String::new(),
                                 },
+                                index: 1,
                             },
                         ],
                         optional: vec![],
-                    }
+                    },
+                    index: 0,
                 },],
             }
             .optional_groups(),
@@ -1112,6 +1146,7 @@ mod tests {
                                         name: "baz".to_owned(),
                                         description: String::new(),
                                     },
+                                    index: 0,
                                 },
                                 Field {
                                     name: "qux",
@@ -1121,10 +1156,12 @@ mod tests {
                                         name: "quux".to_owned(),
                                         description: String::new(),
                                     },
+                                    index: 1,
                                 },
                             ],
                             optional: vec![],
-                        }
+                        },
+                        index: 0,
                     },]
                 ),
                 (
@@ -1138,6 +1175,7 @@ mod tests {
                                 name: "baz".to_owned(),
                                 description: String::new(),
                             },
+                            index: 0,
                         },
                         &Field {
                             name: "qux",
@@ -1147,6 +1185,7 @@ mod tests {
                                 name: "quux".to_owned(),
                                 description: String::new(),
                             },
+                            index: 1,
                         },
                     ]
                 ),
@@ -1177,6 +1216,7 @@ mod tests {
                                     name: "baz".to_owned(),
                                     description: String::new(),
                                 },
+                                index: 0,
                             },
                             Field {
                                 name: "qux",
@@ -1186,6 +1226,7 @@ mod tests {
                                     name: "quux".to_owned(),
                                     description: String::new(),
                                 },
+                                index: 1,
                             },
                         ],
                     },
@@ -1215,6 +1256,7 @@ mod tests {
                                 name: "baz".to_owned(),
                                 description: String::new(),
                             },
+                            index: 0,
                         },
                         Field {
                             name: "qux",
@@ -1224,6 +1266,7 @@ mod tests {
                                 name: "quux".to_owned(),
                                 description: String::new(),
                             },
+                            index: 1,
                         },
                     ],
                 },),
@@ -1244,6 +1287,7 @@ mod tests {
                                     name: "baz".to_owned(),
                                     description: String::new(),
                                 },
+                                index: 0,
                             },
                             Field {
                                 name: "qux",
@@ -1253,6 +1297,7 @@ mod tests {
                                     name: "quux".to_owned(),
                                     description: String::new(),
                                 },
+                                index: 1,
                             },
                         ],
                     },
@@ -1271,6 +1316,7 @@ mod tests {
                             name: "baz".to_owned(),
                             description: String::new(),
                         },
+                        index: 0,
                     },
                     &Field {
                         name: "qux",
@@ -1280,6 +1326,7 @@ mod tests {
                             name: "quux".to_owned(),
                             description: String::new(),
                         },
+                        index: 1,
                     },
                 ]
             )]
@@ -1385,6 +1432,7 @@ mod tests {
                             name: "baz".to_owned(),
                             description: String::new(),
                         },
+                        index: 0,
                     },
                     Field {
                         name: "qux",
@@ -1394,6 +1442,7 @@ mod tests {
                             name: "quux".to_owned(),
                             description: String::new(),
                         },
+                        index: 1,
                     },
                 ],
                 optional: vec![],
@@ -1436,6 +1485,7 @@ mod tests {
                                 },
                             ],
                         },
+                        index: 0,
                     },
                     Field {
                         name: "qux",
@@ -1463,6 +1513,7 @@ mod tests {
                                 },
                             ],
                         },
+                        index: 1,
                     },
                 ],
                 optional: vec![],
@@ -1651,6 +1702,7 @@ mod tests {
                             name: "baz".to_owned(),
                             description: String::new(),
                         },
+                        index: 0,
                     },
                     Field {
                         name: "qux",
@@ -1660,6 +1712,7 @@ mod tests {
                             name: "quux".to_owned(),
                             description: String::new(),
                         },
+                        index: 1,
                     },
                 ],
             }))
@@ -1684,6 +1737,7 @@ mod tests {
                             name: "baz".to_owned(),
                             description: String::new(),
                         },
+                        index: 0,
                     },
                     Field {
                         name: "qux",
@@ -1693,6 +1747,7 @@ mod tests {
                             name: "quux".to_owned(),
                             description: String::new(),
                         },
+                        index: 1,
                     },
                 ],
             }
@@ -1706,6 +1761,7 @@ mod tests {
                         name: "baz".to_owned(),
                         description: String::new(),
                     },
+                    index: 0,
                 },
                 &Field {
                     name: "qux",
@@ -1715,6 +1771,7 @@ mod tests {
                         name: "quux".to_owned(),
                         description: String::new(),
                     },
+                    index: 1,
                 },
             ],
         );
@@ -1735,6 +1792,7 @@ mod tests {
                             name: "baz".to_owned(),
                             description: String::new(),
                         },
+                        index: 0,
                     },
                     Field {
                         name: "qux",
@@ -1744,6 +1802,7 @@ mod tests {
                             name: "quux".to_owned(),
                             description: String::new(),
                         },
+                        index: 1,
                     },
                 ],
                 optional: vec![],
@@ -1789,6 +1848,7 @@ mod tests {
                                     name: "baz".to_owned(),
                                     description: String::new(),
                                 },
+                                index: 0,
                             },
                             Field {
                                 name: "qux",
@@ -1798,6 +1858,7 @@ mod tests {
                                     name: "quux".to_owned(),
                                     description: String::new(),
                                 },
+                                index: 1,
                             },
                         ],
                     },
@@ -1845,6 +1906,7 @@ mod tests {
                                 name: "baz".to_owned(),
                                 description: String::new(),
                             },
+                            index: 0,
                         },
                         Field {
                             name: "qux",
@@ -1854,6 +1916,7 @@ mod tests {
                                 name: "quux".to_owned(),
                                 description: String::new(),
                             },
+                            index: 1,
                         },
                     ],
                 }),
@@ -1870,6 +1933,7 @@ mod tests {
                         name: "baz".to_owned(),
                         description: String::new(),
                     },
+                    index: 0,
                 },
                 &Field {
                     name: "qux",
@@ -1879,6 +1943,7 @@ mod tests {
                         name: "quux".to_owned(),
                         description: String::new(),
                     },
+                    index: 1,
                 },
             ]
         );
@@ -1969,6 +2034,7 @@ mod tests {
                                 name: "bar".to_owned(),
                                 description: String::new(),
                             },
+                            index: 0,
                         },
                         Field {
                             name: "baz",
@@ -1978,6 +2044,7 @@ mod tests {
                                 name: "qux".to_owned(),
                                 description: String::new(),
                             },
+                            index: 1,
                         },
                     ],
                     optional: vec![],
@@ -2039,6 +2106,7 @@ mod tests {
                                 name: "bar".to_owned(),
                                 description: String::new(),
                             },
+                            index: 0,
                         },
                         Field {
                             name: "baz",
@@ -2048,6 +2116,7 @@ mod tests {
                                 name: "qux".to_owned(),
                                 description: String::new(),
                             },
+                            index: 1,
                         },
                     ],
                     optional: vec![],
@@ -2075,6 +2144,7 @@ mod tests {
                                 name: "bar".to_owned(),
                                 description: String::new(),
                             },
+                            index: 0,
                         },
                         Field {
                             name: "baz",
@@ -2084,6 +2154,7 @@ mod tests {
                                 name: "qux".to_owned(),
                                 description: String::new(),
                             },
+                            index: 1,
                         },
                     ],
                 }
@@ -2109,6 +2180,7 @@ mod tests {
                                 name: "bar".to_owned(),
                                 description: String::new(),
                             },
+                            index: 0,
                         },
                         Field {
                             name: "baz",
@@ -2118,6 +2190,7 @@ mod tests {
                                 name: "qux".to_owned(),
                                 description: String::new(),
                             },
+                            index: 1,
                         },
                     ],
                     optional: vec![
@@ -2129,6 +2202,7 @@ mod tests {
                                 name: "bar".to_owned(),
                                 description: String::new(),
                             },
+                            index: 2,
                         },
                         Field {
                             name: "baz",
@@ -2138,6 +2212,7 @@ mod tests {
                                 name: "qux".to_owned(),
                                 description: String::new(),
                             },
+                            index: 3,
                         },
                     ],
                 }
@@ -2164,6 +2239,7 @@ mod tests {
                                 name: "bar".to_owned(),
                                 description: String::new(),
                             },
+                            index: 0,
                         },
                         Field {
                             name: "baz",
@@ -2173,6 +2249,7 @@ mod tests {
                                 name: "qux".to_owned(),
                                 description: String::new(),
                             },
+                            index: 1,
                         },
                     ],
                 }

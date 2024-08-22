@@ -383,7 +383,8 @@ mod tests {
                                 shape: Shape::Primitive {
                                     name: "not shown".into(),
                                     description: "not shown".into(),
-                                }
+                                },
+                                index: 0,
                             }],
                             optional: vec![
                                 Field {
@@ -393,7 +394,8 @@ mod tests {
                                     shape: Shape::Primitive {
                                         name: "u64".into(),
                                         description: "not shown".into(),
-                                    }
+                                    },
+                                    index: 0,
                                 }
                             ],
                         },

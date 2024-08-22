@@ -15,8 +15,8 @@ pub(super) struct Fields {
     pub(super) description: String,
     pub(super) iter: slice::Iter<'static, &'static str>,
     pub(super) revisit: Option<&'static str>,
-    pub(super) required_fields: Vec<(KeyInfo, (Vec<&'static str>, String))>,
-    pub(super) optional_fields: Vec<(KeyInfo, (Vec<&'static str>, String))>,
+    pub(super) required_fields: Vec<(KeyInfo, (Vec<&'static str>, String, usize))>,
+    pub(super) optional_fields: Vec<(KeyInfo, (Vec<&'static str>, String, usize))>,
 }
 
 impl From<Fields> for Shape {
@@ -27,26 +27,28 @@ impl From<Fields> for Shape {
             required: fields
                 .required_fields
                 .into_iter()
-                .map(|(info, (mut names, description))| {
+                .map(|(info, (mut names, description, index))| {
                     let first = names.remove(0);
                     Field {
                         name: first,
                         description,
                         aliases: names,
                         shape: info.shape,
+                        index,
                     }
                 })
                 .collect(),
             optional: fields
                 .optional_fields
                 .into_iter()
-                .map(|(info, (mut names, description))| {
+                .map(|(info, (mut names, description, index))| {
                     let first = names.remove(0);
                     Field {
                         name: first,
                         description,
                         aliases: names,
                         shape: info.shape,
+                        index,
                     }
                 })
                 .collect(),
@@ -131,6 +133,7 @@ pub(super) enum Keys {
     None,
     Fields(Fields),
     Variants(Variants),
+    Newtype(Shape),
 }
 
 impl Keys {
@@ -140,7 +143,7 @@ impl Keys {
         }
 
         match self {
-            Keys::None => unreachable!(),
+            Keys::None | Keys::Newtype(_) => unreachable!(),
             Keys::Fields(ref mut fields) => Ok(fields),
             Keys::Variants(_) => Err(Error::CannotMixDeserializeStructAndDeserializeEnum),
         }
@@ -155,7 +158,7 @@ impl Keys {
         }
 
         match self {
-            Keys::None => unreachable!(),
+            Keys::None | Keys::Newtype(_) => unreachable!(),
             Keys::Fields(_) => Err(Error::CannotMixDeserializeStructAndDeserializeEnum),
             Keys::Variants(ref mut variants) => Ok(variants),
         }
@@ -168,6 +171,7 @@ impl From<Keys> for Shape {
             Keys::None => unimplemented!("cannot deserialize shape from no keys"),
             Keys::Fields(fields) => fields.into(),
             Keys::Variants(variants) => variants.into(),
+            Keys::Newtype(_) => unimplemented!("cannot deserialize shape from newtype directly"),
         }
     }
 }
@@ -216,7 +220,7 @@ mod tests {
                             description: String::new(),
                         },
                     },
-                    (vec!["bar"], String::new())
+                    (vec!["bar"], String::new(), 0)
                 ),],
                 optional_fields: vec![],
             }),
@@ -231,6 +235,7 @@ mod tests {
                         name: "foo".to_owned(),
                         description: String::new(),
                     },
+                    index: 0,
                 },],
                 optional: vec![],
             }
@@ -254,7 +259,7 @@ mod tests {
                                 description: String::new(),
                             },
                         },
-                        (vec!["bar"], String::new()),
+                        (vec!["bar"], String::new(), 0),
                     ),
                     (
                         KeyInfo {
@@ -264,7 +269,7 @@ mod tests {
                                 name: "baz".to_owned(),
                             },
                         },
-                        (vec!["qux"], String::new()),
+                        (vec!["qux"], String::new(), 1),
                     ),
                 ],
                 optional_fields: vec![],
@@ -281,6 +286,7 @@ mod tests {
                             name: "foo".to_owned(),
                             description: String::new(),
                         },
+                        index: 0,
                     },
                     Field {
                         name: "qux",
@@ -290,6 +296,7 @@ mod tests {
                             name: "baz".to_owned(),
                             description: String::new(),
                         },
+                        index: 1,
                     },
                 ],
                 optional: vec![],
@@ -313,7 +320,7 @@ mod tests {
                             description: String::new(),
                         },
                     },
-                    (vec!["bar", "baz", "qux"], String::new()),
+                    (vec!["bar", "baz", "qux"], String::new(), 0),
                 ),],
                 optional_fields: vec![],
             }),
@@ -328,6 +335,7 @@ mod tests {
                         name: "foo".to_owned(),
                         description: String::new(),
                     },
+                    index: 0,
                 },],
                 optional: vec![],
             }
@@ -612,7 +620,7 @@ mod tests {
                                 description: String::new(),
                             },
                         },
-                        (vec!["bar"], String::new()),
+                        (vec!["bar"], String::new(), 0),
                     ),
                     (
                         KeyInfo {
@@ -622,7 +630,7 @@ mod tests {
                                 name: "baz".to_owned(),
                             },
                         },
-                        (vec!["qux"], String::new()),
+                        (vec!["qux"], String::new(), 1),
                     ),
                 ],
                 optional_fields: vec![],
@@ -639,6 +647,7 @@ mod tests {
                             name: "foo".to_owned(),
                             description: String::new(),
                         },
+                        index: 0,
                     },
                     Field {
                         name: "qux",
@@ -648,6 +657,7 @@ mod tests {
                             name: "baz".to_owned(),
                             description: String::new(),
                         },
+                        index: 1,
                     },
                 ],
                 optional: vec![],
