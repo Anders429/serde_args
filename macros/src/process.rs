@@ -1,5 +1,4 @@
-use proc_macro::TokenStream;
-use proc_macro2::{Delimiter, Group, Span, TokenStream as TokenStream2};
+use proc_macro2::{Delimiter, Group, Span, TokenStream};
 use quote::quote;
 use std::str::FromStr;
 use syn::{
@@ -22,7 +21,7 @@ struct Descriptions {
 }
 
 fn parse_descriptions(item: TokenStream) -> parse::Result<Descriptions> {
-    match parse(item)? {
+    match parse2(item)? {
         Item::Enum(item) => {
             // Extract the container description from the enum's documentation
             let mut container = Documentation { exprs: vec![] };
@@ -99,11 +98,11 @@ fn parse_descriptions(item: TokenStream) -> parse::Result<Descriptions> {
     }
 }
 
-fn phase_1(item: TokenStream, ident: &Ident) -> parse::Result<TokenStream2> {
-    let item = match parse(item)? {
+fn phase_1(item: TokenStream, ident: &Ident) -> parse::Result<TokenStream> {
+    let item = match parse2(item)? {
         Item::Enum(item) => {
             let mut attrs = item.attrs;
-            let tokens = TokenStream2::from_str(&format!("serde(rename = \"{}\")", ident)).unwrap();
+            let tokens = TokenStream::from_str(&format!("serde(rename = \"{}\")", ident)).unwrap();
             let group = Group::new(Delimiter::Bracket, tokens);
             attrs.push(Attribute {
                 pound_token: Token![#](Span::call_site()),
@@ -125,7 +124,7 @@ fn phase_1(item: TokenStream, ident: &Ident) -> parse::Result<TokenStream2> {
         }
         Item::Struct(item) => {
             let mut attrs = item.attrs;
-            let tokens = TokenStream2::from_str(&format!("serde(rename = \"{}\")", ident)).unwrap();
+            let tokens = TokenStream::from_str(&format!("serde(rename = \"{}\")", ident)).unwrap();
             let group = Group::new(Delimiter::Bracket, tokens);
             attrs.push(Attribute {
                 pound_token: Token![#](Span::call_site()),
@@ -159,9 +158,9 @@ fn phase_2(
     item: TokenStream,
     descriptions: Descriptions,
     ident: &Ident,
-) -> parse::Result<TokenStream2> {
+) -> parse::Result<TokenStream> {
     // Remove all attributes from this container.
-    let item = match parse(item)? {
+    let item = match parse2(item)? {
         Item::Enum(item) => {
             // TODO: Need to go through the variants and strip from their contained fields as well.
             // In the FROM implementation, we also need to propagate the internal fields.
@@ -354,11 +353,11 @@ fn phase_2(
     })
 }
 
-fn phase_3(item: TokenStream) -> parse::Result<TokenStream2> {
+fn phase_3(item: TokenStream) -> parse::Result<TokenStream> {
     // Insert the `serde(from)` attribute.
-    let (ident, item) = match parse(item)? {
+    let (ident, item) = match parse2(item)? {
         Item::Enum(mut item) => {
-            let tokens = TokenStream2::from_str("serde(from = \"Phase2\")").unwrap();
+            let tokens = TokenStream::from_str("serde(from = \"Phase2\")").unwrap();
             let group = Group::new(Delimiter::Bracket, tokens);
             item.attrs.push(Attribute {
                 pound_token: Token![#](Span::call_site()),
@@ -372,7 +371,7 @@ fn phase_3(item: TokenStream) -> parse::Result<TokenStream2> {
             (item.ident.clone(), Item::Enum(item))
         }
         Item::Struct(mut item) => {
-            let tokens = TokenStream2::from_str("serde(from = \"Phase2\")").unwrap();
+            let tokens = TokenStream::from_str("serde(from = \"Phase2\")").unwrap();
             let group = Group::new(Delimiter::Bracket, tokens);
             item.attrs.push(Attribute {
                 pound_token: Token![#](Span::call_site()),
@@ -497,7 +496,7 @@ fn phase_3(item: TokenStream) -> parse::Result<TokenStream2> {
 }
 
 fn parse_identifier(item: TokenStream) -> parse::Result<Ident> {
-    match parse(item)? {
+    match parse2(item)? {
         Item::Enum(item) => Ok(item.ident),
         Item::Struct(item) => Ok(item.ident),
         _ => todo!(),
@@ -505,14 +504,14 @@ fn parse_identifier(item: TokenStream) -> parse::Result<Ident> {
 }
 
 fn parse_visibility(item: TokenStream) -> parse::Result<Visibility> {
-    match parse(item)? {
+    match parse2(item)? {
         Item::Enum(item) => Ok(item.vis),
         Item::Struct(item) => Ok(item.vis),
         _ => todo!(),
     }
 }
 
-pub(super) fn process(item: TokenStream) -> parse::Result<TokenStream2> {
+pub(super) fn process(item: TokenStream) -> parse::Result<TokenStream> {
     // Parse the descriptions from the container.
     let descriptions = parse_descriptions(item.clone())?;
     let visibility = parse_visibility(item.clone())?;
