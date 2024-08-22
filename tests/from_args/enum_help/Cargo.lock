@@ -3,7 +3,7 @@
 version = 3
 
 [[package]]
-name = "enum"
+name = "enum_help"
 version = "0.0.0"
 dependencies = [
  "serde",

@@ -366,3 +366,19 @@ fn r#enum() {
         "ERROR: unrecognized command: quux\n\n  tip: a similar command exists: qux\n\nUSAGE: {name} <Command>\n\nFor more information, use --help.\n"
     );
 }
+
+#[test]
+fn struct_help() {
+    assert_run_err!(
+        Command::new("tests/from_args/struct_help").args(["--help"]),
+        " This is a description of my program.\n\nUSAGE: {name} [options] <foo> <baz>\n\nRequired Arguments:\n  <foo>   Not just any string, but your favorite string.\n  <baz>   Any number other than 9.\n\nGlobal Options:\n  -q --qux <u8>   Determines the quxiness of the program.\n\nOverride Options:\n  -h --help  Display this message.\n"
+    );
+}
+
+#[test]
+fn enum_help() {
+    assert_run_err!(
+        Command::new("tests/from_args/enum_help").args(["--help"]),
+        " This is a description of my program.\n\nUSAGE: {name} <Command>\n\nRequired Arguments:\n  <Command>   This is a description of my program.\n\nOverride Options:\n  -h --help  Display this message.\n\nCommand Variants:\n  foo                        Don't provide any arguments to this command.\n  bar <u8>                   Provide one argument to this command.\n  baz [--<a string>]         You can do zero or one arguments for this command.\n  qux [options] <required>   This command takes a required argument and an optional flag.\n"
+    );
+}
