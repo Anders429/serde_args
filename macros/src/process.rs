@@ -358,30 +358,6 @@ fn phase_3(mut item: Item) -> Result<TokenStream, TokenStream> {
     })
 }
 
-fn parse_identifier(item: &Item) -> Result<&Ident, TokenStream> {
-    match item {
-        Item::Enum(item) => Ok(&item.ident),
-        Item::Struct(item) => Ok(&item.ident),
-        item => Err(parse::Error::new(
-            Span::call_site(),
-            format!("cannot use `serde_args::help` macro on {:?} item", item),
-        )
-        .into_compile_error()),
-    }
-}
-
-fn parse_visibility(item: &Item) -> Result<&Visibility, TokenStream> {
-    match item {
-        Item::Enum(item) => Ok(&item.vis),
-        Item::Struct(item) => Ok(&item.vis),
-        item => Err(parse::Error::new(
-            Span::call_site(),
-            format!("cannot use `serde_args::help` macro on {:?} item", item),
-        )
-        .into_compile_error()),
-    }
-}
-
 macro_rules! return_error {
     ($result: expr) => {
         match $result {
@@ -395,8 +371,8 @@ pub(super) fn process(item: TokenStream) -> parse::Result<TokenStream> {
     // Parse the descriptions from the container.
     let parsed_item = parse2(item.clone())?;
     let descriptions = return_error!(extract::descriptions(&parsed_item));
-    let visibility = return_error!(parse_visibility(&parsed_item));
-    let ident = return_error!(parse_identifier(&parsed_item));
+    let visibility = return_error!(extract::visibility(&parsed_item));
+    let ident = return_error!(extract::identifier(&parsed_item));
 
     // Extract the container.
     let phase_1 = return_error!(phase_1(parsed_item.clone(), ident));
