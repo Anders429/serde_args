@@ -1,5 +1,5 @@
 use proc_macro2::{Span, TokenStream};
-use syn::{parse, Attribute, Expr, Fields, Item, Meta};
+use syn::{parse, Attribute, Expr, Item, Meta};
 
 #[derive(Debug)]
 pub(crate) struct Documentation<'a> {
@@ -46,20 +46,12 @@ pub(crate) fn descriptions(item: &Item) -> Result<Descriptions, TokenStream> {
             let container = Documentation::from(&item.attrs);
 
             // Extract field information.
-            if let fields @ Fields::Named(_) = &item.fields {
-                let mut keys = vec![];
-                for field in fields {
-                    keys.push(Documentation::from(&field.attrs));
-                }
-
-                Ok(Descriptions { container, keys })
-            } else {
-                Err(parse::Error::new(
-                    Span::call_site(),
-                    "cannot use `serde_args::help` on struct with non-named fields",
-                )
-                .into_compile_error())
+            let mut keys = vec![];
+            for field in &item.fields {
+                keys.push(Documentation::from(&field.attrs));
             }
+
+            Ok(Descriptions { container, keys })
         }
         item => Err(parse::Error::new(
             Span::call_site(),
