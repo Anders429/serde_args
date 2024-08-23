@@ -403,7 +403,7 @@ pub(super) fn process(item: TokenStream) -> parse::Result<TokenStream> {
     let phase_2 = return_error!(phase_2(parsed_item.clone(), descriptions, ident));
     let phase_3 = return_error!(phase_3(parsed_item.clone()));
 
-    // Extract the identifier name.
+    // Create a module name from the identifier name.
     let module = Ident::new(&format!("__{}", ident), Span::call_site());
 
     // Put everything in a contained module.
