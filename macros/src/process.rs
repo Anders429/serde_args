@@ -5,8 +5,8 @@ use syn::{
     parse, parse2,
     punctuated::Punctuated,
     token::{Brace, Bracket, Paren},
-    AttrStyle, Attribute, Expr, FieldPat, Fields, Ident, Item, ItemEnum, ItemStruct, Member, Meta,
-    Pat, PatIdent, PatStruct, PatTupleStruct, Token, Visibility,
+    AttrStyle, Attribute, Expr, FieldPat, Fields, Ident, Item, Member, Meta, Pat, PatIdent,
+    PatStruct, PatTupleStruct, Token, Visibility,
 };
 
 #[derive(Debug)]
@@ -77,181 +77,139 @@ fn parse_descriptions(item: &Item) -> Result<Descriptions, TokenStream> {
     }
 }
 
-fn phase_1(item: TokenStream, ident: &Ident) -> parse::Result<TokenStream> {
-    let item = match parse2(item)? {
+fn phase_1(mut item: Item, ident: &Ident) -> Result<Item, TokenStream> {
+    match &mut item {
         Item::Enum(item) => {
-            let mut attrs = item.attrs;
             let tokens = TokenStream::from_str(&format!("serde(rename = \"{}\")", ident)).unwrap();
             let group = Group::new(Delimiter::Bracket, tokens);
-            attrs.push(Attribute {
+            item.attrs.push(Attribute {
                 pound_token: Token![#](Span::call_site()),
                 style: AttrStyle::Outer,
                 bracket_token: Bracket {
                     span: group.delim_span(),
                 },
-                meta: parse2(group.stream())?,
+                meta: parse2(group.stream()).unwrap(),
             });
-            Item::Enum(ItemEnum {
-                attrs,
-                vis: Visibility::Inherited,
-                enum_token: item.enum_token,
-                ident: Ident::new("Phase1", Span::call_site()),
-                generics: item.generics,
-                brace_token: item.brace_token,
-                variants: item.variants,
-            })
+            item.vis = Visibility::Inherited;
+            item.ident = Ident::new("Phase1", Span::call_site());
         }
         Item::Struct(item) => {
-            let mut attrs = item.attrs;
             let tokens = TokenStream::from_str(&format!("serde(rename = \"{}\")", ident)).unwrap();
             let group = Group::new(Delimiter::Bracket, tokens);
-            attrs.push(Attribute {
+            item.attrs.push(Attribute {
                 pound_token: Token![#](Span::call_site()),
                 style: AttrStyle::Outer,
                 bracket_token: Bracket {
                     span: group.delim_span(),
                 },
-                meta: parse2(group.stream())?,
+                meta: parse2(group.stream()).unwrap(),
             });
-            Item::Struct(ItemStruct {
-                attrs,
-                vis: Visibility::Inherited,
-                struct_token: item.struct_token,
-                ident: Ident::new("Phase1", Span::call_site()),
-                generics: item.generics,
-                fields: item.fields,
-                semi_token: item.semi_token,
-            })
+            item.vis = Visibility::Inherited;
+            item.ident = Ident::new("Phase1", Span::call_site());
         }
         _ => {
             todo!()
         }
     };
 
-    Ok(quote! {
-        #item
-    })
+    Ok(item)
 }
 
 fn phase_2(
-    item: TokenStream,
+    mut item: Item,
     descriptions: Descriptions,
     ident: &Ident,
-) -> parse::Result<TokenStream> {
-    // Remove all attributes from this container.
-    let item = match parse2(item)? {
+) -> Result<TokenStream, TokenStream> {
+    // Remove all attributes from this item.
+    match &mut item {
         Item::Enum(item) => {
-            // TODO: Need to go through the variants and strip from their contained fields as well.
-            // In the FROM implementation, we also need to propagate the internal fields.
-            Item::Enum(ItemEnum {
-                attrs: vec![],
-                vis: Visibility::Inherited,
-                enum_token: item.enum_token,
-                ident: Ident::new("Phase2", Span::call_site()),
-                generics: item.generics,
-                brace_token: item.brace_token,
-                variants: {
-                    let mut variants = item.variants.clone();
-                    variants.iter_mut().for_each(|variant| {
-                        variant.attrs = vec![];
-                        for field in variant.fields.iter_mut() {
-                            field.attrs = vec![];
-                        }
-                    });
-                    variants
-                },
-            })
+            item.attrs.clear();
+            item.vis = Visibility::Inherited;
+            item.ident = Ident::new("Phase2", Span::call_site());
+            item.variants.iter_mut().for_each(|variant| {
+                variant.attrs.clear();
+                variant
+                    .fields
+                    .iter_mut()
+                    .for_each(|field| field.attrs.clear());
+            });
         }
-        Item::Struct(item) => Item::Struct(ItemStruct {
-            attrs: vec![],
-            vis: Visibility::Inherited,
-            struct_token: item.struct_token,
-            ident: Ident::new("Phase2", Span::call_site()),
-            generics: item.generics,
-            fields: {
-                let mut fields = item.fields.clone();
-                fields.iter_mut().for_each(|field| field.attrs = vec![]);
-                fields
-            },
-            semi_token: item.semi_token,
-        }),
+        Item::Struct(item) => {
+            item.attrs.clear();
+            item.vis = Visibility::Inherited;
+            item.ident = Ident::new("Phase2", Span::call_site());
+            item.fields.iter_mut().for_each(|field| field.attrs.clear());
+        }
         _ => {
             todo!()
         }
     };
 
     // Define a `From` implementation from Phase 1.
-    let from = match item.clone() {
+    let from = match &item {
         Item::Enum(item) => {
             // Prepare the variants.
-            let variants =
-                item.variants
-                    .into_iter()
-                    .map(|variant| match variant.fields {
-                        Fields::Named(fields) => {
-                            let fields = Fields::Named(fields).into_iter().map(|field| FieldPat {
-                                attrs: vec![],
-                                member: Member::Named(field.ident.clone().unwrap()),
-                                colon_token: None,
-                                pat: Box::new(Pat::Ident(PatIdent {
-                                    attrs: vec![],
-                                    by_ref: None,
-                                    mutability: None,
-                                    ident: field.ident.unwrap(),
-                                    subpat: None,
-                                })),
-                            });
-                            let fields_vec = fields.clone().collect::<Punctuated<_, _>>();
-                            let fields_raw = quote!(#(#fields),*);
-                            let group = Group::new(Delimiter::Brace, fields_raw);
-                            Pat::Struct(PatStruct {
-                                attrs: vec![],
-                                qself: None,
-                                path: variant.ident.into(),
-                                brace_token: Brace {
-                                    span: group.delim_span(),
-                                },
-                                fields: fields_vec,
-                                rest: None,
-                            })
-                        }
-                        Fields::Unnamed(fields) => {
-                            let elems = Fields::Unnamed(fields).into_iter().enumerate().map(
-                                |(index, _)| {
-                                    Pat::Ident(PatIdent {
-                                        attrs: vec![],
-                                        by_ref: None,
-                                        mutability: None,
-                                        ident: Ident::new(
-                                            &format!("__{}", index),
-                                            Span::call_site(),
-                                        ),
-                                        subpat: None,
-                                    })
-                                },
-                            );
-                            let elems_vec = elems.clone().collect::<Punctuated<_, _>>();
-                            let elems_raw = quote!(#(#elems),*);
-                            let group = Group::new(Delimiter::Parenthesis, elems_raw);
-                            Pat::TupleStruct(PatTupleStruct {
-                                attrs: vec![],
-                                qself: None,
-                                path: variant.ident.into(),
-                                paren_token: Paren {
-                                    span: group.delim_span(),
-                                },
-                                elems: elems_vec,
-                            })
-                        }
-                        Fields::Unit => Pat::Ident(PatIdent {
+            let variants = item
+                .variants
+                .iter()
+                .map(|variant| match &variant.fields {
+                    fields @ Fields::Named(_) => {
+                        let fields = fields.iter().map(|field| FieldPat {
                             attrs: vec![],
-                            by_ref: None,
-                            mutability: None,
-                            ident: variant.ident,
-                            subpat: None,
-                        }),
-                    })
-                    .map(|pattern| quote!(Phase1::#pattern => Phase2::#pattern,));
+                            member: Member::Named(field.ident.clone().unwrap()),
+                            colon_token: None,
+                            pat: Box::new(Pat::Ident(PatIdent {
+                                attrs: vec![],
+                                by_ref: None,
+                                mutability: None,
+                                ident: field.ident.clone().unwrap(),
+                                subpat: None,
+                            })),
+                        });
+                        let punctuated_fields = fields.clone().collect::<Punctuated<_, _>>();
+                        let group = Group::new(Delimiter::Brace, quote!(#(#fields),*));
+                        Pat::Struct(PatStruct {
+                            attrs: vec![],
+                            qself: None,
+                            path: variant.ident.clone().into(),
+                            brace_token: Brace {
+                                span: group.delim_span(),
+                            },
+                            fields: punctuated_fields,
+                            rest: None,
+                        })
+                    }
+                    fields @ Fields::Unnamed(_) => {
+                        let elems = (0..fields.len()).map(|index| {
+                            Pat::Ident(PatIdent {
+                                attrs: vec![],
+                                by_ref: None,
+                                mutability: None,
+                                ident: Ident::new(&format!("__{}", index), Span::call_site()),
+                                subpat: None,
+                            })
+                        });
+                        let punctuated_elems = elems.clone().collect::<Punctuated<_, _>>();
+                        let group = Group::new(Delimiter::Parenthesis, quote!(#(#elems),*));
+                        Pat::TupleStruct(PatTupleStruct {
+                            attrs: vec![],
+                            qself: None,
+                            path: variant.ident.clone().into(),
+                            paren_token: Paren {
+                                span: group.delim_span(),
+                            },
+                            elems: punctuated_elems,
+                        })
+                    }
+                    Fields::Unit => Pat::Ident(PatIdent {
+                        attrs: vec![],
+                        by_ref: None,
+                        mutability: None,
+                        ident: variant.ident.clone(),
+                        subpat: None,
+                    }),
+                })
+                .map(|pattern| quote!(Phase1::#pattern => Phase2::#pattern,));
             quote! {
                 impl From<Phase1> for Phase2 {
                     fn from(phase_1: Phase1) -> Phase2 {
@@ -266,9 +224,9 @@ fn phase_2(
             // Prepare the fields.
             let fields = item
                 .fields
-                .into_iter()
-                .map(|field| field.ident.unwrap())
-                .map(|field| quote!(#field: phase_1.#field));
+                .iter()
+                .map(|field| field.ident.clone().unwrap())
+                .map(|ident| quote!(#ident: phase_1.#ident));
             quote! {
                 impl From<Phase1> for Phase2 {
                     fn from(phase_1: Phase1) -> Phase2 {
@@ -282,7 +240,7 @@ fn phase_2(
         _ => todo!(),
     };
 
-    // Define the expecting match statements.
+    // Define the `expecting()` match statements.
     let container_exprs = descriptions
         .container
         .exprs
@@ -332,10 +290,10 @@ fn phase_2(
     })
 }
 
-fn phase_3(item: TokenStream) -> parse::Result<TokenStream> {
+fn phase_3(mut item: Item) -> Result<TokenStream, TokenStream> {
     // Insert the `serde(from)` attribute.
-    let (ident, item) = match parse2(item)? {
-        Item::Enum(mut item) => {
+    let ident = match &mut item {
+        Item::Enum(item) => {
             let tokens = TokenStream::from_str("serde(from = \"Phase2\")").unwrap();
             let group = Group::new(Delimiter::Bracket, tokens);
             item.attrs.push(Attribute {
@@ -344,12 +302,12 @@ fn phase_3(item: TokenStream) -> parse::Result<TokenStream> {
                 bracket_token: Bracket {
                     span: group.delim_span(),
                 },
-                meta: parse2(group.stream())?,
+                meta: parse2(group.stream()).unwrap(),
             });
             item.vis = Visibility::Public(Token!(pub)(Span::call_site()));
-            (item.ident.clone(), Item::Enum(item))
+            item.ident.clone()
         }
-        Item::Struct(mut item) => {
+        Item::Struct(item) => {
             let tokens = TokenStream::from_str("serde(from = \"Phase2\")").unwrap();
             let group = Group::new(Delimiter::Bracket, tokens);
             item.attrs.push(Attribute {
@@ -358,86 +316,79 @@ fn phase_3(item: TokenStream) -> parse::Result<TokenStream> {
                 bracket_token: Bracket {
                     span: group.delim_span(),
                 },
-                meta: parse2(group.stream())?,
+                meta: parse2(group.stream()).unwrap(),
             });
             item.vis = Visibility::Public(Token!(pub)(Span::call_site()));
-            (item.ident.clone(), Item::Struct(item))
+            item.ident.clone()
         }
         _ => todo!(),
     };
 
     // Create a `From` implementation.
-    let from = match item.clone() {
+    let from = match &item {
         Item::Enum(item) => {
             // Prepare the variants.
-            let variants =
-                item.variants
-                    .into_iter()
-                    .map(|variant| match variant.fields {
-                        Fields::Named(fields) => {
-                            let fields = Fields::Named(fields).into_iter().map(|field| FieldPat {
-                                attrs: vec![],
-                                member: Member::Named(field.ident.clone().unwrap()),
-                                colon_token: None,
-                                pat: Box::new(Pat::Ident(PatIdent {
-                                    attrs: vec![],
-                                    by_ref: None,
-                                    mutability: None,
-                                    ident: field.ident.unwrap(),
-                                    subpat: None,
-                                })),
-                            });
-                            let fields_vec = fields.clone().collect::<Punctuated<_, _>>();
-                            let fields_raw = quote!(#(#fields),*);
-                            let group = Group::new(Delimiter::Brace, fields_raw);
-                            Pat::Struct(PatStruct {
-                                attrs: vec![],
-                                qself: None,
-                                path: variant.ident.into(),
-                                brace_token: Brace {
-                                    span: group.delim_span(),
-                                },
-                                fields: fields_vec,
-                                rest: None,
-                            })
-                        }
-                        Fields::Unnamed(fields) => {
-                            let elems = Fields::Unnamed(fields).into_iter().enumerate().map(
-                                |(index, _)| {
-                                    Pat::Ident(PatIdent {
-                                        attrs: vec![],
-                                        by_ref: None,
-                                        mutability: None,
-                                        ident: Ident::new(
-                                            &format!("__{}", index),
-                                            Span::call_site(),
-                                        ),
-                                        subpat: None,
-                                    })
-                                },
-                            );
-                            let elems_vec = elems.clone().collect::<Punctuated<_, _>>();
-                            let elems_raw = quote!(#(#elems),*);
-                            let group = Group::new(Delimiter::Parenthesis, elems_raw);
-                            Pat::TupleStruct(PatTupleStruct {
-                                attrs: vec![],
-                                qself: None,
-                                path: variant.ident.into(),
-                                paren_token: Paren {
-                                    span: group.delim_span(),
-                                },
-                                elems: elems_vec,
-                            })
-                        }
-                        Fields::Unit => Pat::Ident(PatIdent {
+            let variants = item
+                .variants
+                .iter()
+                .map(|variant| match &variant.fields {
+                    fields @ Fields::Named(_) => {
+                        let fields = fields.iter().map(|field| FieldPat {
                             attrs: vec![],
-                            by_ref: None,
-                            mutability: None,
-                            ident: variant.ident,
-                            subpat: None,
-                        }),
-                    })
-                    .map(|pattern| quote!(Phase2::#pattern => #ident::#pattern,));
+                            member: Member::Named(field.ident.clone().unwrap()),
+                            colon_token: None,
+                            pat: Box::new(Pat::Ident(PatIdent {
+                                attrs: vec![],
+                                by_ref: None,
+                                mutability: None,
+                                ident: field.ident.clone().unwrap(),
+                                subpat: None,
+                            })),
+                        });
+                        let punctuated_fields = fields.clone().collect::<Punctuated<_, _>>();
+                        let group = Group::new(Delimiter::Brace, quote!(#(#fields),*));
+                        Pat::Struct(PatStruct {
+                            attrs: vec![],
+                            qself: None,
+                            path: variant.ident.clone().into(),
+                            brace_token: Brace {
+                                span: group.delim_span(),
+                            },
+                            fields: punctuated_fields,
+                            rest: None,
+                        })
+                    }
+                    fields @ Fields::Unnamed(_) => {
+                        let elems = (0..fields.len()).map(|index| {
+                            Pat::Ident(PatIdent {
+                                attrs: vec![],
+                                by_ref: None,
+                                mutability: None,
+                                ident: Ident::new(&format!("__{}", index), Span::call_site()),
+                                subpat: None,
+                            })
+                        });
+                        let punctuated_elems = elems.clone().collect::<Punctuated<_, _>>();
+                        let group = Group::new(Delimiter::Parenthesis, quote!(#(#elems),*));
+                        Pat::TupleStruct(PatTupleStruct {
+                            attrs: vec![],
+                            qself: None,
+                            path: variant.ident.clone().into(),
+                            paren_token: Paren {
+                                span: group.delim_span(),
+                            },
+                            elems: punctuated_elems,
+                        })
+                    }
+                    Fields::Unit => Pat::Ident(PatIdent {
+                        attrs: vec![],
+                        by_ref: None,
+                        mutability: None,
+                        ident: variant.ident.clone(),
+                        subpat: None,
+                    }),
+                })
+                .map(|pattern| quote!(Phase2::#pattern => #ident::#pattern,));
             quote! {
                 impl From<Phase2> for #ident {
                     fn from(phase_2: Phase2) -> #ident {
@@ -452,9 +403,9 @@ fn phase_3(item: TokenStream) -> parse::Result<TokenStream> {
             // Prepare the fields.
             let fields = item
                 .fields
-                .into_iter()
-                .map(|field| field.ident.unwrap())
-                .map(|field| quote!(#field: phase_1.#field));
+                .iter()
+                .map(|field| field.ident.clone().unwrap())
+                .map(|ident| quote!(#ident: phase_1.#ident));
             quote! {
                 impl From<Phase2> for #ident {
                     fn from(phase_1: Phase2) -> #ident {
@@ -515,9 +466,9 @@ pub(super) fn process(item: TokenStream) -> parse::Result<TokenStream> {
     let ident = return_error!(parse_identifier(&parsed_item));
 
     // Extract the container.
-    let phase_1 = phase_1(item.clone(), &ident)?;
-    let phase_2 = phase_2(item.clone(), descriptions, &ident)?;
-    let phase_3 = phase_3(item.clone())?;
+    let phase_1 = return_error!(phase_1(parsed_item.clone(), ident));
+    let phase_2 = return_error!(phase_2(parsed_item.clone(), descriptions, ident));
+    let phase_3 = return_error!(phase_3(parsed_item.clone()));
 
     // Extract the identifier name.
     let module = Ident::new(&format!("__{}", ident), Span::call_site());
