@@ -1,5 +1,5 @@
-use proc_macro2::{Span, TokenStream};
-use syn::{parse, Attribute, Expr, Item, Meta};
+use crate::Container;
+use syn::{Attribute, Expr, Meta};
 
 #[derive(Debug)]
 pub(crate) struct Documentation<'a> {
@@ -28,9 +28,9 @@ pub(crate) struct Descriptions<'a> {
     pub(crate) keys: Vec<Documentation<'a>>,
 }
 
-pub(crate) fn descriptions(item: &Item) -> Result<Descriptions, TokenStream> {
-    match item {
-        Item::Enum(item) => {
+pub(crate) fn descriptions(container: &Container) -> Descriptions {
+    match container {
+        Container::Enum(item) => {
             let container = Documentation::from(&item.attrs);
 
             // Extract variant information.
@@ -39,9 +39,9 @@ pub(crate) fn descriptions(item: &Item) -> Result<Descriptions, TokenStream> {
                 keys.push(Documentation::from(&variant.attrs));
             }
 
-            Ok(Descriptions { container, keys })
+            Descriptions { container, keys }
         }
-        Item::Struct(item) => {
+        Container::Struct(item) => {
             // Extract the container description from the struct's documentation.
             let container = Documentation::from(&item.attrs);
 
@@ -51,12 +51,7 @@ pub(crate) fn descriptions(item: &Item) -> Result<Descriptions, TokenStream> {
                 keys.push(Documentation::from(&field.attrs));
             }
 
-            Ok(Descriptions { container, keys })
+            Descriptions { container, keys }
         }
-        item => Err(parse::Error::new(
-            Span::call_site(),
-            format!("cannot use `serde_args::help` macro on {:?} item", item),
-        )
-        .into_compile_error()),
     }
 }

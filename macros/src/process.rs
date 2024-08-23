@@ -1,7 +1,7 @@
 use crate::{extract, generate};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{parse2 as parse, Ident};
+use syn::{parse2 as parse, Ident, Item};
 
 macro_rules! return_error {
     ($result: expr) => {
@@ -14,13 +14,20 @@ macro_rules! return_error {
 
 pub(super) fn process(item: TokenStream) -> TokenStream {
     // Parse the descriptions from the container.
-    let parsed_item = match parse(item.clone()) {
+    let container = match parse::<Item>(item.clone()) {
+        Ok(parsed_item) => match parsed_item.try_into() {
+            Ok(container) => container,
+            Err(error) => return error,
+        },
+        Err(error) => return error.into_compile_error(),
+    };
+    let parsed_item: Item = match parse(item.clone()) {
         Ok(item) => item,
         Err(error) => return error.into_compile_error(),
     };
-    let descriptions = return_error!(extract::descriptions(&parsed_item));
-    let visibility = return_error!(extract::visibility(&parsed_item));
-    let ident = return_error!(extract::identifier(&parsed_item));
+    let descriptions = extract::descriptions(&container);
+    let visibility = extract::visibility(&container);
+    let ident = extract::identifier(&container);
 
     // Extract the container.
     let phase_1 = return_error!(generate::phase_1(parsed_item.clone(), ident));

@@ -2,29 +2,19 @@ mod descriptions;
 
 pub(crate) use descriptions::{descriptions, Descriptions};
 
-use proc_macro2::{Span, TokenStream};
-use syn::{parse, Ident, Item, Visibility};
+use crate::Container;
+use syn::{Ident, Visibility};
 
-pub(crate) fn identifier(item: &Item) -> Result<&Ident, TokenStream> {
-    match item {
-        Item::Enum(item) => Ok(&item.ident),
-        Item::Struct(item) => Ok(&item.ident),
-        item => Err(parse::Error::new(
-            Span::call_site(),
-            format!("cannot use `serde_args::help` macro on {:?} item", item),
-        )
-        .into_compile_error()),
+pub(crate) fn identifier(container: &Container) -> &Ident {
+    match container {
+        Container::Enum(item) => &item.ident,
+        Container::Struct(item) => &item.ident,
     }
 }
 
-pub(crate) fn visibility(item: &Item) -> Result<&Visibility, TokenStream> {
-    match item {
-        Item::Enum(item) => Ok(&item.vis),
-        Item::Struct(item) => Ok(&item.vis),
-        item => Err(parse::Error::new(
-            Span::call_site(),
-            format!("cannot use `serde_args::help` macro on {:?} item", item),
-        )
-        .into_compile_error()),
+pub(crate) fn visibility(container: &Container) -> &Visibility {
+    match container {
+        Container::Enum(item) => &item.vis,
+        Container::Struct(item) => &item.vis,
     }
 }
