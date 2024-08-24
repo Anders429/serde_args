@@ -3,15 +3,6 @@ use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{parse2 as parse, Ident, Item};
 
-macro_rules! return_error {
-    ($result: expr) => {
-        match $result {
-            Ok(value) => value,
-            Err(error) => return error,
-        }
-    };
-}
-
 pub(super) fn process(item: TokenStream) -> TokenStream {
     // Parse the descriptions from the container.
     let container = match parse(item.clone()) {
@@ -28,8 +19,8 @@ pub(super) fn process(item: TokenStream) -> TokenStream {
 
     // Extract the container.
     let phase_1 = generate::phase_1(container.clone(), ident);
-    let phase_2 = return_error!(generate::phase_2(parsed_item.clone(), descriptions, ident));
-    let phase_3 = return_error!(generate::phase_3(parsed_item.clone()));
+    let phase_2 = generate::phase_2(parsed_item.clone(), descriptions, ident);
+    let phase_3 = generate::phase_3(parsed_item.clone());
 
     // Create a module name from the identifier name.
     let module = Ident::new(&format!("__{}", ident), Span::call_site());

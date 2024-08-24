@@ -45,11 +45,7 @@ pub(crate) fn phase_1(mut container: Container, ident: &Ident) -> Container {
     container
 }
 
-pub(crate) fn phase_2(
-    mut item: Item,
-    descriptions: Descriptions,
-    ident: &Ident,
-) -> Result<TokenStream, TokenStream> {
+pub(crate) fn phase_2(mut item: Item, descriptions: Descriptions, ident: &Ident) -> TokenStream {
     // Remove all attributes from this item.
     match &mut item {
         Item::Enum(item) => {
@@ -101,7 +97,7 @@ pub(crate) fn phase_2(
         });
 
     let ident_string = format!("{}", ident);
-    Ok(quote! {
+    quote! {
         #item
         #from
 
@@ -129,10 +125,10 @@ pub(crate) fn phase_2(
                 deserializer.deserialize_newtype_struct(#ident_string, Phase2Visitor)
             }
         }
-    })
+    }
 }
 
-pub(crate) fn phase_3(mut item: Item) -> Result<TokenStream, TokenStream> {
+pub(crate) fn phase_3(mut item: Item) -> TokenStream {
     // Insert the `serde(from)` attribute.
     let ident = match &mut item {
         Item::Enum(item) => {
@@ -169,8 +165,8 @@ pub(crate) fn phase_3(mut item: Item) -> Result<TokenStream, TokenStream> {
     // Create a `From` implementation.
     let from = from(&item, &Ident::new("Phase2", Span::call_site()), &ident);
 
-    Ok(quote! {
+    quote! {
         #item
         #from
-    })
+    }
 }
