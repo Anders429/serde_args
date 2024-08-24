@@ -80,7 +80,7 @@ pub(crate) fn phase_2(
         &item,
         &Ident::new("Phase1", Span::call_site()),
         &Ident::new("Phase2", Span::call_site()),
-    )?;
+    );
 
     // Define the `expecting()` match statements.
     let container_exprs = descriptions
@@ -167,7 +167,7 @@ pub(crate) fn phase_3(mut item: Item) -> Result<TokenStream, TokenStream> {
     };
 
     // Create a `From` implementation.
-    let from = from(&item, &Ident::new("Phase2", Span::call_site()), &ident)?;
+    let from = from(&item, &Ident::new("Phase2", Span::call_site()), &ident);
 
     Ok(quote! {
         #item
