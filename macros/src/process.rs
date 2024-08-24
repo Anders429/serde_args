@@ -14,11 +14,8 @@ macro_rules! return_error {
 
 pub(super) fn process(item: TokenStream) -> TokenStream {
     // Parse the descriptions from the container.
-    let container = match parse::<Item>(item.clone()) {
-        Ok(parsed_item) => match parsed_item.try_into() {
-            Ok(container) => container,
-            Err(error) => return error,
-        },
+    let container = match parse(item.clone()) {
+        Ok(container) => container,
         Err(error) => return error.into_compile_error(),
     };
     let parsed_item: Item = match parse(item.clone()) {
