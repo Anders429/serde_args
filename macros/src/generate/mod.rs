@@ -4,15 +4,15 @@ mod from;
 
 pub(crate) use from::from;
 
-use crate::extract::Descriptions;
+use crate::{extract::Descriptions, Container};
 use proc_macro2::{Delimiter, Group, Span, TokenStream};
 use quote::quote;
 use std::str::FromStr;
 use syn::{parse2 as parse, token::Bracket, AttrStyle, Attribute, Ident, Item, Token, Visibility};
 
-pub(crate) fn phase_1(mut item: Item, ident: &Ident) -> Result<Item, TokenStream> {
-    match &mut item {
-        Item::Enum(item) => {
+pub(crate) fn phase_1(mut container: Container, ident: &Ident) -> Container {
+    match &mut container {
+        Container::Enum(item) => {
             let tokens = TokenStream::from_str(&format!("serde(rename = \"{}\")", ident)).unwrap();
             let group = Group::new(Delimiter::Bracket, tokens);
             item.attrs.push(Attribute {
@@ -26,7 +26,7 @@ pub(crate) fn phase_1(mut item: Item, ident: &Ident) -> Result<Item, TokenStream
             item.vis = Visibility::Inherited;
             item.ident = Ident::new("Phase1", Span::call_site());
         }
-        Item::Struct(item) => {
+        Container::Struct(item) => {
             let tokens = TokenStream::from_str(&format!("serde(rename = \"{}\")", ident)).unwrap();
             let group = Group::new(Delimiter::Bracket, tokens);
             item.attrs.push(Attribute {
@@ -39,13 +39,10 @@ pub(crate) fn phase_1(mut item: Item, ident: &Ident) -> Result<Item, TokenStream
             });
             item.vis = Visibility::Inherited;
             item.ident = Ident::new("Phase1", Span::call_site());
-        }
-        _ => {
-            todo!()
         }
     };
 
-    Ok(item)
+    container
 }
 
 pub(crate) fn phase_2(

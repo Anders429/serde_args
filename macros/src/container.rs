@@ -1,10 +1,12 @@
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenStream};
+use quote::ToTokens;
 use syn::{
     parse,
     parse::{Parse, ParseStream},
     Item, ItemEnum, ItemStruct,
 };
 
+#[derive(Clone, Debug)]
 pub(crate) enum Container {
     Struct(ItemStruct),
     Enum(ItemEnum),
@@ -19,6 +21,15 @@ impl Parse for Container {
                 Span::call_site(),
                 format!("cannot use `serde_args::help` macro on {:?} item", item),
             )),
+        }
+    }
+}
+
+impl ToTokens for Container {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Self::Struct(r#struct) => r#struct.to_tokens(tokens),
+            Self::Enum(r#enum) => r#enum.to_tokens(tokens),
         }
     }
 }

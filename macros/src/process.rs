@@ -27,7 +27,7 @@ pub(super) fn process(item: TokenStream) -> TokenStream {
     let ident = extract::identifier(&container);
 
     // Extract the container.
-    let phase_1 = return_error!(generate::phase_1(parsed_item.clone(), ident));
+    let phase_1 = generate::phase_1(container.clone(), ident);
     let phase_2 = return_error!(generate::phase_2(parsed_item.clone(), descriptions, ident));
     let phase_3 = return_error!(generate::phase_3(parsed_item.clone()));
 
