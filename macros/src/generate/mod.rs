@@ -8,7 +8,7 @@ use crate::{extract::Descriptions, Container};
 use proc_macro2::{Delimiter, Group, Span, TokenStream};
 use quote::quote;
 use std::str::FromStr;
-use syn::{parse2 as parse, token::Bracket, AttrStyle, Attribute, Ident, Item, Token, Visibility};
+use syn::{parse2 as parse, token::Bracket, AttrStyle, Attribute, Ident, Token, Visibility};
 
 pub(crate) fn phase_1(mut container: Container, ident: &Ident) -> Container {
     match &mut container {
@@ -45,10 +45,14 @@ pub(crate) fn phase_1(mut container: Container, ident: &Ident) -> Container {
     container
 }
 
-pub(crate) fn phase_2(mut item: Item, descriptions: Descriptions, ident: &Ident) -> TokenStream {
+pub(crate) fn phase_2(
+    mut container: Container,
+    descriptions: Descriptions,
+    ident: &Ident,
+) -> TokenStream {
     // Remove all attributes from this item.
-    match &mut item {
-        Item::Enum(item) => {
+    match &mut container {
+        Container::Enum(item) => {
             item.attrs.clear();
             item.vis = Visibility::Inherited;
             item.ident = Ident::new("Phase2", Span::call_site());
@@ -60,20 +64,17 @@ pub(crate) fn phase_2(mut item: Item, descriptions: Descriptions, ident: &Ident)
                     .for_each(|field| field.attrs.clear());
             });
         }
-        Item::Struct(item) => {
+        Container::Struct(item) => {
             item.attrs.clear();
             item.vis = Visibility::Inherited;
             item.ident = Ident::new("Phase2", Span::call_site());
             item.fields.iter_mut().for_each(|field| field.attrs.clear());
         }
-        _ => {
-            todo!()
-        }
     };
 
     // Define a `From` implementation from Phase 1.
     let from = from(
-        &item,
+        &container,
         &Ident::new("Phase1", Span::call_site()),
         &Ident::new("Phase2", Span::call_site()),
     );
@@ -98,7 +99,7 @@ pub(crate) fn phase_2(mut item: Item, descriptions: Descriptions, ident: &Ident)
 
     let ident_string = format!("{}", ident);
     quote! {
-        #item
+        #container
         #from
 
         impl<'de> ::serde::de::Deserialize<'de> for Phase2 {
@@ -128,10 +129,10 @@ pub(crate) fn phase_2(mut item: Item, descriptions: Descriptions, ident: &Ident)
     }
 }
 
-pub(crate) fn phase_3(mut item: Item) -> TokenStream {
+pub(crate) fn phase_3(mut container: Container) -> TokenStream {
     // Insert the `serde(from)` attribute.
-    let ident = match &mut item {
-        Item::Enum(item) => {
+    let ident = match &mut container {
+        Container::Enum(item) => {
             let tokens = TokenStream::from_str("serde(from = \"Phase2\")").unwrap();
             let group = Group::new(Delimiter::Bracket, tokens);
             item.attrs.push(Attribute {
@@ -145,7 +146,7 @@ pub(crate) fn phase_3(mut item: Item) -> TokenStream {
             item.vis = Visibility::Public(Token!(pub)(Span::call_site()));
             item.ident.clone()
         }
-        Item::Struct(item) => {
+        Container::Struct(item) => {
             let tokens = TokenStream::from_str("serde(from = \"Phase2\")").unwrap();
             let group = Group::new(Delimiter::Bracket, tokens);
             item.attrs.push(Attribute {
@@ -159,14 +160,13 @@ pub(crate) fn phase_3(mut item: Item) -> TokenStream {
             item.vis = Visibility::Public(Token!(pub)(Span::call_site()));
             item.ident.clone()
         }
-        _ => todo!(),
     };
 
     // Create a `From` implementation.
-    let from = from(&item, &Ident::new("Phase2", Span::call_site()), &ident);
+    let from = from(&container, &Ident::new("Phase2", Span::call_site()), &ident);
 
     quote! {
-        #item
+        #container
         #from
     }
 }

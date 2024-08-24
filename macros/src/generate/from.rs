@@ -1,15 +1,15 @@
+use crate::Container;
 use proc_macro2::{Delimiter, Group, Span, TokenStream};
 use quote::quote;
 use syn::{
     punctuated::Punctuated,
     token::{Brace, Paren},
-    FieldPat, Fields, Ident, Item, Lit, LitInt, Member, Pat, PatIdent, PatLit, PatStruct,
-    PatTupleStruct,
+    FieldPat, Fields, Ident, Lit, LitInt, Member, Pat, PatIdent, PatLit, PatStruct, PatTupleStruct,
 };
 
-pub(crate) fn from(item: &Item, from: &Ident, to: &Ident) -> TokenStream {
-    match item {
-        Item::Enum(item) => {
+pub(crate) fn from(container: &Container, from: &Ident, to: &Ident) -> TokenStream {
+    match container {
+        Container::Enum(item) => {
             // Prepare the variants.
             let variants = item
                 .variants
@@ -98,7 +98,7 @@ pub(crate) fn from(item: &Item, from: &Ident, to: &Ident) -> TokenStream {
                 }
             }
         }
-        Item::Struct(item) => {
+        Container::Struct(item) => {
             // Prepare the fields.
             let fields = item
                 .fields
@@ -119,6 +119,5 @@ pub(crate) fn from(item: &Item, from: &Ident, to: &Ident) -> TokenStream {
                 }
             }
         }
-        _ => todo!(),
     }
 }
