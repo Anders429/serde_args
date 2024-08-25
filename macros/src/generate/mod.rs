@@ -6,45 +6,60 @@ pub(crate) use from::from;
 
 use crate::{container::Descriptions, Container};
 use proc_macro2::{Delimiter, Group, Literal, Punct, Spacing, Span, TokenStream, TokenTree};
-use quote::quote;
-use syn::{parse2 as parse, token::Bracket, AttrStyle, Attribute, Ident, Token, Visibility};
+use quote::{quote, ToTokens};
+use std::iter;
+use syn::{
+    token::Bracket, token::Paren, AttrStyle, Attribute, Ident, MacroDelimiter, Meta, MetaList,
+    Path, PathArguments, PathSegment, Token, Visibility,
+};
 
-fn push_attribute(attrs: &mut Vec<Attribute>, tokens: TokenStream) {
+fn push_serde_attribute(attrs: &mut Vec<Attribute>, meta_tokens: TokenStream) {
+    let meta_group = Group::new(Delimiter::Parenthesis, meta_tokens);
+    let meta = Meta::List(MetaList {
+        path: Path {
+            leading_colon: None,
+            segments: iter::once(PathSegment {
+                ident: Ident::new("serde", Span::call_site()),
+                arguments: PathArguments::None,
+            })
+            .collect(),
+        },
+        delimiter: MacroDelimiter::Paren(Paren {
+            span: meta_group.delim_span(),
+        }),
+        tokens: meta_group.stream(),
+    });
+
+    let mut tokens = TokenStream::new();
+    meta.to_tokens(&mut tokens);
     let group = Group::new(Delimiter::Bracket, tokens);
+
     attrs.push(Attribute {
         pound_token: Token![#](Span::call_site()),
         style: AttrStyle::Outer,
         bracket_token: Bracket {
             span: group.delim_span(),
         },
-        meta: parse(group.stream()).unwrap(),
+        meta,
     });
 }
 
 pub(crate) fn phase_1(mut container: Container, ident: &Ident) -> Container {
     let attribute_tokens: TokenStream = [
-        TokenTree::Ident(Ident::new("serde", Span::call_site())),
-        TokenTree::Group(Group::new(
-            Delimiter::Parenthesis,
-            [
-                TokenTree::Ident(Ident::new("rename", Span::call_site())),
-                TokenTree::Punct(Punct::new('=', Spacing::Alone)),
-                TokenTree::Literal(Literal::string(&format!("{}", ident.clone()))),
-            ]
-            .into_iter()
-            .collect(),
-        )),
+        TokenTree::Ident(Ident::new("rename", Span::call_site())),
+        TokenTree::Punct(Punct::new('=', Spacing::Alone)),
+        TokenTree::Literal(Literal::string(&format!("{}", ident.clone()))),
     ]
     .into_iter()
     .collect();
     match &mut container {
         Container::Enum(item) => {
-            push_attribute(&mut item.attrs, attribute_tokens);
+            push_serde_attribute(&mut item.attrs, attribute_tokens);
             item.vis = Visibility::Inherited;
             item.ident = Ident::new("Phase1", Span::call_site());
         }
         Container::Struct(item) => {
-            push_attribute(&mut item.attrs, attribute_tokens);
+            push_serde_attribute(&mut item.attrs, attribute_tokens);
             item.vis = Visibility::Inherited;
             item.ident = Ident::new("Phase1", Span::call_site());
         }
@@ -140,28 +155,20 @@ pub(crate) fn phase_2(
 pub(crate) fn phase_3(mut container: Container) -> TokenStream {
     // Insert the `serde(from)` attribute.
     let attribute_tokens: TokenStream = [
-        TokenTree::Ident(Ident::new("serde", Span::call_site())),
-        TokenTree::Group(Group::new(
-            Delimiter::Parenthesis,
-            [
-                TokenTree::Ident(Ident::new("from", Span::call_site())),
-                TokenTree::Punct(Punct::new('=', Spacing::Alone)),
-                TokenTree::Literal(Literal::string("Phase2")),
-            ]
-            .into_iter()
-            .collect(),
-        )),
+        TokenTree::Ident(Ident::new("from", Span::call_site())),
+        TokenTree::Punct(Punct::new('=', Spacing::Alone)),
+        TokenTree::Literal(Literal::string("Phase2")),
     ]
     .into_iter()
     .collect();
     let ident = match &mut container {
         Container::Enum(item) => {
-            push_attribute(&mut item.attrs, attribute_tokens);
+            push_serde_attribute(&mut item.attrs, attribute_tokens);
             item.vis = Visibility::Public(Token!(pub)(Span::call_site()));
             item.ident.clone()
         }
         Container::Struct(item) => {
-            push_attribute(&mut item.attrs, attribute_tokens);
+            push_serde_attribute(&mut item.attrs, attribute_tokens);
             item.vis = Visibility::Public(Token!(pub)(Span::call_site()));
             item.ident.clone()
         }
