@@ -48,7 +48,7 @@ pub(crate) fn phase_1(mut container: Container, ident: &Ident) -> Container {
     let attribute_tokens: TokenStream = [
         TokenTree::Ident(Ident::new("rename", Span::call_site())),
         TokenTree::Punct(Punct::new('=', Spacing::Alone)),
-        TokenTree::Literal(Literal::string(&format!("{}", ident.clone()))),
+        TokenTree::Literal(Literal::string(&format!("{}", ident))),
     ]
     .into_iter()
     .collect();
