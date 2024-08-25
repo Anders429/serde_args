@@ -5,13 +5,11 @@ mod from;
 pub(crate) use from::from;
 
 use crate::{container::Descriptions, Container};
-use proc_macro2::{Delimiter, Group, Span, TokenStream};
+use proc_macro2::{Delimiter, Group, Literal, Punct, Spacing, Span, TokenStream, TokenTree};
 use quote::quote;
-use std::str::FromStr;
 use syn::{parse2 as parse, token::Bracket, AttrStyle, Attribute, Ident, Token, Visibility};
 
-fn push_attribute(attrs: &mut Vec<Attribute>, contents: &str) {
-    let tokens = TokenStream::from_str(contents).unwrap();
+fn push_attribute(attrs: &mut Vec<Attribute>, tokens: TokenStream) {
     let group = Group::new(Delimiter::Bracket, tokens);
     attrs.push(Attribute {
         pound_token: Token![#](Span::call_site()),
@@ -24,14 +22,29 @@ fn push_attribute(attrs: &mut Vec<Attribute>, contents: &str) {
 }
 
 pub(crate) fn phase_1(mut container: Container, ident: &Ident) -> Container {
+    let attribute_tokens: TokenStream = [
+        TokenTree::Ident(Ident::new("serde", Span::call_site())),
+        TokenTree::Group(Group::new(
+            Delimiter::Parenthesis,
+            [
+                TokenTree::Ident(Ident::new("rename", Span::call_site())),
+                TokenTree::Punct(Punct::new('=', Spacing::Alone)),
+                TokenTree::Literal(Literal::string(&format!("{}", ident.clone()))),
+            ]
+            .into_iter()
+            .collect(),
+        )),
+    ]
+    .into_iter()
+    .collect();
     match &mut container {
         Container::Enum(item) => {
-            push_attribute(&mut item.attrs, &format!("serde(rename = \"{}\")", ident));
+            push_attribute(&mut item.attrs, attribute_tokens);
             item.vis = Visibility::Inherited;
             item.ident = Ident::new("Phase1", Span::call_site());
         }
         Container::Struct(item) => {
-            push_attribute(&mut item.attrs, &format!("serde(rename = \"{}\")", ident));
+            push_attribute(&mut item.attrs, attribute_tokens);
             item.vis = Visibility::Inherited;
             item.ident = Ident::new("Phase1", Span::call_site());
         }
@@ -126,14 +139,29 @@ pub(crate) fn phase_2(
 
 pub(crate) fn phase_3(mut container: Container) -> TokenStream {
     // Insert the `serde(from)` attribute.
+    let attribute_tokens: TokenStream = [
+        TokenTree::Ident(Ident::new("serde", Span::call_site())),
+        TokenTree::Group(Group::new(
+            Delimiter::Parenthesis,
+            [
+                TokenTree::Ident(Ident::new("from", Span::call_site())),
+                TokenTree::Punct(Punct::new('=', Spacing::Alone)),
+                TokenTree::Literal(Literal::string("Phase2")),
+            ]
+            .into_iter()
+            .collect(),
+        )),
+    ]
+    .into_iter()
+    .collect();
     let ident = match &mut container {
         Container::Enum(item) => {
-            push_attribute(&mut item.attrs, "serde(from = \"Phase2\")");
+            push_attribute(&mut item.attrs, attribute_tokens);
             item.vis = Visibility::Public(Token!(pub)(Span::call_site()));
             item.ident.clone()
         }
         Container::Struct(item) => {
-            push_attribute(&mut item.attrs, "serde(from = \"Phase2\")");
+            push_attribute(&mut item.attrs, attribute_tokens);
             item.vis = Visibility::Public(Token!(pub)(Span::call_site()));
             item.ident.clone()
         }
