@@ -4,7 +4,7 @@ mod from;
 
 pub(crate) use from::from;
 
-use crate::{extract::Descriptions, Container};
+use crate::{container::Descriptions, Container};
 use proc_macro2::{Delimiter, Group, Span, TokenStream};
 use quote::quote;
 use std::str::FromStr;

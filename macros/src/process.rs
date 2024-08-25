@@ -1,17 +1,17 @@
-use crate::{extract, generate};
+use crate::{generate, Container};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{parse2 as parse, Ident};
 
 pub(super) fn process(item: TokenStream) -> TokenStream {
     // Parse the descriptions from the container.
-    let container = match parse(item) {
+    let container: Container = match parse(item) {
         Ok(container) => container,
         Err(error) => return error.into_compile_error(),
     };
-    let descriptions = extract::descriptions(&container);
-    let visibility = extract::visibility(&container);
-    let ident = extract::identifier(&container);
+    let descriptions = container.descriptions();
+    let visibility = container.visibility();
+    let ident = container.identifier();
 
     // Extract the container.
     let phase_1 = generate::phase_1(container.clone(), ident);
