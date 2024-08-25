@@ -161,21 +161,20 @@ pub(crate) fn phase_3(mut container: Container) -> TokenStream {
     ]
     .into_iter()
     .collect();
-    let ident = match &mut container {
+    match &mut container {
         Container::Enum(item) => {
             push_serde_attribute(&mut item.attrs, attribute_tokens);
             item.vis = Visibility::Public(Token!(pub)(Span::call_site()));
-            item.ident.clone()
         }
         Container::Struct(item) => {
             push_serde_attribute(&mut item.attrs, attribute_tokens);
             item.vis = Visibility::Public(Token!(pub)(Span::call_site()));
-            item.ident.clone()
         }
     };
+    let ident = container.identifier();
 
     // Create a `From` implementation.
-    let from = from(&container, &Ident::new("Phase2", Span::call_site()), &ident);
+    let from = from(&container, &Ident::new("Phase2", Span::call_site()), ident);
 
     quote! {
         #container
