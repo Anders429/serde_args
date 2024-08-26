@@ -121,3 +121,172 @@ pub(crate) fn from(container: &Container, from: &Ident, to: &Ident) -> TokenStre
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::from;
+    use claims::{assert_ok, assert_ok_eq};
+    use syn::{parse2 as parse, parse_str, File};
+
+    #[test]
+    fn enum_no_variants() {
+        assert_ok_eq!(
+            parse::<File>(from(
+                &assert_ok!(parse_str("enum Foo {}")),
+                &assert_ok!(parse_str("Bar")),
+                &assert_ok!(parse_str("Baz"))
+            )),
+            assert_ok!(parse_str(
+                "
+            impl From<Bar> for Baz {
+                fn from(from: Bar) -> Baz {
+                    match from {}
+                }
+            }"
+            ))
+        );
+    }
+
+    #[test]
+    fn r#enum() {
+        assert_ok_eq!(
+            parse::<File>(from(
+                &assert_ok!(parse_str(
+                    "enum Foo {
+                        Bar,
+                        Baz(usize),
+                        Qux {
+                            quux: String,
+                        }
+                    }"
+                )),
+                &assert_ok!(parse_str("A")),
+                &assert_ok!(parse_str("B"))
+            )),
+            assert_ok!(parse_str(
+                "
+            impl From<A> for B {
+                fn from(from: A) -> B {
+                    match from {
+                        A::Bar => B::Bar,
+                        A::Baz(__0) => B::Baz(__0),
+                        A::Qux {quux} => B::Qux {quux},
+                    }
+                }
+            }"
+            ))
+        );
+    }
+
+    #[test]
+    fn enum_with_attributes() {
+        assert_ok_eq!(
+            parse::<File>(from(
+                &assert_ok!(parse_str(
+                    "enum Foo {
+                        /// Bar documentation.
+                        Bar,
+                        /// Baz documentation.
+                        Baz(usize),
+                        /// Qux documentation.
+                        Qux {
+                            /// Quux documentation.
+                            quux: String,
+                        }
+                    }"
+                )),
+                &assert_ok!(parse_str("A")),
+                &assert_ok!(parse_str("B"))
+            )),
+            assert_ok!(parse_str(
+                "
+            impl From<A> for B {
+                fn from(from: A) -> B {
+                    match from {
+                        A::Bar => B::Bar,
+                        A::Baz(__0) => B::Baz(__0),
+                        A::Qux {quux} => B::Qux {quux},
+                    }
+                }
+            }"
+            ))
+        );
+    }
+
+    #[test]
+    fn struct_no_fields() {
+        assert_ok_eq!(
+            parse::<File>(from(
+                &assert_ok!(parse_str("struct Foo {}")),
+                &assert_ok!(parse_str("Bar")),
+                &assert_ok!(parse_str("Baz"))
+            )),
+            assert_ok!(parse_str(
+                "
+            impl From<Bar> for Baz {
+                fn from(from: Bar) -> Baz {
+                    Baz {}
+                }
+            }"
+            ))
+        );
+    }
+
+    #[test]
+    fn r#struct() {
+        assert_ok_eq!(
+            parse::<File>(from(
+                &assert_ok!(parse_str(
+                    "struct Foo {
+                        bar: usize,
+                        baz: String,
+                    }"
+                )),
+                &assert_ok!(parse_str("Bar")),
+                &assert_ok!(parse_str("Baz"))
+            )),
+            assert_ok!(parse_str(
+                "
+            impl From<Bar> for Baz {
+                fn from(from: Bar) -> Baz {
+                    Baz {
+                        bar: from.bar,
+                        baz: from.baz
+                    }
+                }
+            }"
+            ))
+        );
+    }
+
+    #[test]
+    fn struct_with_attributes() {
+        assert_ok_eq!(
+            parse::<File>(from(
+                &assert_ok!(parse_str(
+                    "
+                    /// Foo documentation.
+                    struct Foo {
+                        /// Bar documentation.
+                        bar: usize,
+                        /// Baz documentation.
+                        baz: String,
+                    }"
+                )),
+                &assert_ok!(parse_str("Bar")),
+                &assert_ok!(parse_str("Baz"))
+            )),
+            assert_ok!(parse_str(
+                "
+            impl From<Bar> for Baz {
+                fn from(from: Bar) -> Baz {
+                    Baz {
+                        bar: from.bar,
+                        baz: from.baz
+                    }
+                }
+            }"
+            ))
+        );
+    }
+}
