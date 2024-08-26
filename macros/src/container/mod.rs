@@ -88,7 +88,7 @@ mod tests {
     use super::{descriptions::Documentation, Container, Descriptions};
     use claims::assert_ok;
     use proc_macro2::Span;
-    use syn::{parse_str, Token, Visibility};
+    use syn::{parse_str, Ident, Token, Visibility};
 
     #[test]
     fn struct_descriptions_none() {
@@ -693,6 +693,36 @@ mod tests {
             )))
             .visibility(),
             &assert_ok!(parse_str("pub(in some::module)")),
+        );
+    }
+
+    #[test]
+    fn struct_identifier() {
+        assert_eq!(
+            Container::Struct(assert_ok!(parse_str(
+                "
+                struct Foo {
+                    bar: usize,
+                    baz: String,
+                }"
+            )))
+            .identifier(),
+            &Ident::new("Foo", Span::call_site()),
+        );
+    }
+
+    #[test]
+    fn enum_identifier() {
+        assert_eq!(
+            Container::Enum(assert_ok!(parse_str(
+                "
+                enum Foo {
+                    Bar,
+                    Baz,
+                }"
+            )))
+            .identifier(),
+            &Ident::new("Foo", Span::call_site()),
         );
     }
 }
