@@ -82,3 +82,436 @@ impl ToTokens for Container {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{descriptions::Documentation, Container, Descriptions};
+    use claims::assert_ok;
+    use syn::parse_str;
+
+    #[test]
+    fn struct_descriptions_none() {
+        assert_eq!(
+            Container::Struct(assert_ok!(parse_str(
+                "
+                struct Foo {
+                    bar: usize,
+                    baz: String,
+                }"
+            )))
+            .descriptions(),
+            Descriptions {
+                container: Documentation { exprs: vec![] },
+                keys: vec![
+                    Documentation { exprs: vec![] },
+                    Documentation { exprs: vec![] },
+                ]
+            }
+        );
+    }
+
+    #[test]
+    fn struct_descriptions_container() {
+        assert_eq!(
+            Container::Struct(assert_ok!(parse_str(
+                "
+                /// Hello, world!
+                struct Foo {
+                    bar: usize,
+                    baz: String,
+                }"
+            )))
+            .descriptions(),
+            Descriptions {
+                container: Documentation {
+                    exprs: vec![assert_ok!(&parse_str("\" Hello, world!\""))],
+                },
+                keys: vec![
+                    Documentation { exprs: vec![] },
+                    Documentation { exprs: vec![] },
+                ]
+            }
+        );
+    }
+
+    #[test]
+    fn struct_descriptions_keys() {
+        assert_eq!(
+            Container::Struct(assert_ok!(parse_str(
+                "
+                struct Foo {
+                    /// Bar documentation.
+                    bar: usize,
+                    /// Baz documentation.
+                    baz: String,
+                }"
+            )))
+            .descriptions(),
+            Descriptions {
+                container: Documentation { exprs: vec![] },
+                keys: vec![
+                    Documentation {
+                        exprs: vec![assert_ok!(&parse_str("\" Bar documentation.\""))]
+                    },
+                    Documentation {
+                        exprs: vec![assert_ok!(&parse_str("\" Baz documentation.\""))]
+                    },
+                ]
+            }
+        );
+    }
+
+    #[test]
+    fn struct_descriptions_all() {
+        assert_eq!(
+            Container::Struct(assert_ok!(parse_str(
+                "
+                /// Hello, world!
+                struct Foo {
+                    /// Bar documentation.
+                    bar: usize,
+                    /// Baz documentation.
+                    baz: String,
+                }"
+            )))
+            .descriptions(),
+            Descriptions {
+                container: Documentation {
+                    exprs: vec![assert_ok!(&parse_str("\" Hello, world!\""))]
+                },
+                keys: vec![
+                    Documentation {
+                        exprs: vec![assert_ok!(&parse_str("\" Bar documentation.\""))]
+                    },
+                    Documentation {
+                        exprs: vec![assert_ok!(&parse_str("\" Baz documentation.\""))]
+                    },
+                ]
+            }
+        );
+    }
+
+    #[test]
+    fn struct_descriptions_multiline() {
+        assert_eq!(
+            Container::Struct(assert_ok!(parse_str(
+                "
+                /// Hello, world!
+                /// Second line.
+                struct Foo {
+                    /// Bar documentation.
+                    /// Second line bar.
+                    bar: usize,
+                    /// Baz documentation.
+                    /// Second line baz.
+                    baz: String,
+                }"
+            )))
+            .descriptions(),
+            Descriptions {
+                container: Documentation {
+                    exprs: vec![
+                        assert_ok!(&parse_str("\" Hello, world!\"")),
+                        assert_ok!(&parse_str("\" Second line.\""))
+                    ]
+                },
+                keys: vec![
+                    Documentation {
+                        exprs: vec![
+                            assert_ok!(&parse_str("\" Bar documentation.\"")),
+                            assert_ok!(&parse_str("\" Second line bar.\""))
+                        ]
+                    },
+                    Documentation {
+                        exprs: vec![
+                            assert_ok!(&parse_str("\" Baz documentation.\"")),
+                            assert_ok!(&parse_str("\" Second line baz.\""))
+                        ]
+                    },
+                ]
+            }
+        );
+    }
+
+    #[test]
+    fn enum_descriptions_none() {
+        assert_eq!(
+            Container::Enum(assert_ok!(parse_str(
+                "
+                enum Foo {
+                    Bar,
+                    Baz,
+                }"
+            )))
+            .descriptions(),
+            Descriptions {
+                container: Documentation { exprs: vec![] },
+                keys: vec![
+                    Documentation { exprs: vec![] },
+                    Documentation { exprs: vec![] },
+                ]
+            }
+        );
+    }
+
+    #[test]
+    fn enum_descriptions_container() {
+        assert_eq!(
+            Container::Enum(assert_ok!(parse_str(
+                "
+                /// Hello, world!
+                enum Foo {
+                    Bar,
+                    Baz,
+                }"
+            )))
+            .descriptions(),
+            Descriptions {
+                container: Documentation {
+                    exprs: vec![assert_ok!(&parse_str("\" Hello, world!\""))],
+                },
+                keys: vec![
+                    Documentation { exprs: vec![] },
+                    Documentation { exprs: vec![] },
+                ]
+            }
+        );
+    }
+
+    #[test]
+    fn enum_descriptions_keys() {
+        assert_eq!(
+            Container::Enum(assert_ok!(parse_str(
+                "
+                enum Foo {
+                    /// Bar documentation.
+                    Bar,
+                    /// Baz documentation.
+                    Baz,
+                }"
+            )))
+            .descriptions(),
+            Descriptions {
+                container: Documentation { exprs: vec![] },
+                keys: vec![
+                    Documentation {
+                        exprs: vec![assert_ok!(&parse_str("\" Bar documentation.\""))]
+                    },
+                    Documentation {
+                        exprs: vec![assert_ok!(&parse_str("\" Baz documentation.\""))]
+                    },
+                ]
+            }
+        );
+    }
+
+    #[test]
+    fn enum_descriptions_all() {
+        assert_eq!(
+            Container::Enum(assert_ok!(parse_str(
+                "
+                /// Hello, world!
+                enum Foo {
+                    /// Bar documentation.
+                    Bar,
+                    /// Baz documentation.
+                    Baz,
+                }"
+            )))
+            .descriptions(),
+            Descriptions {
+                container: Documentation {
+                    exprs: vec![assert_ok!(&parse_str("\" Hello, world!\""))]
+                },
+                keys: vec![
+                    Documentation {
+                        exprs: vec![assert_ok!(&parse_str("\" Bar documentation.\""))]
+                    },
+                    Documentation {
+                        exprs: vec![assert_ok!(&parse_str("\" Baz documentation.\""))]
+                    },
+                ]
+            }
+        );
+    }
+
+    #[test]
+    fn enum_descriptions_multiline() {
+        assert_eq!(
+            Container::Enum(assert_ok!(parse_str(
+                "
+                /// Hello, world!
+                /// Second line.
+                enum Foo {
+                    /// Bar documentation.
+                    /// Second line bar.
+                    Bar,
+                    /// Baz documentation.
+                    /// Second line baz.
+                    Baz,
+                }"
+            )))
+            .descriptions(),
+            Descriptions {
+                container: Documentation {
+                    exprs: vec![
+                        assert_ok!(&parse_str("\" Hello, world!\"")),
+                        assert_ok!(&parse_str("\" Second line.\""))
+                    ]
+                },
+                keys: vec![
+                    Documentation {
+                        exprs: vec![
+                            assert_ok!(&parse_str("\" Bar documentation.\"")),
+                            assert_ok!(&parse_str("\" Second line bar.\""))
+                        ]
+                    },
+                    Documentation {
+                        exprs: vec![
+                            assert_ok!(&parse_str("\" Baz documentation.\"")),
+                            assert_ok!(&parse_str("\" Second line baz.\""))
+                        ]
+                    },
+                ]
+            }
+        );
+    }
+
+    #[test]
+    fn tuple_struct_descriptions_none() {
+        assert_eq!(
+            Container::Struct(assert_ok!(parse_str(
+                "
+                struct Foo(usize, String);"
+            )))
+            .descriptions(),
+            Descriptions {
+                container: Documentation { exprs: vec![] },
+                keys: vec![
+                    Documentation { exprs: vec![] },
+                    Documentation { exprs: vec![] },
+                ]
+            }
+        );
+    }
+
+    #[test]
+    fn tuple_struct_descriptions_container() {
+        assert_eq!(
+            Container::Struct(assert_ok!(parse_str(
+                "
+                /// Hello, world!
+                struct Foo(usize, String);"
+            )))
+            .descriptions(),
+            Descriptions {
+                container: Documentation {
+                    exprs: vec![assert_ok!(&parse_str("\" Hello, world!\"")),]
+                },
+                keys: vec![
+                    Documentation { exprs: vec![] },
+                    Documentation { exprs: vec![] },
+                ]
+            }
+        );
+    }
+
+    #[test]
+    fn tuple_struct_descriptions_keys() {
+        assert_eq!(
+            Container::Struct(assert_ok!(parse_str(
+                "
+                struct Foo(
+                    /// Bar documentation.
+                    usize,
+                    /// Baz documentation.
+                    String
+                );"
+            )))
+            .descriptions(),
+            Descriptions {
+                container: Documentation { exprs: vec![] },
+                keys: vec![
+                    Documentation {
+                        exprs: vec![assert_ok!(&parse_str("\" Bar documentation.\""))]
+                    },
+                    Documentation {
+                        exprs: vec![assert_ok!(&parse_str("\" Baz documentation.\""))]
+                    },
+                ]
+            }
+        );
+    }
+
+    #[test]
+    fn tuple_struct_descriptions_all() {
+        assert_eq!(
+            Container::Struct(assert_ok!(parse_str(
+                "
+                /// Hello, world!
+                struct Foo(
+                    /// Bar documentation.
+                    usize,
+                    /// Baz documentation.
+                    String
+                );"
+            )))
+            .descriptions(),
+            Descriptions {
+                container: Documentation {
+                    exprs: vec![assert_ok!(&parse_str("\" Hello, world!\"")),]
+                },
+                keys: vec![
+                    Documentation {
+                        exprs: vec![assert_ok!(&parse_str("\" Bar documentation.\""))]
+                    },
+                    Documentation {
+                        exprs: vec![assert_ok!(&parse_str("\" Baz documentation.\""))]
+                    },
+                ]
+            }
+        );
+    }
+
+    #[test]
+    fn tuple_struct_descriptions_multiline() {
+        assert_eq!(
+            Container::Struct(assert_ok!(parse_str(
+                "
+                /// Hello, world!
+                /// Second line.
+                struct Foo(
+                    /// Bar documentation.
+                    /// Second line bar.
+                    usize,
+                    /// Baz documentation.
+                    /// Second line baz.
+                    String
+                );"
+            )))
+            .descriptions(),
+            Descriptions {
+                container: Documentation {
+                    exprs: vec![
+                        assert_ok!(&parse_str("\" Hello, world!\"")),
+                        assert_ok!(&parse_str("\" Second line.\"")),
+                    ]
+                },
+                keys: vec![
+                    Documentation {
+                        exprs: vec![
+                            assert_ok!(&parse_str("\" Bar documentation.\"")),
+                            assert_ok!(&parse_str("\" Second line bar.\"")),
+                        ]
+                    },
+                    Documentation {
+                        exprs: vec![
+                            assert_ok!(&parse_str("\" Baz documentation.\"")),
+                            assert_ok!(&parse_str("\" Second line baz.\"")),
+                        ]
+                    },
+                ]
+            }
+        );
+    }
+}
