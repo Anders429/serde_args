@@ -154,7 +154,7 @@ pub(crate) fn phase_2(
 
 pub(crate) fn phase_3(mut container: Container) -> TokenStream {
     // Insert the `serde(from)` attribute.
-    let attribute_tokens: TokenStream = [
+    let from_tokens: TokenStream = [
         TokenTree::Ident(Ident::new("from", Span::call_site())),
         TokenTree::Punct(Punct::new('=', Spacing::Alone)),
         TokenTree::Literal(Literal::string("Phase2")),
@@ -163,11 +163,11 @@ pub(crate) fn phase_3(mut container: Container) -> TokenStream {
     .collect();
     match &mut container {
         Container::Enum(item) => {
-            push_serde_attribute(&mut item.attrs, attribute_tokens);
+            push_serde_attribute(&mut item.attrs, from_tokens);
             item.vis = Visibility::Public(Token!(pub)(Span::call_site()));
         }
         Container::Struct(item) => {
-            push_serde_attribute(&mut item.attrs, attribute_tokens);
+            push_serde_attribute(&mut item.attrs, from_tokens);
             item.vis = Visibility::Public(Token!(pub)(Span::call_site()));
         }
     };
