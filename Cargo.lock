@@ -58,6 +58,7 @@ dependencies = [
 name = "serde_args_macros"
 version = "0.1.0"
 dependencies = [
+ "claims",
  "proc-macro2",
  "quote",
  "syn",
