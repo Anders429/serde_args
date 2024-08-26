@@ -24,3 +24,17 @@ jobs:
       with:
         toolchain: ${{ matrix.rust }}
     - run: cargo test --workspace
+
+  test-no-macro:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-14]
+        rust: [stable, beta, nightly]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+    - run: cargo test --no-default-features --lib
