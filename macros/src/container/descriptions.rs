@@ -26,3 +26,92 @@ pub(crate) struct Descriptions<'a> {
     pub(crate) container: Documentation<'a>,
     pub(crate) keys: Vec<Documentation<'a>>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Documentation;
+    use claims::assert_ok;
+    use syn::{
+        parse,
+        parse::{Parse, ParseStream},
+        parse_str, Attribute,
+    };
+
+    #[derive(Debug)]
+    struct OuterAttributes(Vec<Attribute>);
+
+    impl Parse for OuterAttributes {
+        fn parse(input: ParseStream) -> parse::Result<Self> {
+            Ok(Self(input.call(Attribute::parse_outer)?))
+        }
+    }
+
+    #[test]
+    fn documentation_from_attributes_none() {
+        assert_eq!(
+            Documentation::from(&vec![]),
+            Documentation { exprs: vec![] }
+        );
+    }
+
+    #[test]
+    fn documentation_from_attributes_no_doc() {
+        assert_eq!(
+            Documentation::from(
+                &assert_ok!(parse_str::<OuterAttributes>(
+                    "#[serde(rename_all = \"kebab-case\")]"
+                ))
+                .0
+            ),
+            Documentation { exprs: vec![] }
+        );
+    }
+
+    #[test]
+    fn documentation_from_attributes_single_doc() {
+        assert_eq!(
+            Documentation::from(
+                &assert_ok!(parse_str::<OuterAttributes>("#[doc = \"foo bar baz\"]")).0
+            ),
+            Documentation {
+                exprs: vec![&assert_ok!(parse_str("\"foo bar baz\""))]
+            }
+        );
+    }
+
+    #[test]
+    fn documentation_from_attributes_multiple_docs() {
+        assert_eq!(
+            Documentation::from(
+                &assert_ok!(parse_str::<OuterAttributes>(
+                    "#[doc = \"foo bar baz\"] #[doc = \"qux quux\"]"
+                ))
+                .0
+            ),
+            Documentation {
+                exprs: vec![
+                    &assert_ok!(parse_str("\"foo bar baz\"")),
+                    &assert_ok!(parse_str("\"qux quux\""))
+                ]
+            }
+        );
+    }
+
+    #[test]
+    fn documentation_from_attributes_multiple_docs_non_doc_interleaved() {
+        assert_eq!(
+            Documentation::from(
+                &assert_ok!(parse_str::<OuterAttributes>(
+                    "#[doc = \"foo bar baz\"] #[serde(rename_all = \"kebab-case\")] #[doc = \"qux quux\"]"
+                ))
+                .0
+            ),
+            Documentation {
+                exprs: vec![
+                    &assert_ok!(parse_str("\"foo bar baz\"")),
+                    &assert_ok!(parse_str("\"qux quux\""))
+                ]
+            }
+        );
+    }
+}
