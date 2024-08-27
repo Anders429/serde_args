@@ -181,3 +181,43 @@ pub(crate) fn phase_3(mut container: Container) -> TokenStream {
         #from
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::push_serde_attribute;
+    use crate::test::OuterAttributes;
+    use claims::assert_ok;
+    use proc_macro2::{Ident, Span, TokenTree};
+    use std::iter;
+    use syn::parse_str;
+
+    #[test]
+    fn push_serde_attribute_empty() {
+        let mut attributes = vec![];
+
+        push_serde_attribute(
+            &mut attributes,
+            iter::once(TokenTree::Ident(Ident::new("foo", Span::call_site()))).collect(),
+        );
+
+        assert_eq!(
+            attributes,
+            assert_ok!(parse_str::<OuterAttributes>("#[serde(foo)]")).0
+        );
+    }
+
+    #[test]
+    fn push_serde_attribute_nonempty() {
+        let mut attributes = assert_ok!(parse_str::<OuterAttributes>("#[foo] #[bar]")).0;
+
+        push_serde_attribute(
+            &mut attributes,
+            iter::once(TokenTree::Ident(Ident::new("foo", Span::call_site()))).collect(),
+        );
+
+        assert_eq!(
+            attributes,
+            assert_ok!(parse_str::<OuterAttributes>("#[foo] #[bar] #[serde(foo)]")).0
+        );
+    }
+}

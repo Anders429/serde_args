@@ -30,21 +30,9 @@ pub(crate) struct Descriptions<'a> {
 #[cfg(test)]
 mod tests {
     use super::Documentation;
+    use crate::test::OuterAttributes;
     use claims::assert_ok;
-    use syn::{
-        parse,
-        parse::{Parse, ParseStream},
-        parse_str, Attribute,
-    };
-
-    #[derive(Debug)]
-    struct OuterAttributes(Vec<Attribute>);
-
-    impl Parse for OuterAttributes {
-        fn parse(input: ParseStream) -> parse::Result<Self> {
-            Ok(Self(input.call(Attribute::parse_outer)?))
-        }
-    }
+    use syn::parse_str;
 
     #[test]
     fn documentation_from_attributes_none() {

@@ -1,6 +1,8 @@
 mod container;
 mod generate;
 mod process;
+#[cfg(test)]
+mod test;
 
 use container::Container;
 use proc_macro::TokenStream;
