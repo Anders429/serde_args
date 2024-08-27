@@ -184,10 +184,10 @@ pub(crate) fn phase_3(mut container: Container) -> TokenStream {
 
 #[cfg(test)]
 mod tests {
-    use super::push_serde_attribute;
+    use super::{phase_1, push_serde_attribute};
     use crate::test::OuterAttributes;
     use claims::assert_ok;
-    use proc_macro2::{Ident, Span, TokenTree};
+    use proc_macro2::{Span, TokenTree};
     use std::iter;
     use syn::parse_str;
 
@@ -197,7 +197,11 @@ mod tests {
 
         push_serde_attribute(
             &mut attributes,
-            iter::once(TokenTree::Ident(Ident::new("foo", Span::call_site()))).collect(),
+            iter::once(TokenTree::Ident(proc_macro2::Ident::new(
+                "foo",
+                Span::call_site(),
+            )))
+            .collect(),
         );
 
         assert_eq!(
@@ -212,12 +216,66 @@ mod tests {
 
         push_serde_attribute(
             &mut attributes,
-            iter::once(TokenTree::Ident(Ident::new("foo", Span::call_site()))).collect(),
+            iter::once(TokenTree::Ident(proc_macro2::Ident::new(
+                "foo",
+                Span::call_site(),
+            )))
+            .collect(),
         );
 
         assert_eq!(
             attributes,
             assert_ok!(parse_str::<OuterAttributes>("#[foo] #[bar] #[serde(foo)]")).0
+        );
+    }
+
+    #[test]
+    fn phase_1_struct() {
+        let container = assert_ok!(parse_str(
+            "
+        #[derive(Deserialize)]
+        struct Foo {
+            bar: usize,
+            baz: String,
+        }"
+        ));
+
+        assert_eq!(
+            phase_1(container, &syn::Ident::new("Foo", Span::call_site())),
+            assert_ok!(parse_str(
+                "
+            #[derive(Deserialize)]
+            #[serde(rename = \"Foo\")]
+            struct Phase1 {
+                bar: usize,
+                baz: String,
+            }"
+            ))
+        );
+    }
+
+    #[test]
+    fn phase_1_enum() {
+        let container = assert_ok!(parse_str(
+            "
+        #[derive(Deserialize)]
+        enum Foo {
+            Bar,
+            Baz,
+        }"
+        ));
+
+        assert_eq!(
+            phase_1(container, &syn::Ident::new("Foo", Span::call_site())),
+            assert_ok!(parse_str(
+                "
+            #[derive(Deserialize)]
+            #[serde(rename = \"Foo\")]
+            enum Phase1 {
+                Bar,
+                Baz,
+            }"
+            ))
         );
     }
 }

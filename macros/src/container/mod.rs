@@ -11,7 +11,7 @@ use syn::{
     Ident, Item, ItemEnum, ItemStruct, Visibility,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum Container {
     Struct(ItemStruct),
     Enum(ItemEnum),
