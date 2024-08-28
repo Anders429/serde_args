@@ -1,0 +1,5 @@
+error: cannot use `serde_args::help` macro on static
+ --> tests/trybuild/static.rs:4:1
+  |
+4 | static FOO: usize = 0;
+  | ^^^^^^^^^^^^^^^^^^^^^^

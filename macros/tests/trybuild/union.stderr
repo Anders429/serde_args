@@ -1,0 +1,8 @@
+error: cannot use `serde_args::help` macro on union
+ --> tests/trybuild/union.rs:4:1
+  |
+4 | / union Foo {
+5 | |     bar: usize,
+6 | |     baz: char,
+7 | | }
+  | |_^

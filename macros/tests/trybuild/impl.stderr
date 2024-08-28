@@ -1,0 +1,5 @@
+error: cannot use `serde_args::help` macro on impl block
+ --> tests/trybuild/impl.rs:6:1
+  |
+6 | impl Foo {}
+  | ^^^^^^^^^^^

@@ -2,7 +2,7 @@ mod descriptions;
 
 pub(crate) use descriptions::{Descriptions, Documentation};
 
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{
     parse,
@@ -63,11 +63,57 @@ impl Container {
 impl Parse for Container {
     fn parse(input: ParseStream) -> parse::Result<Self> {
         match Item::parse(input)? {
+            // Allowed item types.
             Item::Struct(r#struct) => Ok(Self::Struct(r#struct)),
             Item::Enum(r#enum) => Ok(Self::Enum(r#enum)),
-            item => Err(parse::Error::new(
-                Span::call_site(),
-                format!("cannot use `serde_args::help` macro on {:?} item", item),
+            // Disallowed item types.
+            item @ Item::Const(_) => Err(syn::Error::new_spanned(
+                item,
+                "cannot use `serde_args::help` macro on const",
+            )),
+            item @ Item::ExternCrate(_) => Err(syn::Error::new_spanned(
+                item,
+                "cannot use `serde_args::help` macro on extern crate",
+            )),
+            item @ Item::Fn(_) => Err(syn::Error::new_spanned(
+                item,
+                "cannot use `serde_args::help` macro on function",
+            )),
+            item @ Item::ForeignMod(_) | item @ Item::Mod(_) => Err(syn::Error::new_spanned(
+                item,
+                "cannot use `serde_args::help` macro on module",
+            )),
+            item @ Item::Impl(_) => Err(syn::Error::new_spanned(
+                item,
+                "cannot use `serde_args::help` macro on impl block",
+            )),
+            item @ Item::Macro(_) => Err(syn::Error::new_spanned(
+                item,
+                "cannot use `serde_args::help` macro on macro",
+            )),
+            item @ Item::Static(_) => Err(syn::Error::new_spanned(
+                item,
+                "cannot use `serde_args::help` macro on static",
+            )),
+            item @ Item::Trait(_) | item @ Item::TraitAlias(_) => Err(syn::Error::new_spanned(
+                item,
+                "cannot use `serde_args::help` macro on trait",
+            )),
+            item @ Item::Type(_) => Err(syn::Error::new_spanned(
+                item,
+                "cannot use `serde_args::help` macro on type alias",
+            )),
+            item @ Item::Union(_) => Err(syn::Error::new_spanned(
+                item,
+                "cannot use `serde_args::help` macro on union",
+            )),
+            item @ Item::Use(_) => Err(syn::Error::new_spanned(
+                item,
+                "cannot use `serde_args::help` macro on use declaration",
+            )),
+            item => Err(syn::Error::new_spanned(
+                item,
+                "cannot use `serde_args::help` macro on unknown stream of tokens",
             )),
         }
     }

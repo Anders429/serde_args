@@ -1,0 +1,5 @@
+error: cannot use `serde_args::help` macro on module
+ --> tests/trybuild/foreign_mod.rs:6:1
+  |
+6 | mod foo;
+  | ^^^^^^^^

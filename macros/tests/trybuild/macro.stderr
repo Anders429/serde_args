@@ -1,0 +1,5 @@
+error: cannot use `serde_args::help` macro on macro
+ --> tests/trybuild/macro.rs:4:1
+  |
+4 | macro_rules! foo {}
+  | ^^^^^^^^^^^^^^^^^^^

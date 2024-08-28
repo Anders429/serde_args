@@ -1,0 +1,5 @@
+error: cannot use `serde_args::help` macro on trait
+ --> tests/trybuild/trait_alias.rs:4:1
+  |
+4 | trait Foo = Iterator + Sync;
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

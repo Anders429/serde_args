@@ -1,0 +1,5 @@
+error: cannot use `serde_args::help` macro on const
+ --> tests/trybuild/const.rs:4:1
+  |
+4 | const FOO: usize = 0;
+  | ^^^^^^^^^^^^^^^^^^^^^
