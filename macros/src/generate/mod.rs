@@ -184,12 +184,15 @@ pub(crate) fn phase_3(mut container: Container) -> TokenStream {
 
 #[cfg(test)]
 mod tests {
-    use super::{phase_1, push_serde_attribute};
-    use crate::test::OuterAttributes;
+    use super::{phase_1, phase_2, push_serde_attribute};
+    use crate::{
+        container::{Descriptions, Documentation},
+        test::OuterAttributes,
+    };
     use claims::assert_ok;
     use proc_macro2::{Span, TokenTree};
     use std::iter;
-    use syn::parse_str;
+    use syn::{parse2 as parse, parse_str, File};
 
     #[test]
     fn push_serde_attribute_empty() {
@@ -274,6 +277,170 @@ mod tests {
             enum Phase1 {
                 Bar,
                 Baz,
+            }"
+            ))
+        );
+    }
+
+    #[test]
+    fn phase_2_struct() {
+        let container = assert_ok!(parse_str(
+            "
+        #[derive(Deserialize)]
+        struct Foo {
+            bar: usize,
+            baz: String,
+        }"
+        ));
+
+        assert_eq!(
+            assert_ok!(parse::<File>(phase_2(container, Descriptions {
+                container: Documentation {
+                    exprs: vec![
+                        assert_ok!(&parse_str("\"container documentation.\"")),
+                    ],
+                },
+                keys: vec![
+                    Documentation {
+                        exprs: vec![
+                            assert_ok!(&parse_str("\"bar documentation.\"")),
+                        ],
+                    },
+                    Documentation {
+                        exprs: vec![
+                            assert_ok!(&parse_str("\"baz documentation.\"")),
+                        ],
+                    }
+                ],
+            }, &syn::Ident::new("Foo", Span::call_site())))),
+            assert_ok!(parse_str(
+                "
+            struct Phase2 {
+                bar: usize,
+                baz: String,
+            }
+                
+            impl From<Phase1> for Phase2 {
+                fn from(from: Phase1) -> Phase2 {
+                    Phase2 {
+                        bar: from.bar,
+                        baz: from.baz
+                    }
+                }
+            }
+                
+            impl<'de> ::serde::de::Deserialize<'de> for Phase2 {
+                fn deserialize<D>(deserializer: D) -> Result<Phase2, D::Error> where D: ::serde::de::Deserializer<'de> {
+                    struct Phase2Visitor;
+
+                    impl<'de> ::serde::de::Visitor<'de> for Phase2Visitor {
+                        type Value = Phase2;
+
+                        fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                            match formatter.width() {
+                                Some(0usize) => {
+                                    formatter.write_str(\"bar documentation.\")?;
+                                }
+                                Some(1usize) => {
+                                    formatter.write_str(\"baz documentation.\")?;
+                                }
+                                _ => {
+                                    formatter.write_str(\"container documentation.\")?;
+                                }
+                            }
+                            Ok(())
+                        }
+
+                        fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
+                            use ::serde::de::Deserialize;
+                            Phase1::deserialize(deserializer).map(Into::into)
+                        }
+                    }
+
+                    deserializer.deserialize_newtype_struct(\"Foo\", Phase2Visitor)
+                }
+            }"
+            ))
+        );
+    }
+
+    #[test]
+    fn phase_2_enum() {
+        let container = assert_ok!(parse_str(
+            "
+        #[derive(Deserialize)]
+        enum Foo {
+            Bar,
+            Baz,
+        }"
+        ));
+
+        assert_eq!(
+            assert_ok!(parse::<File>(phase_2(container, Descriptions {
+                container: Documentation {
+                    exprs: vec![
+                        assert_ok!(&parse_str("\"container documentation.\"")),
+                    ],
+                },
+                keys: vec![
+                    Documentation {
+                        exprs: vec![
+                            assert_ok!(&parse_str("\"bar documentation.\"")),
+                        ],
+                    },
+                    Documentation {
+                        exprs: vec![
+                            assert_ok!(&parse_str("\"baz documentation.\"")),
+                        ],
+                    }
+                ],
+            }, &syn::Ident::new("Foo", Span::call_site())))),
+            assert_ok!(parse_str(
+                "
+            enum Phase2 {
+                Bar,
+                Baz,
+            }
+                
+            impl From<Phase1> for Phase2 {
+                fn from(from: Phase1) -> Phase2 {
+                    match from {
+                        Phase1::Bar => Phase2::Bar,
+                        Phase1::Baz => Phase2::Baz,
+                    }
+                }
+            }
+                
+            impl<'de> ::serde::de::Deserialize<'de> for Phase2 {
+                fn deserialize<D>(deserializer: D) -> Result<Phase2, D::Error> where D: ::serde::de::Deserializer<'de> {
+                    struct Phase2Visitor;
+
+                    impl<'de> ::serde::de::Visitor<'de> for Phase2Visitor {
+                        type Value = Phase2;
+
+                        fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                            match formatter.width() {
+                                Some(0usize) => {
+                                    formatter.write_str(\"bar documentation.\")?;
+                                }
+                                Some(1usize) => {
+                                    formatter.write_str(\"baz documentation.\")?;
+                                }
+                                _ => {
+                                    formatter.write_str(\"container documentation.\")?;
+                                }
+                            }
+                            Ok(())
+                        }
+
+                        fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
+                            use ::serde::de::Deserialize;
+                            Phase1::deserialize(deserializer).map(Into::into)
+                        }
+                    }
+
+                    deserializer.deserialize_newtype_struct(\"Foo\", Phase2Visitor)
+                }
             }"
             ))
         );

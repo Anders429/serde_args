@@ -1,8 +1,7 @@
 mod descriptions;
 
-pub(crate) use descriptions::Descriptions;
+pub(crate) use descriptions::{Descriptions, Documentation};
 
-use descriptions::Documentation;
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use syn::{
