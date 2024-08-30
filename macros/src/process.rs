@@ -72,6 +72,24 @@ mod tests {
                     baz: String,
                 }
 
+                struct Shim;
+
+                impl<'de> ::serde::de::DeserializeSeed<'de> for Shim where Phase1: ::serde::de::Deserialize<'de> {
+                    type Value = Phase1;
+
+                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
+                        <Phase1 as ::serde::de::Deserialize<'de>>::deserialize(deserializer)
+                    }
+                }
+
+                impl<'de> ::serde::de::DeserializeSeed<'de> for &Shim {
+                    type Value = Phase1;
+
+                    fn deserialize<D>(self, _deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
+                        unimplemented!(\"`Deserialize` is not implemented for this type\")
+                    }
+                }
+
                 struct Phase2 {
                     bar: usize,
                     baz: String,
@@ -109,8 +127,8 @@ mod tests {
                             }
 
                             fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
-                                use ::serde::de::Deserialize;
-                                Phase1::deserialize(deserializer).map(Into::into)
+                                use ::serde::de::DeserializeSeed;
+                                Shim.deserialize(deserializer).map(Into::into)
                             }
                         }
 
@@ -172,6 +190,24 @@ mod tests {
                     Baz,
                 }
 
+                struct Shim;
+
+                impl<'de> ::serde::de::DeserializeSeed<'de> for Shim where Phase1: ::serde::de::Deserialize<'de> {
+                    type Value = Phase1;
+
+                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
+                        <Phase1 as ::serde::de::Deserialize<'de>>::deserialize(deserializer)
+                    }
+                }
+
+                impl<'de> ::serde::de::DeserializeSeed<'de> for &Shim {
+                    type Value = Phase1;
+
+                    fn deserialize<D>(self, _deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
+                        unimplemented!(\"`Deserialize` is not implemented for this type\")
+                    }
+                }
+
                 enum Phase2 {
                     Bar,
                     Baz,
@@ -209,8 +245,8 @@ mod tests {
                             }
 
                             fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
-                                use ::serde::de::Deserialize;
-                                Phase1::deserialize(deserializer).map(Into::into)
+                                use ::serde::de::DeserializeSeed;
+                                Shim.deserialize(deserializer).map(Into::into)
                             }
                         }
 

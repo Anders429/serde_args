@@ -44,7 +44,7 @@ fn push_serde_attribute(attrs: &mut Vec<Attribute>, meta_tokens: TokenStream) {
     });
 }
 
-pub(crate) fn phase_1(mut container: Container, ident: &Ident) -> Container {
+pub(crate) fn phase_1(mut container: Container, ident: &Ident) -> TokenStream {
     let attribute_tokens: TokenStream = [
         TokenTree::Ident(Ident::new("rename", Span::call_site())),
         TokenTree::Punct(Punct::new('=', Spacing::Alone)),
@@ -65,7 +65,50 @@ pub(crate) fn phase_1(mut container: Container, ident: &Ident) -> Container {
         }
     };
 
-    container
+    // Create a shim to funnel calls to `Deserialize::deserialize()` through.
+    // Can be done like this: https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=d5ef823be57c29a964191dd296d8395b
+    // NOTE: May still need to consider if this is the best path.
+    // Can we instead consider clearing out all of the attributes on Phase 1, and then putting the `Deserialize` attribute in ourselves?
+    // That just depends on whether anything within the type will actually depend on those traits that are deserialized, but I don't think it will.
+    // If we're doing complex deserialization that allocates stuff and requires custom drop implementations, we likely aren't doing that in a type we're also deriving `Deserialize` on.
+    // A shim might be overkill in that case. We can remove the annoying error messages we're facing by just ensuring Phase1 always impls `Deserialize`, and therefore is always callable from Phase2.
+    // Then the error will still occur on the actual type, but we won't have confusing messages that mention Phase1 and Phase2.
+    //
+    // Actually, after further thought, using the idea of just erasing attributes and only keeping serde ones will cause problems.
+    // Specifically, I want this to be compatible with all the serde stuff, including the `serde_with` crate and its custom attributes.
+    // Removing those would cause a change to how the implementation is derived, which would cause lots of problems and unexpected bugs.
+    // The better choice is to use the shim idea to funnel the call through, and erroring on the external shell of the implementation only.
+    //
+    // Here is a cleaner implementation: https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=39c463a3f6c208575fb708d26dca8dcd
+    //
+    // And finally, here is an implementation that just uses `DeserializeSeed` directly, meaning we don't have to define our own traits:
+    // https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=aaf377941a64f88c6e914bfa6fcc8dfc
+    //
+    // I think I like the last one the best, because it creates the least amount of friction. Using traits that already exist is ideal.
+    //
+    // Another iteration: No generics: https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=96c0d0ff95311cd49576a13d15ae9961
+
+    quote! {
+        #container
+
+        struct Shim;
+
+        impl<'de> ::serde::de::DeserializeSeed<'de> for Shim where Phase1: ::serde::de::Deserialize<'de> {
+            type Value = Phase1;
+
+            fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
+                <Phase1 as ::serde::de::Deserialize<'de>>::deserialize(deserializer)
+            }
+        }
+
+        impl<'de> ::serde::de::DeserializeSeed<'de> for &Shim {
+            type Value = Phase1;
+
+            fn deserialize<D>(self, _deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
+                unimplemented!("`Deserialize` is not implemented for this type")
+            }
+        }
+    }
 }
 
 pub(crate) fn phase_2(
@@ -141,8 +184,8 @@ pub(crate) fn phase_2(
                     }
 
                     fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
-                        use ::serde::de::Deserialize;
-                        Phase1::deserialize(deserializer).map(Into::into)
+                        use ::serde::de::DeserializeSeed;
+                        Shim.deserialize(deserializer).map(Into::into)
                     }
                 }
 
@@ -244,7 +287,7 @@ mod tests {
         ));
 
         assert_eq!(
-            phase_1(container, &syn::Ident::new("Foo", Span::call_site())),
+            assert_ok!(parse::<File>(phase_1(container, &syn::Ident::new("Foo", Span::call_site())))),
             assert_ok!(parse_str(
                 "
                 #[derive(Deserialize)]
@@ -252,7 +295,26 @@ mod tests {
                 struct Phase1 {
                     bar: usize,
                     baz: String,
-                }"
+                }
+                
+                struct Shim;
+
+                impl<'de> ::serde::de::DeserializeSeed<'de> for Shim where Phase1: ::serde::de::Deserialize<'de> {
+                    type Value = Phase1;
+
+                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
+                        <Phase1 as ::serde::de::Deserialize<'de>>::deserialize(deserializer)
+                    }
+                }
+
+                impl<'de> ::serde::de::DeserializeSeed<'de> for &Shim {
+                    type Value = Phase1;
+
+                    fn deserialize<D>(self, _deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
+                        unimplemented!(\"`Deserialize` is not implemented for this type\")
+                    }
+                }
+                "
             ))
         );
     }
@@ -269,7 +331,7 @@ mod tests {
         ));
 
         assert_eq!(
-            phase_1(container, &syn::Ident::new("Foo", Span::call_site())),
+            assert_ok!(parse::<File>(phase_1(container, &syn::Ident::new("Foo", Span::call_site())))),
             assert_ok!(parse_str(
                 "
                 #[derive(Deserialize)]
@@ -277,7 +339,26 @@ mod tests {
                 enum Phase1 {
                     Bar,
                     Baz,
-                }"
+                }
+                
+                struct Shim;
+
+                impl<'de> ::serde::de::DeserializeSeed<'de> for Shim where Phase1: ::serde::de::Deserialize<'de> {
+                    type Value = Phase1;
+
+                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
+                        <Phase1 as ::serde::de::Deserialize<'de>>::deserialize(deserializer)
+                    }
+                }
+
+                impl<'de> ::serde::de::DeserializeSeed<'de> for &Shim {
+                    type Value = Phase1;
+
+                    fn deserialize<D>(self, _deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
+                        unimplemented!(\"`Deserialize` is not implemented for this type\")
+                    }
+                }
+                "
             ))
         );
     }
@@ -352,8 +433,8 @@ mod tests {
                             }
 
                             fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
-                                use ::serde::de::Deserialize;
-                                Phase1::deserialize(deserializer).map(Into::into)
+                                use ::serde::de::DeserializeSeed;
+                                Shim.deserialize(deserializer).map(Into::into)
                             }
                         }
 
@@ -434,8 +515,8 @@ mod tests {
                             }
 
                             fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
-                                use ::serde::de::Deserialize;
-                                Phase1::deserialize(deserializer).map(Into::into)
+                                use ::serde::de::DeserializeSeed;
+                                Shim.deserialize(deserializer).map(Into::into)
                             }
                         }
 
