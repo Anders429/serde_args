@@ -10,7 +10,7 @@ use quote::{quote, ToTokens};
 use std::iter;
 use syn::{
     token::Bracket, token::Paren, AttrStyle, Attribute, Ident, MacroDelimiter, Meta, MetaList,
-    Path, PathArguments, PathSegment, Token, Visibility,
+    Path, PathArguments, PathSegment, Token, TypePath, Visibility,
 };
 
 fn push_serde_attribute(attrs: &mut Vec<Attribute>, meta_tokens: TokenStream) {
@@ -97,29 +97,53 @@ pub(crate) fn phase_2(
     match &mut container {
         Container::Enum(item) => {
             item.attrs.clear();
-            item.vis = Visibility::Inherited;
+            item.vis = Visibility::Public(Token!(pub)(Span::call_site()));
             item.ident = Ident::new("Phase2", Span::call_site());
             item.variants.iter_mut().for_each(|variant| {
                 variant.attrs.clear();
-                variant
-                    .fields
-                    .iter_mut()
-                    .for_each(|field| field.attrs.clear());
+                variant.fields.iter_mut().for_each(|field| {
+                    field.attrs.clear();
+                });
             });
         }
         Container::Struct(item) => {
             item.attrs.clear();
-            item.vis = Visibility::Inherited;
+            item.vis = Visibility::Public(Token!(pub)(Span::call_site()));
             item.ident = Ident::new("Phase2", Span::call_site());
-            item.fields.iter_mut().for_each(|field| field.attrs.clear());
+            item.fields.iter_mut().for_each(|field| {
+                field.attrs.clear();
+                field.vis = Visibility::Public(Token!(pub)(Span::call_site()));
+            });
         }
     };
 
     // Define a `From` implementation from Phase 1.
     let from = from(
         &container,
-        &Ident::new("Phase1", Span::call_site()),
-        &Ident::new("Phase2", Span::call_site()),
+        &TypePath {
+            qself: None,
+            path: Path {
+                leading_colon: None,
+                segments: iter::once(PathSegment {
+                    ident: Ident::new("Phase1", Span::call_site()),
+                    arguments: PathArguments::None,
+                })
+                .collect(),
+            },
+        }
+        .into(),
+        &TypePath {
+            qself: None,
+            path: Path {
+                leading_colon: None,
+                segments: iter::once(PathSegment {
+                    ident: Ident::new("Phase2", Span::call_site()),
+                    arguments: PathArguments::None,
+                })
+                .collect(),
+            },
+        }
+        .into(),
     );
 
     // Define the `expecting()` match statements.
@@ -172,29 +196,60 @@ pub(crate) fn phase_2(
     }
 }
 
-pub(crate) fn phase_3(mut container: Container) -> TokenStream {
+pub(crate) fn phase_3(mut container: Container, module: &Ident) -> TokenStream {
     // Insert the `serde(from)` attribute.
     let from_tokens: TokenStream = [
         TokenTree::Ident(Ident::new("from", Span::call_site())),
         TokenTree::Punct(Punct::new('=', Spacing::Alone)),
-        TokenTree::Literal(Literal::string("Phase2")),
+        TokenTree::Literal(Literal::string(&format!("{}::Phase2", module))),
     ]
     .into_iter()
     .collect();
     match &mut container {
         Container::Enum(item) => {
             push_serde_attribute(&mut item.attrs, from_tokens);
-            item.vis = Visibility::Public(Token!(pub)(Span::call_site()));
         }
         Container::Struct(item) => {
             push_serde_attribute(&mut item.attrs, from_tokens);
-            item.vis = Visibility::Public(Token!(pub)(Span::call_site()));
         }
     };
     let ident = container.identifier();
 
     // Create a `From` implementation.
-    let from = from(&container, &Ident::new("Phase2", Span::call_site()), ident);
+    let from = from(
+        &container,
+        &TypePath {
+            qself: None,
+            path: Path {
+                leading_colon: None,
+                segments: [
+                    PathSegment {
+                        ident: module.clone(),
+                        arguments: PathArguments::None,
+                    },
+                    PathSegment {
+                        ident: Ident::new("Phase2", Span::call_site()),
+                        arguments: PathArguments::None,
+                    },
+                ]
+                .into_iter()
+                .collect(),
+            },
+        }
+        .into(),
+        &TypePath {
+            qself: None,
+            path: Path {
+                leading_colon: None,
+                segments: iter::once(PathSegment {
+                    ident: ident.clone(),
+                    arguments: PathArguments::None,
+                })
+                .collect(),
+            },
+        }
+        .into(),
+    );
 
     quote! {
         #container
@@ -373,9 +428,9 @@ mod tests {
             }, &syn::Ident::new("Foo", Span::call_site())))),
             assert_ok!(parse_str(
                 "
-                struct Phase2 {
-                    bar: usize,
-                    baz: String,
+                pub struct Phase2 {
+                    pub bar: usize,
+                    pub baz: String,
                 }
                     
                 impl From<Phase1> for Phase2 {
@@ -455,7 +510,7 @@ mod tests {
             }, &syn::Ident::new("Foo", Span::call_site())))),
             assert_ok!(parse_str(
                 "
-                enum Phase2 {
+                pub enum Phase2 {
                     Bar,
                     Baz,
                 }
@@ -516,18 +571,21 @@ mod tests {
         ));
 
         assert_eq!(
-            assert_ok!(parse::<File>(phase_3(container))),
+            assert_ok!(parse::<File>(phase_3(
+                container,
+                &syn::Ident::new("__Foo", Span::call_site())
+            ))),
             assert_ok!(parse_str(
                 "
                 #[derive(Deserialize)]
-                #[serde(from = \"Phase2\")]
-                pub struct Foo {
+                #[serde(from = \"__Foo::Phase2\")]
+                struct Foo {
                     bar: usize,
                     baz: String,
                 }
 
-                impl From<Phase2> for Foo {
-                    fn from(from: Phase2) -> Foo {
+                impl From<__Foo::Phase2> for Foo {
+                    fn from(from: __Foo::Phase2) -> Foo {
                         Foo {
                             bar: from.bar,
                             baz: from.baz
@@ -550,21 +608,24 @@ mod tests {
         ));
 
         assert_eq!(
-            assert_ok!(parse::<File>(phase_3(container))),
+            assert_ok!(parse::<File>(phase_3(
+                container,
+                &syn::Ident::new("__Foo", Span::call_site())
+            ))),
             assert_ok!(parse_str(
                 "
                 #[derive(Deserialize)]
-                #[serde(from = \"Phase2\")]
-                pub enum Foo {
+                #[serde(from = \"__Foo::Phase2\")]
+                enum Foo {
                     Bar,
                     Baz,
                 }
 
-                impl From<Phase2> for Foo {
-                    fn from(from: Phase2) -> Foo {
+                impl From<__Foo::Phase2> for Foo {
+                    fn from(from: __Foo::Phase2) -> Foo {
                         match from {
-                            Phase2::Bar => Foo::Bar,
-                            Phase2::Baz => Foo::Baz,
+                            __Foo::Phase2::Bar => Foo::Bar,
+                            __Foo::Phase2::Baz => Foo::Baz,
                         }
                     }
                 }"

@@ -7,7 +7,7 @@ use quote::ToTokens;
 use syn::{
     parse,
     parse::{Parse, ParseStream},
-    Ident, Item, ItemEnum, ItemStruct, Visibility,
+    Ident, Item, ItemEnum, ItemStruct,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -49,13 +49,6 @@ impl Container {
         match self {
             Container::Enum(item) => &item.ident,
             Container::Struct(item) => &item.ident,
-        }
-    }
-
-    pub(crate) fn visibility(&self) -> &Visibility {
-        match self {
-            Container::Enum(item) => &item.vis,
-            Container::Struct(item) => &item.vis,
         }
     }
 }
@@ -133,7 +126,7 @@ mod tests {
     use super::{descriptions::Documentation, Container, Descriptions};
     use claims::assert_ok;
     use proc_macro2::Span;
-    use syn::{parse_str, Ident, Token, Visibility};
+    use syn::{parse_str, Ident};
 
     #[test]
     fn struct_descriptions_none() {
@@ -558,186 +551,6 @@ mod tests {
                     },
                 ]
             }
-        );
-    }
-
-    #[test]
-    fn struct_visibility_private() {
-        assert_eq!(
-            Container::Struct(assert_ok!(parse_str(
-                "
-                struct Foo {
-                    bar: usize,
-                    baz: String,
-                }"
-            )))
-            .visibility(),
-            &Visibility::Inherited,
-        );
-    }
-
-    #[test]
-    fn struct_visibility_public() {
-        assert_eq!(
-            Container::Struct(assert_ok!(parse_str(
-                "
-                pub struct Foo {
-                    bar: usize,
-                    baz: String,
-                }"
-            )))
-            .visibility(),
-            &Visibility::Public(Token![pub](Span::call_site())),
-        );
-    }
-
-    #[test]
-    fn struct_visibility_restricted_crate() {
-        assert_eq!(
-            Container::Struct(assert_ok!(parse_str(
-                "
-                pub(crate) struct Foo {
-                    bar: usize,
-                    baz: String,
-                }"
-            )))
-            .visibility(),
-            &assert_ok!(parse_str("pub(crate)")),
-        );
-    }
-
-    #[test]
-    fn struct_visibility_restricted_self() {
-        assert_eq!(
-            Container::Struct(assert_ok!(parse_str(
-                "
-                pub(self) struct Foo {
-                    bar: usize,
-                    baz: String,
-                }"
-            )))
-            .visibility(),
-            &assert_ok!(parse_str("pub(self)")),
-        );
-    }
-
-    #[test]
-    fn struct_visibility_restricted_super() {
-        assert_eq!(
-            Container::Struct(assert_ok!(parse_str(
-                "
-                pub(super) struct Foo {
-                    bar: usize,
-                    baz: String,
-                }"
-            )))
-            .visibility(),
-            &assert_ok!(parse_str("pub(super)")),
-        );
-    }
-
-    #[test]
-    fn struct_visibility_restricted_in_module() {
-        assert_eq!(
-            Container::Struct(assert_ok!(parse_str(
-                "
-                pub(in some::module) struct Foo {
-                    bar: usize,
-                    baz: String,
-                }"
-            )))
-            .visibility(),
-            &assert_ok!(parse_str("pub(in some::module)")),
-        );
-    }
-
-    #[test]
-    fn enum_visibility_private() {
-        assert_eq!(
-            Container::Enum(assert_ok!(parse_str(
-                "
-                enum Foo {
-                    Bar,
-                    Baz,
-                }"
-            )))
-            .visibility(),
-            &Visibility::Inherited,
-        );
-    }
-
-    #[test]
-    fn enum_visibility_public() {
-        assert_eq!(
-            Container::Enum(assert_ok!(parse_str(
-                "
-                pub enum Foo {
-                    Bar,
-                    Baz,
-                }"
-            )))
-            .visibility(),
-            &Visibility::Public(Token![pub](Span::call_site())),
-        );
-    }
-
-    #[test]
-    fn enum_visibility_restricted_crate() {
-        assert_eq!(
-            Container::Enum(assert_ok!(parse_str(
-                "
-                pub(crate) enum Foo {
-                    Bar,
-                    Baz,
-                }"
-            )))
-            .visibility(),
-            &assert_ok!(parse_str("pub(crate)")),
-        );
-    }
-
-    #[test]
-    fn enum_visibility_restricted_self() {
-        assert_eq!(
-            Container::Enum(assert_ok!(parse_str(
-                "
-                pub(self) enum Foo {
-                    Bar,
-                    Baz,
-                }"
-            )))
-            .visibility(),
-            &assert_ok!(parse_str("pub(self)")),
-        );
-    }
-
-    #[test]
-    fn enum_visibility_restricted_super() {
-        assert_eq!(
-            Container::Enum(assert_ok!(parse_str(
-                "
-                pub(super) enum Foo {
-                    Bar,
-                    Baz,
-                }"
-            )))
-            .visibility(),
-            &assert_ok!(parse_str("pub(super)")),
-        );
-    }
-
-    #[test]
-    fn enum_visibility_restricted_in_module() {
-        assert_eq!(
-            Container::Enum(assert_ok!(parse_str(
-                "
-                pub(in some::module) enum Foo {
-                    Bar,
-                    Baz,
-                }"
-            )))
-            .visibility(),
-            &assert_ok!(parse_str("pub(in some::module)")),
         );
     }
 

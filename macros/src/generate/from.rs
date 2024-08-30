@@ -5,9 +5,10 @@ use syn::{
     punctuated::Punctuated,
     token::{Brace, Paren},
     FieldPat, Fields, Ident, Lit, LitInt, Member, Pat, PatIdent, PatLit, PatStruct, PatTupleStruct,
+    Type,
 };
 
-pub(crate) fn from(container: &Container, from: &Ident, to: &Ident) -> TokenStream {
+pub(crate) fn from(container: &Container, from: &Type, to: &Type) -> TokenStream {
     match container {
         Container::Enum(item) => {
             // Prepare the variants.

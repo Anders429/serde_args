@@ -10,16 +10,13 @@ pub(super) fn process(item: TokenStream) -> TokenStream {
         Err(error) => return error.into_compile_error(),
     };
     let descriptions = container.descriptions();
-    let visibility = container.visibility();
     let ident = container.identifier();
+    let module = Ident::new(&format!("__{}", ident), Span::call_site());
 
     // Extract the container.
     let phase_1 = generate::phase_1(container.clone(), ident);
     let phase_2 = generate::phase_2(container.clone(), descriptions, ident);
-    let phase_3 = generate::phase_3(container.clone());
-
-    // Create a module name from the identifier name.
-    let module = Ident::new(&format!("__{}", ident), Span::call_site());
+    let phase_3 = generate::phase_3(container.clone(), &module);
 
     // Put everything in a contained module.
     quote! {
@@ -28,9 +25,9 @@ pub(super) fn process(item: TokenStream) -> TokenStream {
 
             #phase_1
             #phase_2
-            #phase_3
         }
-        #visibility use #module::#ident;
+
+        #phase_3
     }
 }
 
@@ -90,9 +87,9 @@ mod tests {
                     }
                 }
 
-                struct Phase2 {
-                    bar: usize,
-                    baz: String,
+                pub struct Phase2 {
+                    pub bar: usize,
+                    pub baz: String,
                 }
 
                 impl From<Phase1> for Phase2 {
@@ -135,27 +132,26 @@ mod tests {
                         deserializer.deserialize_newtype_struct(\"Foo\", Phase2Visitor)
                     }
                 }
+            }
+            
+            /// container documentation.
+            #[derive(Deserialize)]
+            #[serde(from = \"__Foo::Phase2\")]
+            struct Foo {
+                /// bar documentation.
+                bar: usize,
+                /// baz documentation.
+                baz: String,
+            }
 
-                /// container documentation.
-                #[derive(Deserialize)]
-                #[serde(from = \"Phase2\")]
-                pub struct Foo {
-                    /// bar documentation.
-                    bar: usize,
-                    /// baz documentation.
-                    baz: String,
-                }
-
-                impl From<Phase2> for Foo {
-                    fn from(from: Phase2) -> Foo {
-                        Foo {
-                            bar: from.bar,
-                            baz: from.baz
-                        }
+            impl From<__Foo::Phase2> for Foo {
+                fn from(from: __Foo::Phase2) -> Foo {
+                    Foo {
+                        bar: from.bar,
+                        baz: from.baz
                     }
                 }
             }
-            use __Foo::Foo;
             "
         )));
     }
@@ -208,7 +204,7 @@ mod tests {
                     }
                 }
 
-                enum Phase2 {
+                pub enum Phase2 {
                     Bar,
                     Baz,
                 }
@@ -253,27 +249,26 @@ mod tests {
                         deserializer.deserialize_newtype_struct(\"Foo\", Phase2Visitor)
                     }
                 }
+            }
 
-                /// container documentation.
-                #[derive(Deserialize)]
-                #[serde(from = \"Phase2\")]
-                pub enum Foo {
-                    /// bar documentation.
-                    Bar,
-                    /// baz documentation.
-                    Baz,
-                }
+            /// container documentation.
+            #[derive(Deserialize)]
+            #[serde(from = \"__Foo::Phase2\")]
+            enum Foo {
+                /// bar documentation.
+                Bar,
+                /// baz documentation.
+                Baz,
+            }
 
-                impl From<Phase2> for Foo {
-                    fn from(from: Phase2) -> Foo {
-                        match from {
-                            Phase2::Bar => Foo::Bar,
-                            Phase2::Baz => Foo::Baz,
-                        }
+            impl From<__Foo::Phase2> for Foo {
+                fn from(from: __Foo::Phase2) -> Foo {
+                    match from {
+                        __Foo::Phase2::Bar => Foo::Bar,
+                        __Foo::Phase2::Baz => Foo::Baz,
                     }
                 }
             }
-            use __Foo::Foo;
             "
         )));
     }
