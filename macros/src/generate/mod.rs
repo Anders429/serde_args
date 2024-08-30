@@ -68,9 +68,9 @@ pub(crate) fn phase_1(mut container: Container, ident: &Ident) -> TokenStream {
     quote! {
         #container
 
-        struct Shim;
+        struct DeserializeShim;
 
-        impl<'de> ::serde::de::DeserializeSeed<'de> for Shim where Phase1: ::serde::de::Deserialize<'de> {
+        impl<'de> ::serde::de::DeserializeSeed<'de> for DeserializeShim where Phase1: ::serde::de::Deserialize<'de> {
             type Value = Phase1;
 
             fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
@@ -78,7 +78,7 @@ pub(crate) fn phase_1(mut container: Container, ident: &Ident) -> TokenStream {
             }
         }
 
-        impl<'de> ::serde::de::DeserializeSeed<'de> for &Shim {
+        impl<'de> ::serde::de::DeserializeSeed<'de> for &DeserializeShim {
             type Value = Phase1;
 
             fn deserialize<D>(self, _deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
@@ -186,7 +186,7 @@ pub(crate) fn phase_2(
 
                     fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
                         use ::serde::de::DeserializeSeed;
-                        Shim.deserialize(deserializer).map(Into::into)
+                        DeserializeShim.deserialize(deserializer).map(Into::into)
                     }
                 }
 
@@ -329,9 +329,9 @@ mod tests {
                     baz: String,
                 }
                 
-                struct Shim;
+                struct DeserializeShim;
 
-                impl<'de> ::serde::de::DeserializeSeed<'de> for Shim where Phase1: ::serde::de::Deserialize<'de> {
+                impl<'de> ::serde::de::DeserializeSeed<'de> for DeserializeShim where Phase1: ::serde::de::Deserialize<'de> {
                     type Value = Phase1;
 
                     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
@@ -339,7 +339,7 @@ mod tests {
                     }
                 }
 
-                impl<'de> ::serde::de::DeserializeSeed<'de> for &Shim {
+                impl<'de> ::serde::de::DeserializeSeed<'de> for &DeserializeShim {
                     type Value = Phase1;
 
                     fn deserialize<D>(self, _deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
@@ -373,9 +373,9 @@ mod tests {
                     Baz,
                 }
                 
-                struct Shim;
+                struct DeserializeShim;
 
-                impl<'de> ::serde::de::DeserializeSeed<'de> for Shim where Phase1: ::serde::de::Deserialize<'de> {
+                impl<'de> ::serde::de::DeserializeSeed<'de> for DeserializeShim where Phase1: ::serde::de::Deserialize<'de> {
                     type Value = Phase1;
 
                     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
@@ -383,7 +383,7 @@ mod tests {
                     }
                 }
 
-                impl<'de> ::serde::de::DeserializeSeed<'de> for &Shim {
+                impl<'de> ::serde::de::DeserializeSeed<'de> for &DeserializeShim {
                     type Value = Phase1;
 
                     fn deserialize<D>(self, _deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
@@ -466,7 +466,7 @@ mod tests {
 
                             fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
                                 use ::serde::de::DeserializeSeed;
-                                Shim.deserialize(deserializer).map(Into::into)
+                                DeserializeShim.deserialize(deserializer).map(Into::into)
                             }
                         }
 
@@ -548,7 +548,7 @@ mod tests {
 
                             fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
                                 use ::serde::de::DeserializeSeed;
-                                Shim.deserialize(deserializer).map(Into::into)
+                                DeserializeShim.deserialize(deserializer).map(Into::into)
                             }
                         }
 
