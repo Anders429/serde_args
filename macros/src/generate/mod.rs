@@ -65,29 +65,6 @@ pub(crate) fn phase_1(mut container: Container, ident: &Ident) -> TokenStream {
         }
     };
 
-    // Create a shim to funnel calls to `Deserialize::deserialize()` through.
-    // Can be done like this: https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=d5ef823be57c29a964191dd296d8395b
-    // NOTE: May still need to consider if this is the best path.
-    // Can we instead consider clearing out all of the attributes on Phase 1, and then putting the `Deserialize` attribute in ourselves?
-    // That just depends on whether anything within the type will actually depend on those traits that are deserialized, but I don't think it will.
-    // If we're doing complex deserialization that allocates stuff and requires custom drop implementations, we likely aren't doing that in a type we're also deriving `Deserialize` on.
-    // A shim might be overkill in that case. We can remove the annoying error messages we're facing by just ensuring Phase1 always impls `Deserialize`, and therefore is always callable from Phase2.
-    // Then the error will still occur on the actual type, but we won't have confusing messages that mention Phase1 and Phase2.
-    //
-    // Actually, after further thought, using the idea of just erasing attributes and only keeping serde ones will cause problems.
-    // Specifically, I want this to be compatible with all the serde stuff, including the `serde_with` crate and its custom attributes.
-    // Removing those would cause a change to how the implementation is derived, which would cause lots of problems and unexpected bugs.
-    // The better choice is to use the shim idea to funnel the call through, and erroring on the external shell of the implementation only.
-    //
-    // Here is a cleaner implementation: https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=39c463a3f6c208575fb708d26dca8dcd
-    //
-    // And finally, here is an implementation that just uses `DeserializeSeed` directly, meaning we don't have to define our own traits:
-    // https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=aaf377941a64f88c6e914bfa6fcc8dfc
-    //
-    // I think I like the last one the best, because it creates the least amount of friction. Using traits that already exist is ideal.
-    //
-    // Another iteration: No generics: https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=96c0d0ff95311cd49576a13d15ae9961
-
     quote! {
         #container
 
