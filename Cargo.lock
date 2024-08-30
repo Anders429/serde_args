@@ -115,8 +115,18 @@ dependencies = [
  "quote",
  "rustversion",
  "serde",
+ "serde_assert",
  "syn",
  "trybuild",
+]
+
+[[package]]
+name = "serde_assert"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7341bab0ba89c85756d5d032a66b009ed88833ea915f5997b9e8303f0c52a54"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
