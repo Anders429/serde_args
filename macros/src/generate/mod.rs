@@ -87,6 +87,50 @@ pub(crate) fn phase_1(mut container: Container, ident: &Ident) -> TokenStream {
                 unimplemented!("`Deserialize` is not implemented for this type")
             }
         }
+
+        trait PossiblySerialize: Sized {
+            fn serialize<S>(self, _serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer;
+        }
+
+        struct SerializeShim<T>(T);
+
+        impl<T> PossiblySerialize for &SerializeShim<T> where T: ::serde::ser::Serialize {
+            fn serialize<S>(self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+                self.0.serialize(serializer)
+            }
+        }
+
+        impl<T> PossiblySerialize for &&SerializeShim<T> {
+            fn serialize<S>(self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+                unimplemented!("`Serialize` is not implemented for this type")
+            }
+        }
+
+        trait PossiblyClone: Sized {
+            type Value;
+
+            fn clone(self) -> Phase2<Self::Value>;
+        }
+
+        struct CloneShim<'a, T> {
+            phase2: &'a Phase2<T>,
+        }
+
+        impl<T> PossiblyClone for CloneShim<'_, T> where T: ::std::clone::Clone {
+            type Value = T;
+
+            fn clone(self) -> Phase2<Self::Value> {
+                Phase2(self.phase2.0.clone())
+            }
+        }
+
+        impl<T> PossiblyClone for &CloneShim<'_, T> {
+            type Value = T;
+
+            fn clone(self) -> Phase2<Self::Value> {
+                unimplemented!("`Clone` is not implemented for this type")
+            }
+        }
     }
 }
 
@@ -190,6 +234,50 @@ pub(crate) fn phase_2(
         }
         .into(),
     );
+    // Define a `From` implementation into Phase 1.
+    let into = from_newtype_to_container(
+        &container,
+        &TypePath {
+            qself: None,
+            path: Path {
+                leading_colon: None,
+                segments: iter::once(PathSegment {
+                    ident: Ident::new("Phase2", Span::call_site()),
+                    arguments: PathArguments::AngleBracketed(AngleBracketedGenericArguments {
+                        colon2_token: Some(Token!(::)(Span::call_site())),
+                        lt_token: Token!(<)(Span::call_site()),
+                        args: iter::once(GenericArgument::Type(Type::Path(TypePath {
+                            qself: None,
+                            path: Path {
+                                leading_colon: None,
+                                segments: iter::once(PathSegment {
+                                    ident: ident.clone(),
+                                    arguments: PathArguments::None,
+                                })
+                                .collect(),
+                            },
+                        })))
+                        .collect(),
+                        gt_token: Token!(>)(Span::call_site()),
+                    }),
+                })
+                .collect(),
+            },
+        }
+        .into(),
+        &TypePath {
+            qself: None,
+            path: Path {
+                leading_colon: None,
+                segments: iter::once(PathSegment {
+                    ident: Ident::new("Phase1", Span::call_site()),
+                    arguments: PathArguments::None,
+                })
+                .collect(),
+            },
+        }
+        .into(),
+    );
 
     // Define the `expecting()` match statements.
     let container_exprs = descriptions
@@ -213,6 +301,7 @@ pub(crate) fn phase_2(
     quote! {
         #wrapper
         #from
+        #into
 
         impl<'de> ::serde::de::Deserialize<'de> for Phase2<#ident> {
             fn deserialize<D>(deserializer: D) -> Result<Phase2<#ident>, D::Error> where D: ::serde::de::Deserializer<'de> {
@@ -238,13 +327,42 @@ pub(crate) fn phase_2(
                 deserializer.deserialize_newtype_struct(#ident_string, Phase2Visitor)
             }
         }
+
+        impl ::serde::ser::Serialize for Phase2<#ident> {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+                struct Newtype<'a>(&'a SerializeShim<Phase1>);
+
+                impl ::serde::ser::Serialize for Newtype<'_> {
+                    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+                        self.0.serialize(serializer)
+                    }
+                }
+
+                serializer.serialize_newtype_struct(#ident_string, &Newtype(&SerializeShim(
+                    CloneShim {
+                        phase2: self,
+                    }.clone().into(),
+                )))
+            }
+        }
     }
 }
 
 pub(crate) fn phase_3(mut container: Container, module: &Ident) -> TokenStream {
-    // Insert the `serde(from)` attribute.
+    // Insert the `serde(from)` and `serde(into)` attributes.
     let from_tokens: TokenStream = [
         TokenTree::Ident(Ident::new("from", Span::call_site())),
+        TokenTree::Punct(Punct::new('=', Spacing::Alone)),
+        TokenTree::Literal(Literal::string(&format!(
+            "{}::Phase2<{}>",
+            module,
+            container.identifier()
+        ))),
+    ]
+    .into_iter()
+    .collect();
+    let into_tokens: TokenStream = [
+        TokenTree::Ident(Ident::new("into", Span::call_site())),
         TokenTree::Punct(Punct::new('=', Spacing::Alone)),
         TokenTree::Literal(Literal::string(&format!(
             "{}::Phase2<{}>",
@@ -257,14 +375,16 @@ pub(crate) fn phase_3(mut container: Container, module: &Ident) -> TokenStream {
     match &mut container {
         Container::Enum(item) => {
             push_serde_attribute(&mut item.attrs, from_tokens);
+            push_serde_attribute(&mut item.attrs, into_tokens);
         }
         Container::Struct(item) => {
             push_serde_attribute(&mut item.attrs, from_tokens);
+            push_serde_attribute(&mut item.attrs, into_tokens);
         }
     };
     let ident = container.identifier();
 
-    // Create a `From` implementation.
+    // Create a `From` implementation from Phase 2.
     let from = from_newtype_to_container(
         &container,
         &TypePath {
@@ -315,10 +435,62 @@ pub(crate) fn phase_3(mut container: Container, module: &Ident) -> TokenStream {
         }
         .into(),
     );
+    // Create a `From` implementation into Phase 2.
+    let into = from_container_to_newtype(
+        &container,
+        &TypePath {
+            qself: None,
+            path: Path {
+                leading_colon: None,
+                segments: iter::once(PathSegment {
+                    ident: ident.clone(),
+                    arguments: PathArguments::None,
+                })
+                .collect(),
+            },
+        }
+        .into(),
+        &TypePath {
+            qself: None,
+            path: Path {
+                leading_colon: None,
+                segments: [
+                    PathSegment {
+                        ident: module.clone(),
+                        arguments: PathArguments::None,
+                    },
+                    PathSegment {
+                        ident: Ident::new("Phase2", Span::call_site()),
+                        arguments: PathArguments::AngleBracketed(AngleBracketedGenericArguments {
+                            colon2_token: Some(Token!(::)(Span::call_site())),
+                            lt_token: Token!(<)(Span::call_site()),
+                            args: iter::once(GenericArgument::Type(Type::Path(TypePath {
+                                qself: None,
+                                path: Path {
+                                    leading_colon: None,
+                                    segments: iter::once(PathSegment {
+                                        ident: ident.clone(),
+                                        arguments: PathArguments::None,
+                                    })
+                                    .collect(),
+                                },
+                            })))
+                            .collect(),
+                            gt_token: Token!(>)(Span::call_site()),
+                        }),
+                    },
+                ]
+                .into_iter()
+                .collect(),
+            },
+        }
+        .into(),
+    );
 
     quote! {
         #container
         #from
+        #into
     }
 }
 
@@ -411,6 +583,50 @@ mod tests {
                         unimplemented!(\"`Deserialize` is not implemented for this type\")
                     }
                 }
+
+                trait PossiblySerialize: Sized {
+                    fn serialize<S>(self, _serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer;
+                }
+
+                struct SerializeShim<T>(T);
+
+                impl<T> PossiblySerialize for &SerializeShim<T> where T: ::serde::ser::Serialize {
+                    fn serialize<S>(self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+                        self.0.serialize(serializer)
+                    }
+                }
+
+                impl<T> PossiblySerialize for &&SerializeShim<T> {
+                    fn serialize<S>(self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+                        unimplemented!(\"`Serialize` is not implemented for this type\")
+                    }
+                }
+
+                trait PossiblyClone: Sized {
+                    type Value;
+
+                    fn clone(self) -> Phase2<Self::Value>;
+                }
+
+                struct CloneShim<'a, T> {
+                    phase2: &'a Phase2<T>,
+                }
+
+                impl<T> PossiblyClone for CloneShim<'_, T> where T: ::std::clone::Clone {
+                    type Value = T;
+
+                    fn clone(self) -> Phase2<Self::Value> {
+                        Phase2(self.phase2.0.clone())
+                    }
+                }
+
+                impl<T> PossiblyClone for &CloneShim<'_, T> {
+                    type Value = T;
+
+                    fn clone(self) -> Phase2<Self::Value> {
+                        unimplemented!(\"`Clone` is not implemented for this type\")
+                    }
+                }
                 "
             ))
         );
@@ -453,6 +669,50 @@ mod tests {
 
                     fn deserialize<D>(self, _deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
                         unimplemented!(\"`Deserialize` is not implemented for this type\")
+                    }
+                }
+
+                trait PossiblySerialize: Sized {
+                    fn serialize<S>(self, _serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer;
+                }
+
+                struct SerializeShim<T>(T);
+
+                impl<T> PossiblySerialize for &SerializeShim<T> where T: ::serde::ser::Serialize {
+                    fn serialize<S>(self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+                        self.0.serialize(serializer)
+                    }
+                }
+
+                impl<T> PossiblySerialize for &&SerializeShim<T> {
+                    fn serialize<S>(self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+                        unimplemented!(\"`Serialize` is not implemented for this type\")
+                    }
+                }
+
+                trait PossiblyClone: Sized {
+                    type Value;
+
+                    fn clone(self) -> Phase2<Self::Value>;
+                }
+
+                struct CloneShim<'a, T> {
+                    phase2: &'a Phase2<T>,
+                }
+
+                impl<T> PossiblyClone for CloneShim<'_, T> where T: ::std::clone::Clone {
+                    type Value = T;
+
+                    fn clone(self) -> Phase2<Self::Value> {
+                        Phase2(self.phase2.0.clone())
+                    }
+                }
+
+                impl<T> PossiblyClone for &CloneShim<'_, T> {
+                    type Value = T;
+
+                    fn clone(self) -> Phase2<Self::Value> {
+                        unimplemented!(\"`Clone` is not implemented for this type\")
                     }
                 }
                 "
@@ -503,6 +763,15 @@ mod tests {
                         })
                     }
                 }
+
+                impl From<Phase2::<Foo>> for Phase1 {
+                    fn from(from: Phase2::<Foo>) -> Phase1 {
+                        Phase1 {
+                            bar: from.0.bar,
+                            baz: from.0.baz
+                        }
+                    }
+                }
                     
                 impl<'de> ::serde::de::Deserialize<'de> for Phase2<Foo> {
                     fn deserialize<D>(deserializer: D) -> Result<Phase2<Foo>, D::Error> where D: ::serde::de::Deserializer<'de> {
@@ -534,7 +803,26 @@ mod tests {
 
                         deserializer.deserialize_newtype_struct(\"Foo\", Phase2Visitor)
                     }
-                }"
+                }
+
+                impl ::serde::ser::Serialize for Phase2<Foo> {
+                    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+                        struct Newtype<'a>(&'a SerializeShim<Phase1>);
+
+                        impl ::serde::ser::Serialize for Newtype<'_> {
+                            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+                                self.0.serialize(serializer)
+                            }
+                        }
+
+                        serializer.serialize_newtype_struct(\"Foo\", &Newtype(&SerializeShim(
+                            CloneShim {
+                                phase2: self,
+                            }.clone().into(),
+                        )))
+                    }
+                }
+                "
             ))
         );
     }
@@ -582,6 +870,15 @@ mod tests {
                         }
                     }
                 }
+
+                impl From<Phase2::<Foo>> for Phase1 {
+                    fn from(from: Phase2::<Foo>) -> Phase1 {
+                        match from.0 {
+                            Foo::Bar => Phase1::Bar,
+                            Foo::Baz => Phase1::Baz,
+                        }
+                    }
+                }
                     
                 impl<'de> ::serde::de::Deserialize<'de> for Phase2<Foo> {
                     fn deserialize<D>(deserializer: D) -> Result<Phase2<Foo>, D::Error> where D: ::serde::de::Deserializer<'de> {
@@ -613,7 +910,26 @@ mod tests {
 
                         deserializer.deserialize_newtype_struct(\"Foo\", Phase2Visitor)
                     }
-                }"
+                }
+
+                impl ::serde::ser::Serialize for Phase2<Foo> {
+                    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+                        struct Newtype<'a>(&'a SerializeShim<Phase1>);
+
+                        impl ::serde::ser::Serialize for Newtype<'_> {
+                            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+                                self.0.serialize(serializer)
+                            }
+                        }
+
+                        serializer.serialize_newtype_struct(\"Foo\", &Newtype(&SerializeShim(
+                            CloneShim {
+                                phase2: self,
+                            }.clone().into(),
+                        )))
+                    }
+                }
+                "
             ))
         );
     }
@@ -638,6 +954,7 @@ mod tests {
                 "
                 #[derive(Deserialize)]
                 #[serde(from = \"__Foo::Phase2<Foo>\")]
+                #[serde(into = \"__Foo::Phase2<Foo>\")]
                 struct Foo {
                     bar: usize,
                     baz: String,
@@ -650,7 +967,17 @@ mod tests {
                             baz: from.0.baz
                         }
                     }
-                }"
+                }
+
+                impl From<Foo> for __Foo::Phase2::<Foo> {
+                    fn from(from: Foo) -> __Foo::Phase2::<Foo> {
+                        __Foo::Phase2::<Foo>(Foo {
+                            bar: from.bar,
+                            baz: from.baz
+                        })
+                    }
+                }
+                "
             ))
         );
     }
@@ -675,6 +1002,7 @@ mod tests {
                 "
                 #[derive(Deserialize)]
                 #[serde(from = \"__Foo::Phase2<Foo>\")]
+                #[serde(into = \"__Foo::Phase2<Foo>\")]
                 enum Foo {
                     Bar,
                     Baz,
@@ -687,7 +1015,17 @@ mod tests {
                             Foo::Baz => Foo::Baz,
                         }
                     }
-                }"
+                }
+
+                impl From<Foo> for __Foo::Phase2::<Foo> {
+                    fn from(from: Foo) -> __Foo::Phase2::<Foo> {
+                        match from {
+                            Foo::Bar => __Foo::Phase2::<Foo>(Foo::Bar),
+                            Foo::Baz => __Foo::Phase2::<Foo>(Foo::Baz),
+                        }
+                    }
+                }
+                "
             ))
         );
     }
