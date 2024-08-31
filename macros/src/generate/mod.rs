@@ -75,7 +75,7 @@ pub(crate) fn phase_1(mut container: Container, ident: &Ident) -> TokenStream {
         impl<'de> ::serde::de::DeserializeSeed<'de> for DeserializeShim where Phase1: ::serde::de::Deserialize<'de> {
             type Value = Phase1;
 
-            fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
+            fn deserialize<D>(self, deserializer: D) -> ::std::result::Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
                 <Phase1 as ::serde::de::Deserialize<'de>>::deserialize(deserializer)
             }
         }
@@ -83,25 +83,25 @@ pub(crate) fn phase_1(mut container: Container, ident: &Ident) -> TokenStream {
         impl<'de> ::serde::de::DeserializeSeed<'de> for &DeserializeShim {
             type Value = Phase1;
 
-            fn deserialize<D>(self, _deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
+            fn deserialize<D>(self, _deserializer: D) -> ::std::result::Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
                 unimplemented!("`Deserialize` is not implemented for this type")
             }
         }
 
         trait PossiblySerialize: Sized {
-            fn serialize<S>(self, _serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer;
+            fn serialize<S>(self, _serializer: S) -> ::std::result::Result<S::Ok, S::Error> where S: ::serde::ser::Serializer;
         }
 
         struct SerializeShim<T>(T);
 
         impl<T> PossiblySerialize for &SerializeShim<T> where T: ::serde::ser::Serialize {
-            fn serialize<S>(self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+            fn serialize<S>(self, serializer: S) -> ::std::result::Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
                 self.0.serialize(serializer)
             }
         }
 
         impl<T> PossiblySerialize for &&SerializeShim<T> {
-            fn serialize<S>(self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+            fn serialize<S>(self, serializer: S) -> ::std::result::Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
                 unimplemented!("`Serialize` is not implemented for this type")
             }
         }
@@ -304,7 +304,7 @@ pub(crate) fn phase_2(
         #into
 
         impl<'de> ::serde::de::Deserialize<'de> for Phase2<#ident> {
-            fn deserialize<D>(deserializer: D) -> Result<Phase2<#ident>, D::Error> where D: ::serde::de::Deserializer<'de> {
+            fn deserialize<D>(deserializer: D) -> ::std::result::Result<Phase2<#ident>, D::Error> where D: ::serde::de::Deserializer<'de> {
                 struct Phase2Visitor;
 
                 impl<'de> ::serde::de::Visitor<'de> for Phase2Visitor {
@@ -318,7 +318,7 @@ pub(crate) fn phase_2(
                         Ok(())
                     }
 
-                    fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
+                    fn visit_newtype_struct<D>(self, deserializer: D) -> ::std::result::Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
                         use ::serde::de::DeserializeSeed;
                         DeserializeShim.deserialize(deserializer).map(Into::into)
                     }
@@ -329,11 +329,11 @@ pub(crate) fn phase_2(
         }
 
         impl ::serde::ser::Serialize for Phase2<#ident> {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+            fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
                 struct Newtype<'a>(&'a SerializeShim<Phase1>);
 
                 impl ::serde::ser::Serialize for Newtype<'_> {
-                    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+                    fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
                         self.0.serialize(serializer)
                     }
                 }
@@ -571,7 +571,7 @@ mod tests {
                 impl<'de> ::serde::de::DeserializeSeed<'de> for DeserializeShim where Phase1: ::serde::de::Deserialize<'de> {
                     type Value = Phase1;
 
-                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
+                    fn deserialize<D>(self, deserializer: D) -> ::std::result::Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
                         <Phase1 as ::serde::de::Deserialize<'de>>::deserialize(deserializer)
                     }
                 }
@@ -579,25 +579,25 @@ mod tests {
                 impl<'de> ::serde::de::DeserializeSeed<'de> for &DeserializeShim {
                     type Value = Phase1;
 
-                    fn deserialize<D>(self, _deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
+                    fn deserialize<D>(self, _deserializer: D) -> ::std::result::Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
                         unimplemented!(\"`Deserialize` is not implemented for this type\")
                     }
                 }
 
                 trait PossiblySerialize: Sized {
-                    fn serialize<S>(self, _serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer;
+                    fn serialize<S>(self, _serializer: S) -> ::std::result::Result<S::Ok, S::Error> where S: ::serde::ser::Serializer;
                 }
 
                 struct SerializeShim<T>(T);
 
                 impl<T> PossiblySerialize for &SerializeShim<T> where T: ::serde::ser::Serialize {
-                    fn serialize<S>(self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+                    fn serialize<S>(self, serializer: S) -> ::std::result::Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
                         self.0.serialize(serializer)
                     }
                 }
 
                 impl<T> PossiblySerialize for &&SerializeShim<T> {
-                    fn serialize<S>(self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+                    fn serialize<S>(self, serializer: S) -> ::std::result::Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
                         unimplemented!(\"`Serialize` is not implemented for this type\")
                     }
                 }
@@ -659,7 +659,7 @@ mod tests {
                 impl<'de> ::serde::de::DeserializeSeed<'de> for DeserializeShim where Phase1: ::serde::de::Deserialize<'de> {
                     type Value = Phase1;
 
-                    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
+                    fn deserialize<D>(self, deserializer: D) -> ::std::result::Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
                         <Phase1 as ::serde::de::Deserialize<'de>>::deserialize(deserializer)
                     }
                 }
@@ -667,25 +667,25 @@ mod tests {
                 impl<'de> ::serde::de::DeserializeSeed<'de> for &DeserializeShim {
                     type Value = Phase1;
 
-                    fn deserialize<D>(self, _deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
+                    fn deserialize<D>(self, _deserializer: D) -> ::std::result::Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
                         unimplemented!(\"`Deserialize` is not implemented for this type\")
                     }
                 }
 
                 trait PossiblySerialize: Sized {
-                    fn serialize<S>(self, _serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer;
+                    fn serialize<S>(self, _serializer: S) -> ::std::result::Result<S::Ok, S::Error> where S: ::serde::ser::Serializer;
                 }
 
                 struct SerializeShim<T>(T);
 
                 impl<T> PossiblySerialize for &SerializeShim<T> where T: ::serde::ser::Serialize {
-                    fn serialize<S>(self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+                    fn serialize<S>(self, serializer: S) -> ::std::result::Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
                         self.0.serialize(serializer)
                     }
                 }
 
                 impl<T> PossiblySerialize for &&SerializeShim<T> {
-                    fn serialize<S>(self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+                    fn serialize<S>(self, serializer: S) -> ::std::result::Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
                         unimplemented!(\"`Serialize` is not implemented for this type\")
                     }
                 }
@@ -774,7 +774,7 @@ mod tests {
                 }
                     
                 impl<'de> ::serde::de::Deserialize<'de> for Phase2<Foo> {
-                    fn deserialize<D>(deserializer: D) -> Result<Phase2<Foo>, D::Error> where D: ::serde::de::Deserializer<'de> {
+                    fn deserialize<D>(deserializer: D) -> ::std::result::Result<Phase2<Foo>, D::Error> where D: ::serde::de::Deserializer<'de> {
                         struct Phase2Visitor;
 
                         impl<'de> ::serde::de::Visitor<'de> for Phase2Visitor {
@@ -795,7 +795,7 @@ mod tests {
                                 Ok(())
                             }
 
-                            fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
+                            fn visit_newtype_struct<D>(self, deserializer: D) -> ::std::result::Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
                                 use ::serde::de::DeserializeSeed;
                                 DeserializeShim.deserialize(deserializer).map(Into::into)
                             }
@@ -806,11 +806,11 @@ mod tests {
                 }
 
                 impl ::serde::ser::Serialize for Phase2<Foo> {
-                    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+                    fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
                         struct Newtype<'a>(&'a SerializeShim<Phase1>);
 
                         impl ::serde::ser::Serialize for Newtype<'_> {
-                            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+                            fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
                                 self.0.serialize(serializer)
                             }
                         }
@@ -881,7 +881,7 @@ mod tests {
                 }
                     
                 impl<'de> ::serde::de::Deserialize<'de> for Phase2<Foo> {
-                    fn deserialize<D>(deserializer: D) -> Result<Phase2<Foo>, D::Error> where D: ::serde::de::Deserializer<'de> {
+                    fn deserialize<D>(deserializer: D) -> ::std::result::Result<Phase2<Foo>, D::Error> where D: ::serde::de::Deserializer<'de> {
                         struct Phase2Visitor;
 
                         impl<'de> ::serde::de::Visitor<'de> for Phase2Visitor {
@@ -902,7 +902,7 @@ mod tests {
                                 Ok(())
                             }
 
-                            fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
+                            fn visit_newtype_struct<D>(self, deserializer: D) -> ::std::result::Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
                                 use ::serde::de::DeserializeSeed;
                                 DeserializeShim.deserialize(deserializer).map(Into::into)
                             }
@@ -913,11 +913,11 @@ mod tests {
                 }
 
                 impl ::serde::ser::Serialize for Phase2<Foo> {
-                    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+                    fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
                         struct Newtype<'a>(&'a SerializeShim<Phase1>);
 
                         impl ::serde::ser::Serialize for Newtype<'_> {
-                            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
+                            fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
                                 self.0.serialize(serializer)
                             }
                         }
