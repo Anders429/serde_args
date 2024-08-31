@@ -95,7 +95,7 @@ pub(crate) fn from_newtype_to_container(
                 })
                 .map(|pattern| quote!(#ident::#pattern => #to::#pattern,));
             quote! {
-                impl From<#from> for #to {
+                impl ::std::convert::From<#from> for #to {
                     fn from(from: #from) -> #to {
                         match from.0 {
                             #(#variants)*
@@ -116,7 +116,7 @@ pub(crate) fn from_newtype_to_container(
                 })
                 .map(|ident| quote!(#ident: from.0.#ident));
             quote! {
-                impl From<#from> for #to {
+                impl ::std::convert::From<#from> for #to {
                     fn from(from: #from) -> #to {
                         #to {
                             #(#fields),*
@@ -215,7 +215,7 @@ pub(crate) fn from_container_to_newtype(
                 })
                 .map(|pattern| quote!(#from::#pattern => #to(#ident::#pattern),));
             quote! {
-                impl From<#from> for #to {
+                impl ::std::convert::From<#from> for #to {
                     fn from(from: #from) -> #to {
                         match from {
                             #(#variants)*
@@ -236,7 +236,7 @@ pub(crate) fn from_container_to_newtype(
                 })
                 .map(|ident| quote!(#ident: from.#ident));
             quote! {
-                impl From<#from> for #to {
+                impl ::std::convert::From<#from> for #to {
                     fn from(from: #from) -> #to {
                         #to(#ident {
                             #(#fields),*
@@ -264,7 +264,7 @@ mod tests {
             )),
             assert_ok!(parse_str(
                 "
-            impl From<Bar<Foo>> for Baz {
+            impl ::std::convert::From<Bar<Foo>> for Baz {
                 fn from(from: Bar<Foo>) -> Baz {
                     match from.0 {}
                 }
@@ -291,7 +291,7 @@ mod tests {
             )),
             assert_ok!(parse_str(
                 "
-            impl From<A<Foo>> for B {
+            impl ::std::convert::From<A<Foo>> for B {
                 fn from(from: A<Foo>) -> B {
                     match from.0 {
                         Foo::Bar => B::Bar,
@@ -326,7 +326,7 @@ mod tests {
             )),
             assert_ok!(parse_str(
                 "
-            impl From<A<Foo>> for B {
+            impl ::std::convert::From<A<Foo>> for B {
                 fn from(from: A<Foo>) -> B {
                     match from.0 {
                         Foo::Bar => B::Bar,
@@ -349,7 +349,7 @@ mod tests {
             )),
             assert_ok!(parse_str(
                 "
-            impl From<Bar<Foo>> for Baz {
+            impl ::std::convert::From<Bar<Foo>> for Baz {
                 fn from(from: Bar<Foo>) -> Baz {
                     Baz {}
                 }
@@ -373,7 +373,7 @@ mod tests {
             )),
             assert_ok!(parse_str(
                 "
-            impl From<Bar<Foo>> for Baz {
+            impl ::std::convert::From<Bar<Foo>> for Baz {
                 fn from(from: Bar<Foo>) -> Baz {
                     Baz {
                         bar: from.0.bar,
@@ -404,7 +404,7 @@ mod tests {
             )),
             assert_ok!(parse_str(
                 "
-            impl From<Bar<Foo>> for Baz {
+            impl ::std::convert::From<Bar<Foo>> for Baz {
                 fn from(from: Bar<Foo>) -> Baz {
                     Baz {
                         bar: from.0.bar,
@@ -426,7 +426,7 @@ mod tests {
             )),
             assert_ok!(parse_str(
                 "
-            impl From<Baz> for Bar<Foo> {
+            impl ::std::convert::From<Baz> for Bar<Foo> {
                 fn from(from: Baz) -> Bar<Foo> {
                     match from {}
                 }
@@ -453,7 +453,7 @@ mod tests {
             )),
             assert_ok!(parse_str(
                 "
-            impl From<A> for B::<Foo> {
+            impl ::std::convert::From<A> for B::<Foo> {
                 fn from(from: A) -> B::<Foo> {
                     match from {
                         A::Bar => B::<Foo>(Foo::Bar),
@@ -488,7 +488,7 @@ mod tests {
             )),
             assert_ok!(parse_str(
                 "
-            impl From<A> for B::<Foo> {
+            impl ::std::convert::From<A> for B::<Foo> {
                 fn from(from: A) -> B::<Foo> {
                     match from {
                         A::Bar => B::<Foo>(Foo::Bar),
@@ -511,7 +511,7 @@ mod tests {
             )),
             assert_ok!(parse_str(
                 "
-            impl From<Bar> for Baz::<Foo> {
+            impl ::std::convert::From<Bar> for Baz::<Foo> {
                 fn from(from: Bar) -> Baz::<Foo> {
                     Baz::<Foo>(Foo {})
                 }
@@ -535,7 +535,7 @@ mod tests {
             )),
             assert_ok!(parse_str(
                 "
-            impl From<Bar> for Baz::<Foo> {
+            impl ::std::convert::From<Bar> for Baz::<Foo> {
                 fn from(from: Bar) -> Baz::<Foo> {
                     Baz::<Foo>(Foo {
                         bar: from.bar,
@@ -566,7 +566,7 @@ mod tests {
             )),
             assert_ok!(parse_str(
                 "
-            impl From<Bar> for Baz::<Foo> {
+            impl ::std::convert::From<Bar> for Baz::<Foo> {
                 fn from(from: Bar) -> Baz::<Foo> {
                     Baz::<Foo>(Foo {
                         bar: from.bar,

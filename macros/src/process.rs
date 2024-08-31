@@ -133,7 +133,7 @@ mod tests {
 
                 pub struct Phase2<T>(pub T);
                     
-                impl From<Phase1> for Phase2::<Foo> {
+                impl ::std::convert::From<Phase1> for Phase2::<Foo> {
                     fn from(from: Phase1) -> Phase2::<Foo> {
                         Phase2::<Foo>(Foo {
                             bar: from.bar,
@@ -142,7 +142,7 @@ mod tests {
                     }
                 }
 
-                impl From<Phase2::<Foo>> for Phase1 {
+                impl ::std::convert::From<Phase2::<Foo>> for Phase1 {
                     fn from(from: Phase2::<Foo>) -> Phase1 {
                         Phase1 {
                             bar: from.0.bar,
@@ -213,7 +213,7 @@ mod tests {
                 baz: String,
             }
 
-            impl From<__Foo::Phase2::<Foo>> for Foo {
+            impl ::std::convert::From<__Foo::Phase2::<Foo>> for Foo {
                 fn from(from: __Foo::Phase2::<Foo>) -> Foo {
                     Foo {
                         bar: from.0.bar,
@@ -222,7 +222,7 @@ mod tests {
                 }
             }
 
-            impl From<Foo> for __Foo::Phase2::<Foo> {
+            impl ::std::convert::From<Foo> for __Foo::Phase2::<Foo> {
                     fn from(from: Foo) -> __Foo::Phase2::<Foo> {
                         __Foo::Phase2::<Foo>(Foo {
                             bar: from.bar,
@@ -328,7 +328,7 @@ mod tests {
 
                 pub struct Phase2<T>(pub T);
                     
-                impl From<Phase1> for Phase2::<Foo> {
+                impl ::std::convert::From<Phase1> for Phase2::<Foo> {
                     fn from(from: Phase1) -> Phase2::<Foo> {
                         match from {
                             Phase1::Bar => Phase2::<Foo>(Foo::Bar),
@@ -337,7 +337,7 @@ mod tests {
                     }
                 }
 
-                impl From<Phase2::<Foo>> for Phase1 {
+                impl ::std::convert::From<Phase2::<Foo>> for Phase1 {
                     fn from(from: Phase2::<Foo>) -> Phase1 {
                         match from.0 {
                             Foo::Bar => Phase1::Bar,
@@ -408,7 +408,7 @@ mod tests {
                 Baz,
             }
 
-            impl From<__Foo::Phase2::<Foo>> for Foo {
+            impl ::std::convert::From<__Foo::Phase2::<Foo>> for Foo {
                 fn from(from: __Foo::Phase2::<Foo>) -> Foo {
                     match from.0 {
                         Foo::Bar => Foo::Bar,
@@ -417,7 +417,7 @@ mod tests {
                 }
             }
 
-            impl From<Foo> for __Foo::Phase2::<Foo> {
+            impl ::std::convert::From<Foo> for __Foo::Phase2::<Foo> {
                 fn from(from: Foo) -> __Foo::Phase2::<Foo> {
                     match from {
                         Foo::Bar => __Foo::Phase2::<Foo>(Foo::Bar),
