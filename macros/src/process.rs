@@ -15,7 +15,7 @@ pub(super) fn process(item: TokenStream) -> TokenStream {
 
     // Extract the container.
     let phase_1 = generate::phase_1(container.clone(), ident);
-    let phase_2 = generate::phase_2(container.clone(), descriptions, ident);
+    let phase_2 = generate::phase_2(&container, descriptions, ident);
     let phase_3 = generate::phase_3(container.clone(), &module);
 
     // Put everything in a contained module.
@@ -87,26 +87,23 @@ mod tests {
                     }
                 }
 
-                pub struct Phase2 {
-                    pub bar: usize,
-                    pub baz: String,
-                }
-
-                impl From<Phase1> for Phase2 {
-                    fn from(from: Phase1) -> Phase2 {
-                        Phase2 {
+                pub struct Phase2<T>(pub T);
+                    
+                impl From<Phase1> for Phase2::<Foo> {
+                    fn from(from: Phase1) -> Phase2::<Foo> {
+                        Phase2::<Foo>(Foo {
                             bar: from.bar,
                             baz: from.baz
-                        }
+                        })
                     }
                 }
-
-                impl<'de> ::serde::de::Deserialize<'de> for Phase2 {
-                    fn deserialize<D>(deserializer: D) -> Result<Phase2, D::Error> where D: ::serde::de::Deserializer<'de> {
+                    
+                impl<'de> ::serde::de::Deserialize<'de> for Phase2<Foo> {
+                    fn deserialize<D>(deserializer: D) -> Result<Phase2<Foo>, D::Error> where D: ::serde::de::Deserializer<'de> {
                         struct Phase2Visitor;
 
                         impl<'de> ::serde::de::Visitor<'de> for Phase2Visitor {
-                            type Value = Phase2;
+                            type Value = Phase2<Foo>;
 
                             fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                                 match formatter.width() {
@@ -136,7 +133,7 @@ mod tests {
             
             /// container documentation.
             #[derive(Deserialize)]
-            #[serde(from = \"__Foo::Phase2\")]
+            #[serde(from = \"__Foo::Phase2<Foo>\")]
             struct Foo {
                 /// bar documentation.
                 bar: usize,
@@ -144,11 +141,11 @@ mod tests {
                 baz: String,
             }
 
-            impl From<__Foo::Phase2> for Foo {
-                fn from(from: __Foo::Phase2) -> Foo {
+            impl From<__Foo::Phase2::<Foo>> for Foo {
+                fn from(from: __Foo::Phase2::<Foo>) -> Foo {
                     Foo {
-                        bar: from.bar,
-                        baz: from.baz
+                        bar: from.0.bar,
+                        baz: from.0.baz
                     }
                 }
             }
@@ -204,26 +201,23 @@ mod tests {
                     }
                 }
 
-                pub enum Phase2 {
-                    Bar,
-                    Baz,
-                }
-
-                impl From<Phase1> for Phase2 {
-                    fn from(from: Phase1) -> Phase2 {
+                pub struct Phase2<T>(pub T);
+                    
+                impl From<Phase1> for Phase2::<Foo> {
+                    fn from(from: Phase1) -> Phase2::<Foo> {
                         match from {
-                            Phase1::Bar => Phase2::Bar,
-                            Phase1::Baz => Phase2::Baz,
+                            Phase1::Bar => Phase2::<Foo>(Foo::Bar),
+                            Phase1::Baz => Phase2::<Foo>(Foo::Baz),
                         }
                     }
                 }
-
-                impl<'de> ::serde::de::Deserialize<'de> for Phase2 {
-                    fn deserialize<D>(deserializer: D) -> Result<Phase2, D::Error> where D: ::serde::de::Deserializer<'de> {
+                    
+                impl<'de> ::serde::de::Deserialize<'de> for Phase2<Foo> {
+                    fn deserialize<D>(deserializer: D) -> Result<Phase2<Foo>, D::Error> where D: ::serde::de::Deserializer<'de> {
                         struct Phase2Visitor;
 
                         impl<'de> ::serde::de::Visitor<'de> for Phase2Visitor {
-                            type Value = Phase2;
+                            type Value = Phase2<Foo>;
 
                             fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                                 match formatter.width() {
@@ -253,7 +247,7 @@ mod tests {
 
             /// container documentation.
             #[derive(Deserialize)]
-            #[serde(from = \"__Foo::Phase2\")]
+            #[serde(from = \"__Foo::Phase2<Foo>\")]
             enum Foo {
                 /// bar documentation.
                 Bar,
@@ -261,11 +255,11 @@ mod tests {
                 Baz,
             }
 
-            impl From<__Foo::Phase2> for Foo {
-                fn from(from: __Foo::Phase2) -> Foo {
-                    match from {
-                        __Foo::Phase2::Bar => Foo::Bar,
-                        __Foo::Phase2::Baz => Foo::Baz,
+            impl From<__Foo::Phase2::<Foo>> for Foo {
+                fn from(from: __Foo::Phase2::<Foo>) -> Foo {
+                    match from.0 {
+                        Foo::Bar => Foo::Bar,
+                        Foo::Baz => Foo::Baz,
                     }
                 }
             }

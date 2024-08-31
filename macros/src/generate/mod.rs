@@ -2,15 +2,17 @@
 
 mod from;
 
-pub(crate) use from::from;
+pub(crate) use from::{from_container_to_newtype, from_newtype_to_container};
 
 use crate::{container::Descriptions, Container};
 use proc_macro2::{Delimiter, Group, Literal, Punct, Spacing, Span, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
 use std::iter;
 use syn::{
-    token::Bracket, token::Paren, AttrStyle, Attribute, Ident, MacroDelimiter, Meta, MetaList,
-    Path, PathArguments, PathSegment, Token, TypePath, Visibility,
+    punctuated::Punctuated, token::Bracket, token::Paren, AngleBracketedGenericArguments,
+    AttrStyle, Attribute, Field, FieldMutability, Fields, FieldsUnnamed, GenericArgument,
+    GenericParam, Generics, Ident, Item, ItemStruct, MacroDelimiter, Meta, MetaList, Path,
+    PathArguments, PathSegment, Token, Type, TypeParam, TypeParamBound, TypePath, Visibility,
 };
 
 fn push_serde_attribute(attrs: &mut Vec<Attribute>, meta_tokens: TokenStream) {
@@ -89,36 +91,63 @@ pub(crate) fn phase_1(mut container: Container, ident: &Ident) -> TokenStream {
 }
 
 pub(crate) fn phase_2(
-    mut container: Container,
+    container: &Container,
     descriptions: Descriptions,
     ident: &Ident,
 ) -> TokenStream {
-    // Remove all attributes from this item.
-    match &mut container {
-        Container::Enum(item) => {
-            item.attrs.clear();
-            item.vis = Visibility::Public(Token!(pub)(Span::call_site()));
-            item.ident = Ident::new("Phase2", Span::call_site());
-            item.variants.iter_mut().for_each(|variant| {
-                variant.attrs.clear();
-                variant.fields.iter_mut().for_each(|field| {
-                    field.attrs.clear();
-                });
+    // Create wrapper type.
+    let wrapper = Item::Struct(ItemStruct {
+        attrs: vec![],
+        vis: Visibility::Public(Token!(pub)(Span::call_site())),
+        struct_token: Token!(struct)(Span::call_site()),
+        ident: Ident::new("Phase2", Span::call_site()),
+        generics: Generics {
+            lt_token: Some(Token!(<)(Span::call_site())),
+            params: iter::once(GenericParam::Type(TypeParam {
+                attrs: vec![],
+                ident: Ident::new("T", Span::call_site()),
+                colon_token: None,
+                bounds: iter::empty::<TypeParamBound>().collect(),
+                eq_token: None,
+                default: None,
+            }))
+            .collect(),
+            gt_token: Some(Token!(>)(Span::call_site())),
+            where_clause: None,
+        },
+        fields: Fields::Unnamed({
+            let fields = iter::once(Field {
+                attrs: vec![],
+                vis: Visibility::Public(Token!(pub)(Span::call_site())),
+                mutability: FieldMutability::None,
+                ident: None,
+                colon_token: None,
+                ty: Type::Path(TypePath {
+                    qself: None,
+                    path: Path {
+                        leading_colon: None,
+                        segments: iter::once(PathSegment {
+                            ident: Ident::new("T", Span::call_site()),
+                            arguments: PathArguments::None,
+                        })
+                        .collect(),
+                    },
+                }),
             });
-        }
-        Container::Struct(item) => {
-            item.attrs.clear();
-            item.vis = Visibility::Public(Token!(pub)(Span::call_site()));
-            item.ident = Ident::new("Phase2", Span::call_site());
-            item.fields.iter_mut().for_each(|field| {
-                field.attrs.clear();
-                field.vis = Visibility::Public(Token!(pub)(Span::call_site()));
-            });
-        }
-    };
+            let punctuated_fields = fields.clone().collect::<Punctuated<_, _>>();
+            let group = Group::new(Delimiter::Parenthesis, quote!(#(#fields),*));
+            FieldsUnnamed {
+                paren_token: Paren {
+                    span: group.delim_span(),
+                },
+                unnamed: punctuated_fields,
+            }
+        }),
+        semi_token: Some(Token!(;)(Span::call_site())),
+    });
 
     // Define a `From` implementation from Phase 1.
-    let from = from(
+    let from = from_container_to_newtype(
         &container,
         &TypePath {
             qself: None,
@@ -138,7 +167,23 @@ pub(crate) fn phase_2(
                 leading_colon: None,
                 segments: iter::once(PathSegment {
                     ident: Ident::new("Phase2", Span::call_site()),
-                    arguments: PathArguments::None,
+                    arguments: PathArguments::AngleBracketed(AngleBracketedGenericArguments {
+                        colon2_token: Some(Token!(::)(Span::call_site())),
+                        lt_token: Token!(<)(Span::call_site()),
+                        args: iter::once(GenericArgument::Type(Type::Path(TypePath {
+                            qself: None,
+                            path: Path {
+                                leading_colon: None,
+                                segments: iter::once(PathSegment {
+                                    ident: ident.clone(),
+                                    arguments: PathArguments::None,
+                                })
+                                .collect(),
+                            },
+                        })))
+                        .collect(),
+                        gt_token: Token!(>)(Span::call_site()),
+                    }),
                 })
                 .collect(),
             },
@@ -166,15 +211,15 @@ pub(crate) fn phase_2(
 
     let ident_string = format!("{}", ident);
     quote! {
-        #container
+        #wrapper
         #from
 
-        impl<'de> ::serde::de::Deserialize<'de> for Phase2 {
-            fn deserialize<D>(deserializer: D) -> Result<Phase2, D::Error> where D: ::serde::de::Deserializer<'de> {
+        impl<'de> ::serde::de::Deserialize<'de> for Phase2<#ident> {
+            fn deserialize<D>(deserializer: D) -> Result<Phase2<#ident>, D::Error> where D: ::serde::de::Deserializer<'de> {
                 struct Phase2Visitor;
 
                 impl<'de> ::serde::de::Visitor<'de> for Phase2Visitor {
-                    type Value = Phase2;
+                    type Value = Phase2<#ident>;
 
                     fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                         match formatter.width() {
@@ -201,7 +246,11 @@ pub(crate) fn phase_3(mut container: Container, module: &Ident) -> TokenStream {
     let from_tokens: TokenStream = [
         TokenTree::Ident(Ident::new("from", Span::call_site())),
         TokenTree::Punct(Punct::new('=', Spacing::Alone)),
-        TokenTree::Literal(Literal::string(&format!("{}::Phase2", module))),
+        TokenTree::Literal(Literal::string(&format!(
+            "{}::Phase2<{}>",
+            module,
+            container.identifier()
+        ))),
     ]
     .into_iter()
     .collect();
@@ -216,7 +265,7 @@ pub(crate) fn phase_3(mut container: Container, module: &Ident) -> TokenStream {
     let ident = container.identifier();
 
     // Create a `From` implementation.
-    let from = from(
+    let from = from_newtype_to_container(
         &container,
         &TypePath {
             qself: None,
@@ -229,7 +278,23 @@ pub(crate) fn phase_3(mut container: Container, module: &Ident) -> TokenStream {
                     },
                     PathSegment {
                         ident: Ident::new("Phase2", Span::call_site()),
-                        arguments: PathArguments::None,
+                        arguments: PathArguments::AngleBracketed(AngleBracketedGenericArguments {
+                            colon2_token: Some(Token!(::)(Span::call_site())),
+                            lt_token: Token!(<)(Span::call_site()),
+                            args: iter::once(GenericArgument::Type(Type::Path(TypePath {
+                                qself: None,
+                                path: Path {
+                                    leading_colon: None,
+                                    segments: iter::once(PathSegment {
+                                        ident: ident.clone(),
+                                        arguments: PathArguments::None,
+                                    })
+                                    .collect(),
+                                },
+                            })))
+                            .collect(),
+                            gt_token: Token!(>)(Span::call_site()),
+                        }),
                     },
                 ]
                 .into_iter()
@@ -407,7 +472,7 @@ mod tests {
         ));
 
         assert_eq!(
-            assert_ok!(parse::<File>(phase_2(container, Descriptions {
+            assert_ok!(parse::<File>(phase_2(&container, Descriptions {
                 container: Documentation {
                     exprs: vec![
                         assert_ok!(&parse_str("\"container documentation.\"")),
@@ -428,26 +493,23 @@ mod tests {
             }, &syn::Ident::new("Foo", Span::call_site())))),
             assert_ok!(parse_str(
                 "
-                pub struct Phase2 {
-                    pub bar: usize,
-                    pub baz: String,
-                }
+                pub struct Phase2<T>(pub T);
                     
-                impl From<Phase1> for Phase2 {
-                    fn from(from: Phase1) -> Phase2 {
-                        Phase2 {
+                impl From<Phase1> for Phase2::<Foo> {
+                    fn from(from: Phase1) -> Phase2::<Foo> {
+                        Phase2::<Foo>(Foo {
                             bar: from.bar,
                             baz: from.baz
-                        }
+                        })
                     }
                 }
                     
-                impl<'de> ::serde::de::Deserialize<'de> for Phase2 {
-                    fn deserialize<D>(deserializer: D) -> Result<Phase2, D::Error> where D: ::serde::de::Deserializer<'de> {
+                impl<'de> ::serde::de::Deserialize<'de> for Phase2<Foo> {
+                    fn deserialize<D>(deserializer: D) -> Result<Phase2<Foo>, D::Error> where D: ::serde::de::Deserializer<'de> {
                         struct Phase2Visitor;
 
                         impl<'de> ::serde::de::Visitor<'de> for Phase2Visitor {
-                            type Value = Phase2;
+                            type Value = Phase2<Foo>;
 
                             fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                                 match formatter.width() {
@@ -489,7 +551,7 @@ mod tests {
         ));
 
         assert_eq!(
-            assert_ok!(parse::<File>(phase_2(container, Descriptions {
+            assert_ok!(parse::<File>(phase_2(&container, Descriptions {
                 container: Documentation {
                     exprs: vec![
                         assert_ok!(&parse_str("\"container documentation.\"")),
@@ -510,26 +572,23 @@ mod tests {
             }, &syn::Ident::new("Foo", Span::call_site())))),
             assert_ok!(parse_str(
                 "
-                pub enum Phase2 {
-                    Bar,
-                    Baz,
-                }
+                pub struct Phase2<T>(pub T);
                     
-                impl From<Phase1> for Phase2 {
-                    fn from(from: Phase1) -> Phase2 {
+                impl From<Phase1> for Phase2::<Foo> {
+                    fn from(from: Phase1) -> Phase2::<Foo> {
                         match from {
-                            Phase1::Bar => Phase2::Bar,
-                            Phase1::Baz => Phase2::Baz,
+                            Phase1::Bar => Phase2::<Foo>(Foo::Bar),
+                            Phase1::Baz => Phase2::<Foo>(Foo::Baz),
                         }
                     }
                 }
                     
-                impl<'de> ::serde::de::Deserialize<'de> for Phase2 {
-                    fn deserialize<D>(deserializer: D) -> Result<Phase2, D::Error> where D: ::serde::de::Deserializer<'de> {
+                impl<'de> ::serde::de::Deserialize<'de> for Phase2<Foo> {
+                    fn deserialize<D>(deserializer: D) -> Result<Phase2<Foo>, D::Error> where D: ::serde::de::Deserializer<'de> {
                         struct Phase2Visitor;
 
                         impl<'de> ::serde::de::Visitor<'de> for Phase2Visitor {
-                            type Value = Phase2;
+                            type Value = Phase2<Foo>;
 
                             fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                                 match formatter.width() {
@@ -578,17 +637,17 @@ mod tests {
             assert_ok!(parse_str(
                 "
                 #[derive(Deserialize)]
-                #[serde(from = \"__Foo::Phase2\")]
+                #[serde(from = \"__Foo::Phase2<Foo>\")]
                 struct Foo {
                     bar: usize,
                     baz: String,
                 }
 
-                impl From<__Foo::Phase2> for Foo {
-                    fn from(from: __Foo::Phase2) -> Foo {
+                impl From<__Foo::Phase2::<Foo>> for Foo {
+                    fn from(from: __Foo::Phase2::<Foo>) -> Foo {
                         Foo {
-                            bar: from.bar,
-                            baz: from.baz
+                            bar: from.0.bar,
+                            baz: from.0.baz
                         }
                     }
                 }"
@@ -615,17 +674,17 @@ mod tests {
             assert_ok!(parse_str(
                 "
                 #[derive(Deserialize)]
-                #[serde(from = \"__Foo::Phase2\")]
+                #[serde(from = \"__Foo::Phase2<Foo>\")]
                 enum Foo {
                     Bar,
                     Baz,
                 }
 
-                impl From<__Foo::Phase2> for Foo {
-                    fn from(from: __Foo::Phase2) -> Foo {
-                        match from {
-                            __Foo::Phase2::Bar => Foo::Bar,
-                            __Foo::Phase2::Baz => Foo::Baz,
+                impl From<__Foo::Phase2::<Foo>> for Foo {
+                    fn from(from: __Foo::Phase2::<Foo>) -> Foo {
+                        match from.0 {
+                            Foo::Bar => Foo::Bar,
+                            Foo::Baz => Foo::Baz,
                         }
                     }
                 }"
