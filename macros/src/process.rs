@@ -83,7 +83,7 @@ mod tests {
                     type Value = Phase1;
 
                     fn deserialize<D>(self, _deserializer: D) -> ::std::result::Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
-                        unimplemented!(\"`Deserialize` is not implemented for this type\")
+                        ::std::unimplemented!(\"`Deserialize` is not implemented for this type\")
                     }
                 }
 
@@ -101,7 +101,7 @@ mod tests {
 
                 impl<T> PossiblySerialize for &&SerializeShim<T> {
                     fn serialize<S>(self, serializer: S) -> ::std::result::Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
-                        unimplemented!(\"`Serialize` is not implemented for this type\")
+                        ::std::unimplemented!(\"`Serialize` is not implemented for this type\")
                     }
                 }
 
@@ -127,7 +127,7 @@ mod tests {
                     type Value = T;
 
                     fn clone(self) -> Phase2<Self::Value> {
-                        unimplemented!(\"`Clone` is not implemented for this type\")
+                        ::std::unimplemented!(\"`Clone` is not implemented for this type\")
                     }
                 }
 
@@ -278,7 +278,7 @@ mod tests {
                     type Value = Phase1;
 
                     fn deserialize<D>(self, _deserializer: D) -> ::std::result::Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
-                        unimplemented!(\"`Deserialize` is not implemented for this type\")
+                        ::std::unimplemented!(\"`Deserialize` is not implemented for this type\")
                     }
                 }
 
@@ -296,7 +296,7 @@ mod tests {
 
                 impl<T> PossiblySerialize for &&SerializeShim<T> {
                     fn serialize<S>(self, serializer: S) -> ::std::result::Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
-                        unimplemented!(\"`Serialize` is not implemented for this type\")
+                        ::std::unimplemented!(\"`Serialize` is not implemented for this type\")
                     }
                 }
 
@@ -322,7 +322,7 @@ mod tests {
                     type Value = T;
 
                     fn clone(self) -> Phase2<Self::Value> {
-                        unimplemented!(\"`Clone` is not implemented for this type\")
+                        ::std::unimplemented!(\"`Clone` is not implemented for this type\")
                     }
                 }
 
