@@ -13,7 +13,7 @@ use hash::IdentityHasher;
 use keys::{Fields, KeyInfo, Keys, Variants};
 use serde::{
     de,
-    de::{DeserializeSeed, Deserializer as _, Expected, MapAccess, Visitor},
+    de::{DeserializeSeed, Deserializer as _, Expected, MapAccess, Unexpected, Visitor},
 };
 use std::{
     fmt,
@@ -67,8 +67,39 @@ impl Display for Trace {
 }
 
 impl de::Error for Trace {
-    fn custom<T>(_msg: T) -> Self {
-        todo!()
+    fn custom<T>(message: T) -> Self
+    where
+        T: Display,
+    {
+        Self(Err(Error::custom(message)))
+    }
+
+    fn invalid_type(unexpected: Unexpected, expected: &dyn Expected) -> Self {
+        Self(Err(Error::invalid_type(unexpected, expected)))
+    }
+
+    fn invalid_value(unexpected: Unexpected, expected: &dyn Expected) -> Self {
+        Self(Err(Error::invalid_value(unexpected, expected)))
+    }
+
+    fn invalid_length(len: usize, expected: &dyn Expected) -> Self {
+        Self(Err(Error::invalid_length(len, expected)))
+    }
+
+    fn unknown_variant(variant: &str, expected: &'static [&'static str]) -> Self {
+        Self(Err(Error::unknown_variant(variant, expected)))
+    }
+
+    fn unknown_field(field: &str, expected: &'static [&'static str]) -> Self {
+        Self(Err(Error::unknown_field(field, expected)))
+    }
+
+    fn missing_field(field: &'static str) -> Self {
+        Self(Err(Error::missing_field(field)))
+    }
+
+    fn duplicate_field(field: &'static str) -> Self {
+        Self(Err(Error::duplicate_field(field)))
     }
 }
 
@@ -662,8 +693,8 @@ mod tests {
     use serde::{
         de,
         de::{
-            Deserialize, EnumAccess as _, Error as _, IgnoredAny, MapAccess, VariantAccess as _,
-            Visitor,
+            Deserialize, EnumAccess as _, Error as _, IgnoredAny, MapAccess, Unexpected,
+            VariantAccess as _, Visitor,
         },
     };
     use serde_derive::Deserialize;
@@ -706,9 +737,67 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    fn trace_custom() {
-        Trace::custom("custom message");
+    fn trace_display_custom() {
+        assert_eq!(
+            format!("{}", Trace::custom("foo")),
+            "error: serde error: custom: foo"
+        );
+    }
+
+    #[test]
+    fn trace_display_invalid_type() {
+        assert_eq!(
+            format!("{}", Trace::invalid_type(Unexpected::Str("foo"), &"bar")),
+            "error: serde error: invalid type: expected bar, found string \"foo\""
+        );
+    }
+
+    #[test]
+    fn trace_display_invalid_value() {
+        assert_eq!(
+            format!("{}", Trace::invalid_value(Unexpected::Str("foo"), &"bar")),
+            "error: serde error: invalid value: expected bar, found string \"foo\""
+        );
+    }
+
+    #[test]
+    fn trace_display_invalid_length() {
+        assert_eq!(
+            format!("{}", Trace::invalid_length(42, &"foo")),
+            "error: serde error: invalid length 42, expected foo"
+        );
+    }
+
+    #[test]
+    fn trace_display_unknown_variant() {
+        assert_eq!(
+            format!("{}", Trace::unknown_variant("foo", &["bar", "baz"])),
+            "error: serde error: unknown variant foo, expected one of [\"bar\", \"baz\"]"
+        );
+    }
+
+    #[test]
+    fn trace_display_unknown_field() {
+        assert_eq!(
+            format!("{}", Trace::unknown_field("foo", &["bar", "baz"])),
+            "error: serde error: unknown field foo, expected one of [\"bar\", \"baz\"]"
+        );
+    }
+
+    #[test]
+    fn trace_display_missing_field() {
+        assert_eq!(
+            format!("{}", Trace::missing_field("foo")),
+            "error: serde error: missing field foo"
+        );
+    }
+
+    #[test]
+    fn trace_display_duplicate_field() {
+        assert_eq!(
+            format!("{}", Trace::duplicate_field("foo")),
+            "error: serde error: duplicate field foo"
+        );
     }
 
     #[test]
