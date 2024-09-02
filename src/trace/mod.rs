@@ -446,8 +446,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                             shape: *shape,
                                         };
                                         let mut found = false;
-                                        for (info, (names, _, _)) in
-                                            fields.optional_fields.iter_mut()
+                                        for (info, names, _, _) in fields.optional_fields.iter_mut()
                                         {
                                             if *info == key_info {
                                                 found = true;
@@ -458,13 +457,11 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                         if !found {
                                             fields.optional_fields.push((
                                                 key_info,
-                                                (
-                                                    vec![field],
-                                                    description,
-                                                    fields.required_fields.len()
-                                                        + fields.optional_fields.len()
-                                                        + fields.boolean_fields.len(),
-                                                ),
+                                                vec![field],
+                                                description,
+                                                fields.required_fields.len()
+                                                    + fields.optional_fields.len()
+                                                    + fields.boolean_fields.len(),
                                             ));
                                         }
                                     }
@@ -480,8 +477,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                             },
                                         };
                                         let mut found = false;
-                                        for (info, (names, _, _)) in
-                                            fields.boolean_fields.iter_mut()
+                                        for (info, names, _, _) in fields.boolean_fields.iter_mut()
                                         {
                                             if *info == key_info {
                                                 found = true;
@@ -492,13 +488,11 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                         if !found {
                                             fields.boolean_fields.push((
                                                 key_info,
-                                                (
-                                                    vec![field],
-                                                    description,
-                                                    fields.required_fields.len()
-                                                        + fields.optional_fields.len()
-                                                        + fields.boolean_fields.len(),
-                                                ),
+                                                vec![field],
+                                                description,
+                                                fields.required_fields.len()
+                                                    + fields.optional_fields.len()
+                                                    + fields.boolean_fields.len(),
                                             ))
                                         }
                                     }
@@ -509,8 +503,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                             shape,
                                         };
                                         let mut found = false;
-                                        for (info, (names, _, _)) in
-                                            fields.required_fields.iter_mut()
+                                        for (info, names, _, _) in fields.required_fields.iter_mut()
                                         {
                                             if *info == key_info {
                                                 found = true;
@@ -521,13 +514,11 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                         if !found {
                                             fields.required_fields.push((
                                                 key_info,
-                                                (
-                                                    vec![field],
-                                                    description,
-                                                    fields.required_fields.len()
-                                                        + fields.optional_fields.len()
-                                                        + fields.boolean_fields.len(),
-                                                ),
+                                                vec![field],
+                                                description,
+                                                fields.required_fields.len()
+                                                    + fields.optional_fields.len()
+                                                    + fields.boolean_fields.len(),
                                             ));
                                         }
                                     }
@@ -599,7 +590,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                     shape,
                                 };
                                 let mut found = false;
-                                for (info, (names, _description)) in variants.variants.iter_mut() {
+                                for (info, names, _description) in variants.variants.iter_mut() {
                                     if *info == key_info {
                                         found = true;
                                         names.push(variant);
@@ -609,7 +600,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                 if !found {
                                     variants
                                         .variants
-                                        .push((key_info, (vec![variant], description)));
+                                        .push((key_info, vec![variant], description));
                                 }
                                 self.recursive_deserializer = None;
                             }

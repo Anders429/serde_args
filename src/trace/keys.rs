@@ -20,9 +20,9 @@ pub(super) struct Fields {
     pub(super) description: String,
     pub(super) iter: slice::Iter<'static, &'static str>,
     pub(super) revisit: Option<&'static str>,
-    pub(super) required_fields: Vec<(KeyInfo, (Vec<&'static str>, String, usize))>,
-    pub(super) optional_fields: Vec<(KeyInfo, (Vec<&'static str>, String, usize))>,
-    pub(super) boolean_fields: Vec<(KeyInfo, (Vec<&'static str>, String, usize))>,
+    pub(super) required_fields: Vec<(KeyInfo, Vec<&'static str>, String, usize)>,
+    pub(super) optional_fields: Vec<(KeyInfo, Vec<&'static str>, String, usize)>,
+    pub(super) boolean_fields: Vec<(KeyInfo, Vec<&'static str>, String, usize)>,
 }
 
 impl From<Fields> for Shape {
@@ -33,7 +33,7 @@ impl From<Fields> for Shape {
             required: fields
                 .required_fields
                 .into_iter()
-                .map(|(info, (mut names, description, index))| {
+                .map(|(info, mut names, description, index)| {
                     let first = names.remove(0);
                     Field {
                         name: first,
@@ -47,7 +47,7 @@ impl From<Fields> for Shape {
             optional: fields
                 .optional_fields
                 .into_iter()
-                .map(|(info, (mut names, description, index))| {
+                .map(|(info, mut names, description, index)| {
                     let first = names.remove(0);
                     Field {
                         name: first,
@@ -61,7 +61,7 @@ impl From<Fields> for Shape {
             booleans: fields
                 .boolean_fields
                 .into_iter()
-                .map(|(info, (mut names, description, index))| {
+                .map(|(info, mut names, description, index)| {
                     let first = names.remove(0);
                     Field {
                         name: first,
@@ -95,7 +95,7 @@ pub(super) struct Variants {
     pub(super) description: String,
     pub(super) iter: slice::Iter<'static, &'static str>,
     pub(super) revisit: Option<&'static str>,
-    pub(super) variants: Vec<(KeyInfo, (Vec<&'static str>, String))>,
+    pub(super) variants: Vec<(KeyInfo, Vec<&'static str>, String)>,
 }
 
 impl Variants {
@@ -122,7 +122,7 @@ impl From<Variants> for Shape {
             variants: variants
                 .variants
                 .into_iter()
-                .map(|(info, (mut names, description))| {
+                .map(|(info, mut names, description)| {
                     let first = names.remove(0);
                     Variant {
                         name: first,
@@ -254,7 +254,9 @@ mod tests {
                             description: String::new(),
                         },
                     },
-                    (vec!["bar"], String::new(), 0)
+                    vec!["bar"],
+                    String::new(),
+                    0
                 ),],
                 optional_fields: vec![],
                 boolean_fields: vec![],
@@ -295,7 +297,9 @@ mod tests {
                                 description: String::new(),
                             },
                         },
-                        (vec!["bar"], String::new(), 0),
+                        vec!["bar"],
+                        String::new(),
+                        0,
                     ),
                     (
                         KeyInfo {
@@ -305,7 +309,9 @@ mod tests {
                                 name: "baz".to_owned(),
                             },
                         },
-                        (vec!["qux"], String::new(), 1),
+                        vec!["qux"],
+                        String::new(),
+                        1,
                     ),
                 ],
                 optional_fields: vec![],
@@ -358,7 +364,9 @@ mod tests {
                             description: String::new(),
                         },
                     },
-                    (vec!["bar", "baz", "qux"], String::new(), 0),
+                    vec!["bar", "baz", "qux"],
+                    String::new(),
+                    0,
                 ),],
                 optional_fields: vec![],
                 boolean_fields: vec![],
@@ -410,7 +418,8 @@ mod tests {
                             description: String::new(),
                         },
                     },
-                    (vec!["bar"], String::new())
+                    vec!["bar"],
+                    String::new()
                 ),],
             }),
             Shape::Enum {
@@ -446,7 +455,8 @@ mod tests {
                                 description: String::new(),
                             },
                         },
-                        (vec!["bar"], String::new()),
+                        vec!["bar"],
+                        String::new(),
                     ),
                     (
                         KeyInfo {
@@ -456,7 +466,8 @@ mod tests {
                                 name: "baz".to_owned(),
                             },
                         },
-                        (vec!["qux"], String::new()),
+                        vec!["qux"],
+                        String::new(),
                     ),
                 ],
             }),
@@ -503,7 +514,8 @@ mod tests {
                             description: String::new(),
                         },
                     },
-                    (vec!["bar", "baz", "qux"], String::new()),
+                    vec!["bar", "baz", "qux"],
+                    String::new(),
                 ),],
             }),
             Shape::Enum {
@@ -667,7 +679,9 @@ mod tests {
                                 description: String::new(),
                             },
                         },
-                        (vec!["bar"], String::new(), 0),
+                        vec!["bar"],
+                        String::new(),
+                        0,
                     ),
                     (
                         KeyInfo {
@@ -677,7 +691,9 @@ mod tests {
                                 name: "baz".to_owned(),
                             },
                         },
-                        (vec!["qux"], String::new(), 1),
+                        vec!["qux"],
+                        String::new(),
+                        1,
                     ),
                 ],
                 optional_fields: vec![],
@@ -731,7 +747,8 @@ mod tests {
                                 description: String::new(),
                             },
                         },
-                        (vec!["bar"], String::new()),
+                        vec!["bar"],
+                        String::new(),
                     ),
                     (
                         KeyInfo {
@@ -741,7 +758,8 @@ mod tests {
                                 name: "baz".to_owned(),
                             },
                         },
-                        (vec!["qux"], String::new()),
+                        vec!["qux"],
+                        String::new(),
                     ),
                 ],
             })),
