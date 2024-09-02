@@ -8,7 +8,7 @@ impl Hasher for IdentityHasher {
     }
 
     fn write(&mut self, bytes: &[u8]) {
-        for &byte in bytes.into_iter().rev() {
+        for &byte in bytes.iter().rev() {
             self.0 <<= 8;
             self.0 |= u64::from(byte);
         }
