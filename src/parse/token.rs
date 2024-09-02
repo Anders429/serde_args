@@ -36,28 +36,24 @@ where
                 if short_token.is_empty() {
                     // A single `-` is an empty optional token.
                     Some(Token::Optional(Vec::new()))
+                } else if let Some(long_token) = short_token.strip_prefix(b"-") {
+                    if long_token.is_empty() {
+                        Some(Token::EndOfOptions)
+                    } else {
+                        Some(Token::Optional(long_token.to_vec()))
+                    }
                 } else {
-                    if let Some(long_token) = short_token.strip_prefix(b"-") {
-                        if long_token.is_empty() {
-                            Some(Token::EndOfOptions)
+                    // This is only an option if there is a single character.
+                    if short_token.len() > 4 {
+                        Some(Token::Positional(token))
+                    } else if let Ok(short_token_str) = str::from_utf8(short_token) {
+                        if short_token_str.chars().count() == 1 {
+                            Some(Token::Optional(short_token.to_vec()))
                         } else {
-                            Some(Token::Optional(long_token.to_vec()))
+                            Some(Token::Positional(token))
                         }
                     } else {
-                        // This is only an option if there is a single character.
-                        if short_token.len() > 4 {
-                            Some(Token::Positional(token))
-                        } else {
-                            if let Ok(short_token_str) = str::from_utf8(short_token) {
-                                if short_token_str.chars().count() == 1 {
-                                    Some(Token::Optional(short_token.to_vec()))
-                                } else {
-                                    Some(Token::Positional(token))
-                                }
-                            } else {
-                                Some(Token::Positional(token))
-                            }
-                        }
+                        Some(Token::Positional(token))
                     }
                 }
             } else {
