@@ -398,6 +398,7 @@ mod tests {
                                     index: 0,
                                 }
                             ],
+                            booleans: vec![],
                         },
                     }
                 }

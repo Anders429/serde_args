@@ -49,11 +49,19 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     // Primitive types
     // ---------------
 
-    fn deserialize_bool<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_bool<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        todo!()
+        match self.context.next() {
+            Some(Segment::Value(raw)) => {
+                let value_string = String::from_utf8_lossy(&raw);
+                bool::from_str(&value_string)
+                    .map_err(|_| Error::invalid_type(Unexpected::Other(&value_string), &visitor))
+                    .and_then(|b| visitor.visit_bool(b))
+            }
+            _ => unreachable!(),
+        }
     }
 
     fn deserialize_i8<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
@@ -763,6 +771,36 @@ mod tests {
         let deserializer = Deserializer::new(Context { segments: vec![] });
 
         let _ = IgnoredAny::deserialize(deserializer);
+    }
+
+    #[test]
+    fn bool_false() {
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("false".into())],
+        });
+
+        assert_ok_eq!(bool::deserialize(deserializer), false);
+    }
+
+    #[test]
+    fn bool_true() {
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("true".into())],
+        });
+
+        assert_ok_eq!(bool::deserialize(deserializer), true);
+    }
+
+    #[test]
+    fn bool_invalid_type() {
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Value("a".into())],
+        });
+
+        assert_err_eq!(
+            bool::deserialize(deserializer),
+            Error::InvalidType(Unexpected::Other("a").to_string(), "a boolean".to_owned())
+        );
     }
 
     #[test]
@@ -1809,6 +1847,38 @@ mod tests {
     }
 
     #[test]
+    fn struct_with_boolean_field_true() {
+        #[derive(Debug, Deserialize, PartialEq, Eq)]
+        struct Struct {
+            foo: bool,
+        }
+
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Context(Context {
+                segments: vec![Segment::Identifier("foo"), Segment::Value("true".into())],
+            })],
+        });
+
+        assert_ok_eq!(Struct::deserialize(deserializer), Struct { foo: true });
+    }
+
+    #[test]
+    fn struct_with_boolean_field_false() {
+        #[derive(Debug, Deserialize, PartialEq, Eq)]
+        struct Struct {
+            foo: bool,
+        }
+
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Context(Context {
+                segments: vec![Segment::Identifier("foo"), Segment::Value("false".into())],
+            })],
+        });
+
+        assert_ok_eq!(Struct::deserialize(deserializer), Struct { foo: false });
+    }
+
+    #[test]
     fn struct_with_mixed_fields() {
         #[derive(Debug, Deserialize, PartialEq, Eq)]
         struct Struct {
@@ -1843,6 +1913,21 @@ mod tests {
         #[derive(Debug, Deserialize, PartialEq, Eq)]
         struct Struct {
             foo: usize,
+        }
+
+        let deserializer = Deserializer::new(Context { segments: vec![] });
+
+        assert_err_eq!(
+            Struct::deserialize(deserializer),
+            Error::missing_field("foo")
+        );
+    }
+
+    #[test]
+    fn struct_missing_boolean_field() {
+        #[derive(Debug, Deserialize, PartialEq, Eq)]
+        struct Struct {
+            foo: bool,
         }
 
         let deserializer = Deserializer::new(Context { segments: vec![] });

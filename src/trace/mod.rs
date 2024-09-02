@@ -175,11 +175,13 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     // Primitive types
     // ---------------
 
-    fn deserialize_bool<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        todo!()
+        Err(Trace(Ok(Status::Success(Shape::boolean_from_visitor(
+            &visitor,
+        )))))
     }
 
     deserialize_as_primitive! {
@@ -275,7 +277,8 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 let container_description = description_from_visitor(&visitor);
                 match &mut shape {
                     Shape::Empty { description } => *description = container_description,
-                    Shape::Primitive { name, description } => {
+                    Shape::Primitive { name, description }
+                    | Shape::Boolean { name, description } => {
                         *name = struct_name.into();
                         *description = container_description;
                     }
@@ -285,12 +288,17 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                         description,
                         required,
                         optional,
+                        booleans,
                     } => {
                         *name = struct_name;
                         if !container_description.is_empty() {
                             *description = container_description.clone();
                         }
-                        for field in required.iter_mut().chain(optional.iter_mut()) {
+                        for field in required
+                            .iter_mut()
+                            .chain(optional.iter_mut())
+                            .chain(booleans.iter_mut())
+                        {
                             let description = key_description_from_visitor(&visitor, field.index);
                             if description != container_description && !description.is_empty() {
                                 field.description = description;
@@ -373,6 +381,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                 revisit: None,
                 required_fields: Vec::new(),
                 optional_fields: Vec::new(),
+                boolean_fields: Vec::new(),
             })
             .map_err(|error| Trace(Err(error)))?;
         if let Some(field) = fields
@@ -431,9 +440,44 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                                     vec![field],
                                                     description,
                                                     fields.required_fields.len()
-                                                        + fields.optional_fields.len(),
+                                                        + fields.optional_fields.len()
+                                                        + fields.boolean_fields.len(),
                                                 ),
                                             ));
+                                        }
+                                    }
+                                    Shape::Boolean {
+                                        description: bool_description,
+                                        ..
+                                    } => {
+                                        // Boolean fields.
+                                        let key_info = KeyInfo {
+                                            discriminant,
+                                            shape: Shape::Empty {
+                                                description: bool_description,
+                                            },
+                                        };
+                                        let mut found = false;
+                                        for (info, (names, _, _)) in
+                                            fields.boolean_fields.iter_mut()
+                                        {
+                                            if *info == key_info {
+                                                found = true;
+                                                names.push(field);
+                                                break;
+                                            }
+                                        }
+                                        if !found {
+                                            fields.boolean_fields.push((
+                                                key_info,
+                                                (
+                                                    vec![field],
+                                                    description,
+                                                    fields.required_fields.len()
+                                                        + fields.optional_fields.len()
+                                                        + fields.boolean_fields.len(),
+                                                ),
+                                            ))
                                         }
                                     }
                                     shape @ _ => {
@@ -459,7 +503,8 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                                     vec![field],
                                                     description,
                                                     fields.required_fields.len()
-                                                        + fields.optional_fields.len(),
+                                                        + fields.optional_fields.len()
+                                                        + fields.boolean_fields.len(),
                                                 ),
                                             ));
                                         }
@@ -852,6 +897,19 @@ mod tests {
         assert_err_eq!(
             assert_err!(IgnoredAny::deserialize(&mut deserializer)).0,
             Error::NotSelfDescribing,
+        );
+    }
+
+    #[test]
+    fn deserializer_bool() {
+        let mut deserializer = Deserializer::new();
+
+        assert_ok_eq!(
+            assert_err!(bool::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Boolean {
+                name: "a boolean".to_owned(),
+                description: "a boolean".to_owned(),
+            })
         );
     }
 
@@ -1267,6 +1325,7 @@ mod tests {
                     },
                 ],
                 optional: vec![],
+                booleans: vec![],
             })
         );
     }
@@ -1303,7 +1362,8 @@ mod tests {
                 name: "Struct",
                 description: "empty struct".into(),
                 required: vec![],
-                optional: vec![]
+                optional: vec![],
+                booleans: vec![],
             })
         );
     }
@@ -1372,6 +1432,7 @@ mod tests {
                     },
                 ],
                 optional: vec![],
+                booleans: vec![],
             })
         );
     }
@@ -1419,6 +1480,57 @@ mod tests {
                     shape: Shape::Primitive {
                         name: "usize".to_owned(),
                         description: "usize".to_owned(),
+                    },
+                    index: 0,
+                },],
+                booleans: vec![],
+            })
+        );
+    }
+
+    #[test]
+    fn deserializer_struct_with_boolean_fields() {
+        #[derive(Debug, Deserialize)]
+        #[allow(dead_code)]
+        struct Struct {
+            foo: bool,
+            bar: String,
+        }
+
+        let mut deserializer = Deserializer::new();
+
+        // Obtain information about both fields.
+        assert_ok_eq!(
+            assert_err!(Struct::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        assert_ok_eq!(
+            assert_err!(Struct::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        // Get deserialization result.
+        assert_ok_eq!(
+            assert_err!(Struct::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Struct {
+                name: "Struct",
+                description: "struct Struct".into(),
+                required: vec![Field {
+                    name: "bar",
+                    description: String::new(),
+                    aliases: Vec::new(),
+                    shape: Shape::Primitive {
+                        name: "a string".to_owned(),
+                        description: "a string".to_owned(),
+                    },
+                    index: 1,
+                },],
+                optional: vec![],
+                booleans: vec![Field {
+                    name: "foo",
+                    description: String::new(),
+                    aliases: Vec::new(),
+                    shape: Shape::Empty {
+                        description: "a boolean".to_owned(),
                     },
                     index: 0,
                 },],
@@ -1481,6 +1593,7 @@ mod tests {
                                 index: 0,
                             },],
                             optional: vec![],
+                            booleans: vec![],
                         },
                         index: 0,
                     },
@@ -1496,6 +1609,7 @@ mod tests {
                     }
                 ],
                 optional: vec![],
+                booleans: vec![],
             })
         );
     }
@@ -1558,6 +1672,7 @@ mod tests {
                     },
                 ],
                 optional: vec![],
+                booleans: vec![],
             })
         );
     }
@@ -1665,6 +1780,7 @@ mod tests {
                                 },
                                 index: 0,
                             },],
+                            booleans: vec![],
                         },
                     },
                     Variant {
@@ -2091,6 +2207,7 @@ mod tests {
                     }
                 ],
                 optional: vec![],
+                booleans: vec![],
             })
         );
     }
@@ -2192,6 +2309,7 @@ mod tests {
                     },
                 ],
                 optional: vec![],
+                booleans: vec![],
             }
         );
     }
@@ -2295,6 +2413,7 @@ mod tests {
                     },
                 ],
                 optional: vec![],
+                booleans: vec![],
             }
         );
     }

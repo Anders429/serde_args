@@ -120,7 +120,7 @@ where
 {
     match *shape {
         Shape::Empty { .. } => Ok(context),
-        Shape::Primitive { ref name, .. } => {
+        Shape::Primitive { ref name, .. } | Shape::Boolean { ref name, .. } => {
             context.segments.push(Segment::Value(
                 args.next_positional()
                     .ok_or(Error::MissingArguments(vec![name.clone()]))?,
@@ -155,7 +155,7 @@ where
                         }
                     }
                 }
-                Shape::Primitive { .. } | Shape::Enum { .. } => {
+                Shape::Primitive { .. } | Shape::Boolean { .. } | Shape::Enum { .. } => {
                     if let Some(optional) = args.next_optional() {
                         args.revisit = Some(optional);
                         let optional_context = Context { segments: vec![] };
@@ -198,6 +198,7 @@ where
         Shape::Struct {
             ref mut required,
             ref mut optional,
+            ref mut booleans,
             ..
         } => {
             // Parse the struct in its own nested context.
@@ -250,7 +251,11 @@ where
                     let parsed_context = parse_context(
                         args,
                         &mut required_field.shape,
-                        &mut optional.clone(),
+                        &mut optional
+                            .clone()
+                            .into_iter()
+                            .chain(booleans.clone())
+                            .collect(),
                         inner_context,
                     );
                     context
@@ -287,7 +292,7 @@ where
                         }));
                     end_of_options = parsed_context.closing_end_of_options;
                     let parsed_options = parsed_context.options;
-                    for (optional_name, optional_context) in parsed_options {
+                    for (optional_name, mut optional_context) in parsed_options {
                         let mut found = false;
                         // Find whether the optional name is in this struct.
                         for optional_field in (&mut *optional).into_iter() {
@@ -295,8 +300,24 @@ where
                                 || optional_field.aliases.contains(&optional_name)
                             {
                                 found = true;
-                                context.segments.push(Segment::Context(optional_context));
+                                context
+                                    .segments
+                                    .push(Segment::Context(optional_context.clone()));
                                 break;
+                            }
+                        }
+                        if !found {
+                            for boolean_field in (&mut *booleans).into_iter() {
+                                if optional_name == boolean_field.name
+                                    || boolean_field.aliases.contains(&optional_name)
+                                {
+                                    found = true;
+                                    optional_context
+                                        .segments
+                                        .push(Segment::Value(b"true".into()));
+                                    context.segments.push(Segment::Context(optional_context));
+                                    break;
+                                }
                             }
                         }
                         if !found {
@@ -304,6 +325,7 @@ where
                                 name: optional_name.into(),
                                 expecting: optional
                                     .iter()
+                                    .chain(booleans.iter())
                                     .map(|field| {
                                         iter::once(field.name).chain(field.aliases.iter().copied())
                                     })
@@ -321,11 +343,15 @@ where
                     &mut Shape::Empty {
                         description: String::new(),
                     },
-                    &mut optional.clone(),
+                    &mut optional
+                        .clone()
+                        .into_iter()
+                        .chain(booleans.clone())
+                        .collect(),
                     context,
                 );
                 context = parsed_context.context?;
-                for (optional_name, optional_context) in parsed_context.options {
+                for (optional_name, mut optional_context) in parsed_context.options {
                     let mut found = false;
                     // Find whether the optional name is in this struct.
                     for optional_field in &mut *optional {
@@ -333,8 +359,24 @@ where
                             || optional_field.aliases.contains(&optional_name)
                         {
                             found = true;
-                            context.segments.push(Segment::Context(optional_context));
+                            context
+                                .segments
+                                .push(Segment::Context(optional_context.clone()));
                             break;
+                        }
+                    }
+                    if !found {
+                        for boolean_field in (&mut *booleans).into_iter() {
+                            if optional_name == boolean_field.name
+                                || boolean_field.aliases.contains(&optional_name)
+                            {
+                                found = true;
+                                optional_context
+                                    .segments
+                                    .push(Segment::Value(b"true".into()));
+                                context.segments.push(Segment::Context(optional_context));
+                                break;
+                            }
                         }
                     }
                     if !found {
@@ -342,6 +384,7 @@ where
                             name: optional_name.into(),
                             expecting: optional
                                 .iter()
+                                .chain(booleans.iter())
                                 .map(|field| {
                                     iter::once(field.name).chain(field.aliases.iter().copied())
                                 })
@@ -349,6 +392,42 @@ where
                                 .collect(),
                         });
                     }
+                }
+            }
+            // Fill in any missing boolean fields with false.
+            let cloned_segments = context.segments.clone();
+            let found_fields: Vec<_> = cloned_segments
+                .iter()
+                .filter_map(|segment| {
+                    if let Segment::Context(field_context) = segment {
+                        if let Some(Segment::Identifier(name)) = field_context.segments.first() {
+                            Some(name)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            for boolean_field in booleans {
+                // Check whether the field name or any aliases have been found.
+                let mut found = false;
+                for field_name in
+                    iter::once(&boolean_field.name).chain(boolean_field.aliases.iter())
+                {
+                    if found_fields.contains(&&field_name) {
+                        found = true;
+                        break;
+                    }
+                }
+                if !found {
+                    context.segments.push(Segment::Context(Context {
+                        segments: vec![
+                            Segment::Identifier(boolean_field.name),
+                            Segment::Value(b"false".into()),
+                        ],
+                    }));
                 }
             }
 
@@ -568,7 +647,7 @@ where
                     }
                 }
             }
-            Shape::Primitive { ref name, .. } => loop {
+            Shape::Primitive { ref name, .. } | Shape::Boolean { ref name, .. } => loop {
                 let token = args
                     .next_token()
                     .ok_or(Error::MissingArguments(vec![name.clone()]))?;
@@ -649,12 +728,16 @@ where
                 context = parse_context_no_options(args, shape, context)?;
             }
             Shape::Struct {
-                required, optional, ..
+                required,
+                optional,
+                booleans,
+                ..
             } => {
                 // Parse the struct in its own nested context.
                 let mut end_of_options = false;
                 let mut combined_options = options.clone();
                 combined_options.extend(optional.clone());
+                combined_options.extend(booleans.clone());
                 let mut required_iter = required.iter_mut();
                 while let Some(required_field) = required_iter.next() {
                     let inner_context = Context {
@@ -706,12 +789,25 @@ where
                         );
                         end_of_options = parsed_context.closing_end_of_options;
                         let found_parsed_options = parsed_context.options;
-                        'outer: for (optional_name, optional_context) in found_parsed_options {
+                        'outer: for (optional_name, mut optional_context) in found_parsed_options {
                             // Find whether the optional name is in this struct.
                             for optional_field in &mut *optional {
                                 if optional_name == optional_field.name
                                     || optional_field.aliases.contains(&optional_name)
                                 {
+                                    context
+                                        .segments
+                                        .push(Segment::Context(optional_context.clone()));
+                                    continue 'outer;
+                                }
+                            }
+                            for boolean_field in &mut *booleans {
+                                if optional_name == boolean_field.name
+                                    || boolean_field.aliases.contains(&optional_name)
+                                {
+                                    optional_context
+                                        .segments
+                                        .push(Segment::Value(b"true".into()));
                                     context.segments.push(Segment::Context(optional_context));
                                     continue 'outer;
                                 }
@@ -763,12 +859,25 @@ where
                         context,
                     );
                     context = parsed_context.context?;
-                    'outer: for (optional_name, optional_context) in parsed_context.options {
+                    'outer: for (optional_name, mut optional_context) in parsed_context.options {
                         // Find whether the optional name is in this struct.
                         for optional_field in &mut *optional {
                             if optional_name == optional_field.name
                                 || optional_field.aliases.contains(&optional_name)
                             {
+                                context
+                                    .segments
+                                    .push(Segment::Context(optional_context.clone()));
+                                continue 'outer;
+                            }
+                        }
+                        for boolean_field in &mut *booleans {
+                            if optional_name == boolean_field.name
+                                || boolean_field.aliases.contains(&optional_name)
+                            {
+                                optional_context
+                                    .segments
+                                    .push(Segment::Value(b"true".into()));
                                 context.segments.push(Segment::Context(optional_context));
                                 continue 'outer;
                             }
@@ -777,6 +886,43 @@ where
                     }
                     if parsed_context.closing_end_of_options {
                         closing_end_of_options = true;
+                    }
+                }
+                // Fill in any missing boolean fields with false.
+                let cloned_segments = context.segments.clone();
+                let found_fields: Vec<_> = cloned_segments
+                    .iter()
+                    .filter_map(|segment| {
+                        if let Segment::Context(field_context) = segment {
+                            if let Some(Segment::Identifier(name)) = field_context.segments.first()
+                            {
+                                Some(name)
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                for boolean_field in booleans {
+                    // Check whether the field name or any aliases have been found.
+                    let mut found = false;
+                    for field_name in
+                        iter::once(&boolean_field.name).chain(boolean_field.aliases.iter())
+                    {
+                        if found_fields.contains(&&field_name) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if !found {
+                        context.segments.push(Segment::Context(Context {
+                            segments: vec![
+                                Segment::Identifier(boolean_field.name),
+                                Segment::Value(b"false".into()),
+                            ],
+                        }));
                     }
                 }
             }
@@ -1234,6 +1380,67 @@ mod tests {
     }
 
     #[test]
+    fn parse_boolean() {
+        assert_ok_eq!(
+            parse(
+                ["false"],
+                &mut Shape::Boolean {
+                    name: "bar".to_owned(),
+                    description: String::new(),
+                }
+            ),
+            Context {
+                segments: vec![Segment::Value("false".into())],
+            }
+        );
+    }
+
+    #[test]
+    fn parse_boolean_no_args() {
+        assert_err_eq!(
+            parse(
+                Vec::<&str>::new(),
+                &mut Shape::Boolean {
+                    name: "bar".to_owned(),
+                    description: String::new(),
+                }
+            ),
+            // No arguments at all when arguments are expected should trigger help.
+            Error::Help
+        );
+    }
+
+    #[test]
+    fn parse_boolean_end_of_args() {
+        assert_err_eq!(
+            parse(
+                vec!["--"],
+                &mut Shape::Boolean {
+                    name: "bar".to_owned(),
+                    description: String::new(),
+                }
+            ),
+            Error::MissingArguments(vec!["bar".to_owned()])
+        );
+    }
+
+    #[test]
+    fn parse_boolean_after_end_of_args() {
+        assert_ok_eq!(
+            parse(
+                vec!["--", "false"],
+                &mut Shape::Boolean {
+                    name: "bar".to_owned(),
+                    description: String::new(),
+                }
+            ),
+            Context {
+                segments: vec![Segment::Value("false".into())],
+            }
+        );
+    }
+
+    #[test]
     fn parse_optional_empty() {
         assert_ok_eq!(
             parse(
@@ -1339,6 +1546,70 @@ mod tests {
     }
 
     #[test]
+    fn parse_optional_boolean() {
+        assert_ok_eq!(
+            parse(
+                ["--false"],
+                &mut Shape::Optional(Box::new(Shape::Boolean {
+                    name: "bar".to_owned(),
+                    description: String::new(),
+                }))
+            ),
+            Context {
+                segments: vec![Segment::Context(Context {
+                    segments: vec![Segment::Value("false".into())]
+                })],
+            }
+        );
+    }
+
+    #[test]
+    fn parse_optional_boolean_not_present() {
+        assert_ok_eq!(
+            parse(
+                Vec::<&str>::new(),
+                &mut Shape::Optional(Box::new(Shape::Boolean {
+                    name: "bar".to_owned(),
+                    description: String::new(),
+                }))
+            ),
+            Context { segments: vec![] }
+        );
+    }
+
+    #[test]
+    fn parse_optional_boolean_empty_value() {
+        assert_ok_eq!(
+            parse(
+                ["-"],
+                &mut Shape::Optional(Box::new(Shape::Boolean {
+                    name: "bar".to_owned(),
+                    description: String::new(),
+                }))
+            ),
+            Context {
+                segments: vec![Segment::Context(Context {
+                    segments: vec![Segment::Value("".into())]
+                })],
+            }
+        );
+    }
+
+    #[test]
+    fn parse_optional_boolean_end_of_options() {
+        assert_ok_eq!(
+            parse(
+                ["--"],
+                &mut Shape::Optional(Box::new(Shape::Boolean {
+                    name: "bar".to_owned(),
+                    description: String::new(),
+                }))
+            ),
+            Context { segments: vec![] }
+        );
+    }
+
+    #[test]
     fn parse_optional_struct_empty() {
         assert_ok_eq!(
             parse(
@@ -1348,6 +1619,7 @@ mod tests {
                     description: String::new(),
                     required: vec![],
                     optional: vec![],
+                    booleans: vec![],
                 }))
             ),
             Context {
@@ -1366,6 +1638,7 @@ mod tests {
                     description: String::new(),
                     required: vec![],
                     optional: vec![],
+                    booleans: vec![],
                 }))
             ),
             Context { segments: vec![] }
@@ -1382,6 +1655,7 @@ mod tests {
                     description: String::new(),
                     required: vec![],
                     optional: vec![],
+                    booleans: vec![],
                 }))
             ),
             Context { segments: vec![] }
@@ -1407,6 +1681,7 @@ mod tests {
                         index: 0,
                     }],
                     optional: vec![],
+                    booleans: vec![],
                 }))
             ),
             Context {
@@ -1438,6 +1713,7 @@ mod tests {
                         index: 0,
                     }],
                     optional: vec![],
+                    booleans: vec![],
                 }))
             ),
             Context { segments: vec![] }
@@ -1463,6 +1739,7 @@ mod tests {
                         index: 0,
                     }],
                     optional: vec![],
+                    booleans: vec![],
                 }))
             ),
             Context {
@@ -1505,6 +1782,7 @@ mod tests {
                         }
                     ],
                     optional: vec![],
+                    booleans: vec![],
                 }))
             ),
             Context {
@@ -1551,6 +1829,7 @@ mod tests {
                         },
                     ],
                     optional: vec![],
+                    booleans: vec![],
                 }))
             ),
             Context {
@@ -1599,6 +1878,7 @@ mod tests {
                         }
                     ],
                     optional: vec![],
+                    booleans: vec![],
                 }))
             ),
             Context {
@@ -1662,6 +1942,7 @@ mod tests {
                         },
                         index: 2,
                     }],
+                    booleans: vec![],
                 }))
             ),
             Context {
@@ -1731,6 +2012,7 @@ mod tests {
                         },
                         index: 2,
                     }],
+                    booleans: vec![],
                 }))
             ),
             Error::UnrecognizedOption {
@@ -1771,6 +2053,7 @@ mod tests {
                             index: 1,
                         }
                     ],
+                    booleans: vec![],
                 }))
             ),
             Context {
@@ -1778,6 +2061,59 @@ mod tests {
                     segments: vec![Segment::Context(Context {
                         segments: vec![Segment::Identifier("baz"), Segment::Value("quux".into())]
                     })],
+                })]
+            }
+        );
+    }
+
+    #[test]
+    fn parse_optional_struct_only_boolean_fields() {
+        assert_ok_eq!(
+            parse(
+                ["-", "--baz"],
+                &mut Shape::Optional(Box::new(Shape::Struct {
+                    name: "",
+                    description: String::new(),
+                    required: vec![],
+                    optional: vec![],
+                    booleans: vec![
+                        Field {
+                            name: "bar",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Empty {
+                                description: String::new(),
+                            },
+                            index: 0,
+                        },
+                        Field {
+                            name: "baz",
+                            description: String::new(),
+                            aliases: vec![],
+                            shape: Shape::Empty {
+                                description: String::new(),
+                            },
+                            index: 1,
+                        }
+                    ],
+                }))
+            ),
+            Context {
+                segments: vec![Segment::Context(Context {
+                    segments: vec![
+                        Segment::Context(Context {
+                            segments: vec![
+                                Segment::Identifier("baz"),
+                                Segment::Value("true".into())
+                            ]
+                        }),
+                        Segment::Context(Context {
+                            segments: vec![
+                                Segment::Identifier("bar"),
+                                Segment::Value("false".into())
+                            ]
+                        })
+                    ],
                 })]
             }
         );
@@ -1920,6 +2256,7 @@ mod tests {
                     description: String::new(),
                     required: vec![],
                     optional: vec![],
+                    booleans: vec![],
                 }
             ),
             Context { segments: vec![] }
@@ -1945,6 +2282,7 @@ mod tests {
                         index: 0,
                     }],
                     optional: vec![],
+                    booleans: vec![],
                 }
             ),
             Context {
@@ -1986,6 +2324,7 @@ mod tests {
                         }
                     ],
                     optional: vec![],
+                    booleans: vec![],
                 }
             ),
             Context {
@@ -2020,6 +2359,7 @@ mod tests {
                         },
                         index: 0,
                     }],
+                    booleans: vec![],
                 }
             ),
             Context { segments: vec![] }
@@ -2045,6 +2385,7 @@ mod tests {
                         },
                         index: 0,
                     }],
+                    booleans: vec![],
                 }
             ),
             Context {
@@ -2074,6 +2415,7 @@ mod tests {
                         },
                         index: 0,
                     }],
+                    booleans: vec![],
                 }
             ),
             Context {
@@ -2103,6 +2445,7 @@ mod tests {
                         },
                         index: 0,
                     }],
+                    booleans: vec![],
                 }
             ),
             Context {
@@ -2112,6 +2455,127 @@ mod tests {
                     }),
                     Segment::Context(Context {
                         segments: vec![Segment::Identifier("bar"), Segment::Value("baz".into())]
+                    })
+                ]
+            },
+        );
+    }
+
+    #[test]
+    fn parse_struct_single_boolean_not_present() {
+        assert_ok_eq!(
+            parse(
+                Vec::<&str>::new(),
+                &mut Shape::Struct {
+                    name: "",
+                    description: String::new(),
+                    required: vec![],
+                    optional: vec![],
+                    booleans: vec![Field {
+                        name: "bar",
+                        description: String::new(),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new(),
+                        },
+                        index: 0,
+                    }],
+                }
+            ),
+            Context {
+                segments: vec![Segment::Context(Context {
+                    segments: vec![Segment::Identifier("bar"), Segment::Value("false".into())]
+                })]
+            }
+        );
+    }
+
+    #[test]
+    fn parse_struct_single_boolean_present() {
+        assert_ok_eq!(
+            parse(
+                vec!["--bar"],
+                &mut Shape::Struct {
+                    name: "",
+                    description: String::new(),
+                    required: vec![],
+                    optional: vec![],
+                    booleans: vec![Field {
+                        name: "bar",
+                        description: String::new(),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new(),
+                        },
+                        index: 0,
+                    }],
+                }
+            ),
+            Context {
+                segments: vec![Segment::Context(Context {
+                    segments: vec![Segment::Identifier("bar"), Segment::Value("true".into())]
+                })]
+            }
+        );
+    }
+
+    #[test]
+    fn parse_struct_single_boolean_present_alias() {
+        assert_ok_eq!(
+            parse(
+                vec!["--qux"],
+                &mut Shape::Struct {
+                    name: "",
+                    description: String::new(),
+                    required: vec![],
+                    optional: vec![],
+                    booleans: vec![Field {
+                        name: "bar",
+                        description: String::new(),
+                        aliases: vec!["qux"],
+                        shape: Shape::Empty {
+                            description: String::new(),
+                        },
+                        index: 0,
+                    }],
+                }
+            ),
+            Context {
+                segments: vec![Segment::Context(Context {
+                    segments: vec![Segment::Identifier("qux"), Segment::Value("true".into())]
+                })]
+            }
+        );
+    }
+
+    #[test]
+    fn parse_struct_single_boolean_present_multiple_aliases() {
+        assert_ok_eq!(
+            parse(
+                vec!["--qux", "--bar"],
+                &mut Shape::Struct {
+                    name: "",
+                    description: String::new(),
+                    required: vec![],
+                    optional: vec![],
+                    booleans: vec![Field {
+                        name: "bar",
+                        description: String::new(),
+                        aliases: vec!["qux"],
+                        shape: Shape::Empty {
+                            description: String::new(),
+                        },
+                        index: 0,
+                    }],
+                }
+            ),
+            Context {
+                segments: vec![
+                    Segment::Context(Context {
+                        segments: vec![Segment::Identifier("qux"), Segment::Value("true".into())]
+                    }),
+                    Segment::Context(Context {
+                        segments: vec![Segment::Identifier("bar"), Segment::Value("true".into())]
                     })
                 ]
             },
@@ -2179,7 +2643,8 @@ mod tests {
                             },
                             index: 4,
                         },
-                    ]
+                    ],
+                    booleans: vec![],
                 }
             ),
             Context {
@@ -2237,6 +2702,7 @@ mod tests {
                                     },
                                     index: 1,
                                 },],
+                                booleans: vec![],
                             },
                             index: 0,
                         },
@@ -2273,6 +2739,7 @@ mod tests {
                             index: 3,
                         },
                     ],
+                    booleans: vec![],
                 }
             ),
             Context {
@@ -2366,7 +2833,8 @@ mod tests {
                             },
                             index: 4,
                         },
-                    ]
+                    ],
+                    booleans: vec![],
                 }
             ),
             Context {
@@ -2431,6 +2899,7 @@ mod tests {
                                     },
                                     index: 1,
                                 },],
+                                booleans: vec![],
                             },
                             index: 1,
                         },
@@ -2457,6 +2926,7 @@ mod tests {
                             index: 3,
                         },
                     ],
+                    booleans: vec![],
                 }
             ),
             Context {

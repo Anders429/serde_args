@@ -17,6 +17,7 @@ pub(super) struct Fields {
     pub(super) revisit: Option<&'static str>,
     pub(super) required_fields: Vec<(KeyInfo, (Vec<&'static str>, String, usize))>,
     pub(super) optional_fields: Vec<(KeyInfo, (Vec<&'static str>, String, usize))>,
+    pub(super) boolean_fields: Vec<(KeyInfo, (Vec<&'static str>, String, usize))>,
 }
 
 impl From<Fields> for Shape {
@@ -40,6 +41,20 @@ impl From<Fields> for Shape {
                 .collect(),
             optional: fields
                 .optional_fields
+                .into_iter()
+                .map(|(info, (mut names, description, index))| {
+                    let first = names.remove(0);
+                    Field {
+                        name: first,
+                        description,
+                        aliases: names,
+                        shape: info.shape,
+                        index,
+                    }
+                })
+                .collect(),
+            booleans: fields
+                .boolean_fields
                 .into_iter()
                 .map(|(info, (mut names, description, index))| {
                     let first = names.remove(0);
@@ -194,12 +209,14 @@ mod tests {
                 revisit: None,
                 required_fields: vec![],
                 optional_fields: vec![],
+                boolean_fields: vec![],
             }),
             Shape::Struct {
                 name: "",
                 description: String::new(),
                 required: vec![],
                 optional: vec![],
+                booleans: vec![],
             }
         );
     }
@@ -223,6 +240,7 @@ mod tests {
                     (vec!["bar"], String::new(), 0)
                 ),],
                 optional_fields: vec![],
+                boolean_fields: vec![],
             }),
             Shape::Struct {
                 name: "",
@@ -238,6 +256,7 @@ mod tests {
                     index: 0,
                 },],
                 optional: vec![],
+                booleans: vec![],
             }
         );
     }
@@ -273,6 +292,7 @@ mod tests {
                     ),
                 ],
                 optional_fields: vec![],
+                boolean_fields: vec![],
             }),
             Shape::Struct {
                 name: "",
@@ -300,6 +320,7 @@ mod tests {
                     },
                 ],
                 optional: vec![],
+                booleans: vec![],
             }
         );
     }
@@ -323,6 +344,7 @@ mod tests {
                     (vec!["bar", "baz", "qux"], String::new(), 0),
                 ),],
                 optional_fields: vec![],
+                boolean_fields: vec![],
             }),
             Shape::Struct {
                 name: "",
@@ -338,6 +360,7 @@ mod tests {
                     index: 0,
                 },],
                 optional: vec![],
+                booleans: vec![],
             }
         );
     }
@@ -494,6 +517,7 @@ mod tests {
                 revisit: None,
                 required_fields: vec![],
                 optional_fields: vec![],
+                boolean_fields: vec![],
             }),
             &mut Fields {
                 name: "",
@@ -502,6 +526,7 @@ mod tests {
                 revisit: None,
                 required_fields: vec![],
                 optional_fields: vec![],
+                boolean_fields: vec![],
             }
         );
         assert_matches!(keys, Keys::Fields(_));
@@ -516,6 +541,7 @@ mod tests {
             revisit: None,
             required_fields: vec![],
             optional_fields: vec![],
+            boolean_fields: vec![],
         });
 
         assert_ok_eq!(
@@ -526,6 +552,7 @@ mod tests {
                 revisit: None,
                 required_fields: vec![],
                 optional_fields: vec![],
+                boolean_fields: vec![],
             }),
             &mut Fields {
                 name: "foo",
@@ -534,6 +561,7 @@ mod tests {
                 revisit: None,
                 required_fields: vec![],
                 optional_fields: vec![],
+                boolean_fields: vec![],
             }
         );
         assert_matches!(keys, Keys::Fields(_));
@@ -551,6 +579,7 @@ mod tests {
                 revisit: None,
                 required_fields: vec![],
                 optional_fields: vec![],
+                boolean_fields: vec![],
             }),
             Error::CannotMixDeserializeStructAndDeserializeEnum
         );
@@ -577,6 +606,7 @@ mod tests {
             revisit: None,
             required_fields: vec![],
             optional_fields: vec![],
+            boolean_fields: vec![],
         });
 
         assert_err_eq!(
@@ -634,6 +664,7 @@ mod tests {
                     ),
                 ],
                 optional_fields: vec![],
+                boolean_fields: vec![],
             })),
             Shape::Struct {
                 name: "",
@@ -661,6 +692,7 @@ mod tests {
                     },
                 ],
                 optional: vec![],
+                booleans: vec![],
             }
         );
     }

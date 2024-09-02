@@ -170,6 +170,25 @@ fn primitive() {
 }
 
 #[test]
+fn boolean() {
+    assert_run_ok!(Command::new("tests/from_args/boolean").args(["true"]));
+    assert_run_ok!(Command::new("tests/from_args/boolean").args(["false"]));
+    assert_run_ok!(Command::new("tests/from_args/boolean").args(["--", "true"]));
+    assert_run_ok!(Command::new("tests/from_args/boolean").args(["--", "false"]));
+    assert_run_ok!(Command::new("tests/from_args/boolean").args(["true", "--"]));
+    assert_run_ok!(Command::new("tests/from_args/boolean").args(["false", "--"]));
+
+    assert_run_err!(Command::new("tests/from_args/boolean").args(["foo"]), "ERROR: invalid type: expected a boolean, found foo\n\nUSAGE: {name} <a boolean>\n\nFor more information, use --help.\n");
+    assert_run_err!(Command::new("tests/from_args/boolean").args(["0"]), "ERROR: invalid type: expected a boolean, found 0\n\nUSAGE: {name} <a boolean>\n\nFor more information, use --help.\n");
+    assert_run_err!(Command::new("tests/from_args/boolean").args(["1"]), "ERROR: invalid type: expected a boolean, found 1\n\nUSAGE: {name} <a boolean>\n\nFor more information, use --help.\n");
+    assert_run_err!(Command::new("tests/from_args/boolean").args(["TRUE"]), "ERROR: invalid type: expected a boolean, found TRUE\n\nUSAGE: {name} <a boolean>\n\nFor more information, use --help.\n");
+    assert_run_err!(Command::new("tests/from_args/boolean").args(["FALSE"]), "ERROR: invalid type: expected a boolean, found FALSE\n\nUSAGE: {name} <a boolean>\n\nFor more information, use --help.\n");
+    assert_run_err!(Command::new("tests/from_args/boolean"), "a boolean\n\nUSAGE: {name} <a boolean>\n\nRequired Arguments:\n  <a boolean>  a boolean\n\nOverride Options:\n  -h --help  Display this message.\n");
+    assert_run_err!(Command::new("tests/from_args/boolean").args(["-h"]), "a boolean\n\nUSAGE: {name} <a boolean>\n\nRequired Arguments:\n  <a boolean>  a boolean\n\nOverride Options:\n  -h --help  Display this message.\n");
+    assert_run_err!(Command::new("tests/from_args/boolean").args(["--help"]), "a boolean\n\nUSAGE: {name} <a boolean>\n\nRequired Arguments:\n  <a boolean>  a boolean\n\nOverride Options:\n  -h --help  Display this message.\n");
+}
+
+#[test]
 fn option() {
     assert_run_ok!(Command::new("tests/from_args/option"));
     assert_run_ok!(Command::new("tests/from_args/option").args(["--"]));
@@ -307,6 +326,46 @@ fn optional_fields() {
     assert_run_err!(
         Command::new("tests/from_args/optional_fields").args(["--", "--foo"]),
         "ERROR: unexpected positional argument: --foo\n\nUSAGE: {name} [options]\n\nFor more information, use --help.\n"
+    );
+}
+
+#[test]
+fn boolean_fields() {
+    assert_run_ok!(Command::new("tests/from_args/boolean_fields"));
+    assert_run_ok!(Command::new("tests/from_args/boolean_fields").args(["--foo"]));
+    assert_run_ok!(Command::new("tests/from_args/boolean_fields").args(["--bar"]));
+    assert_run_ok!(Command::new("tests/from_args/boolean_fields").args(["--baz"]));
+    assert_run_ok!(Command::new("tests/from_args/boolean_fields").args(["--bar", "--foo"]));
+    assert_run_ok!(Command::new("tests/from_args/boolean_fields").args(["--bar", "--baz"]));
+    assert_run_ok!(Command::new("tests/from_args/boolean_fields").args(["--baz", "--bar", "--foo"]));
+
+    assert_run_err!(
+        Command::new("tests/from_args/boolean_fields").args(["--qux"]),
+        "ERROR: unrecognized optional flag: --qux\n\n  tip: a similar option exists: --foo\n\nUSAGE: {name} [options]\n\nFor more information, use --help.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/boolean_fields").args(["--foo", "--foo"]),
+        "ERROR: the argument --foo cannot be used multiple times\n\nUSAGE: {name} [options]\n\nFor more information, use --help.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/boolean_fields").args(["--foo", "true"]),
+        "ERROR: unexpected positional argument: true\n\nUSAGE: {name} [options]\n\nFor more information, use --help.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/boolean_fields").args(["--", "--foo"]),
+        "ERROR: unexpected positional argument: --foo\n\nUSAGE: {name} [options]\n\nFor more information, use --help.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/boolean_fields").args(["--help"]),
+        "struct Args\n\nUSAGE: {name} [options]\n\nGlobal Options:\n  --foo   \n  --bar   \n  --baz   \n\nOverride Options:\n  -h --help  Display this message.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/boolean_fields").args(["--baz", "--help"]),
+        "struct Args\n\nUSAGE: {name} [options]\n\nGlobal Options:\n  --foo   \n  --bar   \n  --baz   \n\nOverride Options:\n  -h --help  Display this message.\n"
+    );
+    assert_run_err!(
+        Command::new("tests/from_args/boolean_fields").args(["--help", "--bar"]),
+        "struct Args\n\nUSAGE: {name} [options]\n\nGlobal Options:\n  --foo   \n  --bar   \n  --baz   \n\nOverride Options:\n  -h --help  Display this message.\n"
     );
 }
 

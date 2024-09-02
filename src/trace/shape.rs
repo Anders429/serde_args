@@ -36,6 +36,9 @@ impl Display for Field {
             Shape::Primitive { .. } | Shape::Enum { .. } => {
                 write!(formatter, "<{}>", self.name)
             }
+            Shape::Boolean { .. } => {
+                write!(formatter, "[--{}]", self.name)
+            }
             Shape::Optional(shape) => {
                 if matches!(**shape, Shape::Empty { .. }) {
                     write!(formatter, "[--{}]", self.name)
@@ -61,6 +64,7 @@ impl Display for Variant {
         match &self.shape {
             Shape::Empty { .. } => write!(formatter, "{}", self.name),
             Shape::Primitive { .. }
+            | Shape::Boolean { .. }
             | Shape::Optional(_)
             | Shape::Enum { .. }
             | Shape::Struct { .. }
@@ -80,12 +84,17 @@ pub(crate) enum Shape {
         name: String,
         description: String,
     },
+    Boolean {
+        name: String,
+        description: String,
+    },
     Optional(Box<Shape>),
     Struct {
         name: &'static str,
         description: String,
         required: Vec<Field>,
         optional: Vec<Field>,
+        booleans: Vec<Field>,
     },
     Enum {
         name: &'static str,
@@ -115,10 +124,18 @@ impl Shape {
         }
     }
 
+    pub(super) fn boolean_from_visitor(expected: &dyn Expected) -> Self {
+        Self::Boolean {
+            name: format!("{}", expected),
+            description: format!("{:#}", expected),
+        }
+    }
+
     pub(crate) fn description(&self) -> &str {
         match self {
             Self::Empty { description }
             | Self::Primitive { description, .. }
+            | Self::Boolean { description, .. }
             | Self::Struct { description, .. }
             | Self::Enum { description, .. }
             | Self::Variant { description, .. } => description,
@@ -131,7 +148,7 @@ impl Shape {
 
         match self {
             Self::Empty { .. } | Self::Optional(_) => {}
-            Self::Primitive { name, description } => {
+            Self::Primitive { name, description } | Self::Boolean { name, description } => {
                 result.push((name, description));
             }
             Self::Enum {
@@ -156,7 +173,10 @@ impl Shape {
         let mut result: Vec<(&str, Vec<&Field>)> = Vec::new();
 
         match self {
-            Self::Empty { .. } | Self::Primitive { .. } | Self::Enum { .. } => {}
+            Self::Empty { .. }
+            | Self::Primitive { .. }
+            | Self::Boolean { .. }
+            | Self::Enum { .. } => {}
             Self::Optional(shape) => {
                 result.extend(shape.optional_groups());
             }
@@ -164,10 +184,11 @@ impl Shape {
                 name,
                 required,
                 optional,
+                booleans,
                 ..
             } => {
-                if !optional.is_empty() {
-                    result.push((name, optional.iter().collect()));
+                if !optional.is_empty() || !booleans.is_empty() {
+                    result.push((name, optional.iter().chain(booleans.iter()).collect()));
                 }
                 for required_field in required {
                     result.extend(required_field.shape.optional_groups());
@@ -185,14 +206,21 @@ impl Shape {
         let mut result: Vec<(&str, Vec<&Variant>)> = Vec::new();
 
         match self {
-            Self::Empty { .. } | Self::Primitive { .. } => {}
+            Self::Empty { .. } | Self::Primitive { .. } | Self::Boolean { .. } => {}
             Self::Optional(shape) => {
                 result.extend(shape.variant_groups());
             }
             Self::Struct {
-                required, optional, ..
+                required,
+                optional,
+                booleans,
+                ..
             } => {
-                for field in required.iter().chain(optional.iter()) {
+                for field in required
+                    .iter()
+                    .chain(optional.iter())
+                    .chain(booleans.iter())
+                {
                     result.extend(field.shape.variant_groups());
                 }
             }
@@ -210,14 +238,19 @@ impl Shape {
     pub(crate) fn trailing_options(&self) -> Vec<&Field> {
         match self {
             Shape::Primitive { .. }
+            | Shape::Boolean { .. }
             | Shape::Empty { .. }
             | Shape::Optional(_)
             | Shape::Enum { .. } => vec![],
             Shape::Variant { shape, .. } => shape.trailing_options(),
             Shape::Struct {
-                required, optional, ..
+                required,
+                optional,
+                booleans,
+                ..
             } => optional
                 .iter()
+                .chain(booleans.iter())
                 .chain(
                     required
                         .last()
@@ -233,7 +266,9 @@ impl Display for Shape {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
             Self::Empty { .. } => Ok(()),
-            Self::Primitive { name, .. } => write!(formatter, "<{}>", name),
+            Self::Primitive { name, .. } | Self::Boolean { name, .. } => {
+                write!(formatter, "<{}>", name)
+            }
             Self::Optional(shape) => {
                 if matches!(**shape, Shape::Optional(_)) {
                     write!(formatter, "[-- {}]", shape)
@@ -245,9 +280,10 @@ impl Display for Shape {
                 name,
                 required,
                 optional,
+                booleans,
                 ..
             } => {
-                let has_optional = !optional.is_empty();
+                let has_optional = !optional.is_empty() || !booleans.is_empty();
                 if has_optional {
                     if formatter.alternate() {
                         write!(formatter, "[{} options]", name)?;
@@ -325,6 +361,26 @@ mod tests {
     }
 
     #[test]
+    fn field_display_boolean() {
+        assert_eq!(
+            format!(
+                "{}",
+                Field {
+                    name: "foo",
+                    description: String::new(),
+                    aliases: Vec::new(),
+                    shape: Shape::Boolean {
+                        name: "bar".to_owned(),
+                        description: String::new(),
+                    },
+                    index: 0,
+                }
+            ),
+            "[--foo]"
+        );
+    }
+
+    #[test]
     fn field_display_optional_empty() {
         assert_eq!(
             format!(
@@ -353,6 +409,26 @@ mod tests {
                     description: String::new(),
                     aliases: Vec::new(),
                     shape: Shape::Optional(Box::new(Shape::Primitive {
+                        name: "bar".to_owned(),
+                        description: String::new(),
+                    })),
+                    index: 0,
+                }
+            ),
+            "[--foo <bar>]"
+        );
+    }
+
+    #[test]
+    fn field_display_optional_boolean() {
+        assert_eq!(
+            format!(
+                "{}",
+                Field {
+                    name: "foo",
+                    description: String::new(),
+                    aliases: Vec::new(),
+                    shape: Shape::Optional(Box::new(Shape::Boolean {
                         name: "bar".to_owned(),
                         description: String::new(),
                     })),
@@ -418,6 +494,7 @@ mod tests {
                             },
                         ],
                         optional: vec![],
+                        booleans: vec![],
                     })),
                     index: 0,
                 }
@@ -561,6 +638,7 @@ mod tests {
                             },
                             index: 1,
                         },],
+                        booleans: vec![],
                     },
                 }
             ),
@@ -703,6 +781,7 @@ mod tests {
                     index: 0,
                 },],
                 optional: vec![],
+                booleans: vec![],
             }
             .description(),
             "foo"
@@ -801,6 +880,7 @@ mod tests {
                     },
                     index: 1,
                 },],
+                booleans: vec![],
             }
             .required_arguments(),
             vec![("foo", "bar")]
@@ -906,6 +986,7 @@ mod tests {
                     },
                     index: 1,
                 },],
+                booleans: vec![],
             }))
             .optional_groups(),
             vec![(
@@ -916,6 +997,49 @@ mod tests {
                     aliases: Vec::new(),
                     shape: Shape::Primitive {
                         name: "quux".to_owned(),
+                        description: String::new(),
+                    },
+                    index: 1,
+                },]
+            )]
+        );
+    }
+
+    #[test]
+    fn shape_optional_struct_optional_groups_booleans() {
+        assert_eq!(
+            Shape::Optional(Box::new(Shape::Struct {
+                name: "Struct",
+                description: String::new(),
+                required: vec![Field {
+                    name: "foo",
+                    description: "bar".into(),
+                    aliases: Vec::new(),
+                    shape: Shape::Primitive {
+                        name: "baz".to_owned(),
+                        description: String::new(),
+                    },
+                    index: 0,
+                },],
+                optional: vec![],
+                booleans: vec![Field {
+                    name: "qux",
+                    description: String::new(),
+                    aliases: Vec::new(),
+                    shape: Shape::Empty {
+                        description: String::new(),
+                    },
+                    index: 1,
+                },],
+            }))
+            .optional_groups(),
+            vec![(
+                "Struct",
+                vec![&Field {
+                    name: "qux",
+                    description: String::new(),
+                    aliases: Vec::new(),
+                    shape: Shape::Empty {
                         description: String::new(),
                     },
                     index: 1,
@@ -953,6 +1077,7 @@ mod tests {
                     },
                 ],
                 optional: vec![],
+                booleans: vec![],
             }
             .optional_groups(),
             vec![],
@@ -988,6 +1113,7 @@ mod tests {
                         index: 1,
                     },
                 ],
+                booleans: vec![],
             }
             .optional_groups(),
             vec![(
@@ -1055,6 +1181,7 @@ mod tests {
                                     index: 1,
                                 },
                             ],
+                            booleans: vec![],
                         },
                         index: 0,
                     },
@@ -1088,6 +1215,7 @@ mod tests {
                                 },
                             ],
                             optional: vec![],
+                            booleans: vec![],
                         },
                         index: 1,
                     },
@@ -1122,9 +1250,11 @@ mod tests {
                             },
                         ],
                         optional: vec![],
+                        booleans: vec![],
                     },
                     index: 0,
                 },],
+                booleans: vec![],
             }
             .optional_groups(),
             vec![
@@ -1160,6 +1290,7 @@ mod tests {
                                 },
                             ],
                             optional: vec![],
+                            booleans: vec![],
                         },
                         index: 0,
                     },]
@@ -1229,6 +1360,7 @@ mod tests {
                                 index: 1,
                             },
                         ],
+                        booleans: vec![],
                     },
                 }],
             }
@@ -1269,6 +1401,7 @@ mod tests {
                             index: 1,
                         },
                     ],
+                    booleans: vec![],
                 },),
                 variants: vec![Variant {
                     name: "baz",
@@ -1300,6 +1433,7 @@ mod tests {
                                 index: 1,
                             },
                         ],
+                        booleans: vec![],
                     },
                 }],
                 enum_name: "Enum",
@@ -1446,6 +1580,7 @@ mod tests {
                     },
                 ],
                 optional: vec![],
+                booleans: vec![],
             }
             .variant_groups(),
             vec![]
@@ -1517,6 +1652,7 @@ mod tests {
                     },
                 ],
                 optional: vec![],
+                booleans: vec![],
             }
             .variant_groups(),
             vec![
@@ -1715,6 +1851,7 @@ mod tests {
                         index: 1,
                     },
                 ],
+                booleans: vec![],
             }))
             .trailing_options(),
             Vec::<&Field>::new()
@@ -1750,6 +1887,7 @@ mod tests {
                         index: 1,
                     },
                 ],
+                booleans: vec![],
             }
             .trailing_options(),
             vec![
@@ -1769,6 +1907,59 @@ mod tests {
                     aliases: Vec::new(),
                     shape: Shape::Primitive {
                         name: "quux".to_owned(),
+                        description: String::new(),
+                    },
+                    index: 1,
+                },
+            ],
+        );
+    }
+
+    #[test]
+    fn shape_struct_trailing_boolean_options() {
+        assert_eq!(
+            Shape::Struct {
+                name: "Struct",
+                description: String::new(),
+                required: vec![],
+                optional: vec![],
+                booleans: vec![
+                    Field {
+                        name: "foo",
+                        description: "bar".into(),
+                        aliases: Vec::new(),
+                        shape: Shape::Empty {
+                            description: String::new(),
+                        },
+                        index: 0,
+                    },
+                    Field {
+                        name: "qux",
+                        description: String::new(),
+                        aliases: Vec::new(),
+                        shape: Shape::Empty {
+                            description: String::new(),
+                        },
+                        index: 1,
+                    },
+                ],
+            }
+            .trailing_options(),
+            vec![
+                &Field {
+                    name: "foo",
+                    description: "bar".into(),
+                    aliases: Vec::new(),
+                    shape: Shape::Empty {
+                        description: String::new(),
+                    },
+                    index: 0,
+                },
+                &Field {
+                    name: "qux",
+                    description: String::new(),
+                    aliases: Vec::new(),
+                    shape: Shape::Empty {
                         description: String::new(),
                     },
                     index: 1,
@@ -1806,6 +1997,7 @@ mod tests {
                     },
                 ],
                 optional: vec![],
+                booleans: vec![],
             }
             .trailing_options(),
             Vec::<&Field>::new(),
@@ -1861,6 +2053,7 @@ mod tests {
                                 index: 1,
                             },
                         ],
+                        booleans: vec![],
                     },
                 }],
             }
@@ -1919,6 +2112,7 @@ mod tests {
                             index: 1,
                         },
                     ],
+                    booleans: vec![],
                 }),
                 enum_name: "baz",
                 variants: vec![],
@@ -1968,6 +2162,20 @@ mod tests {
             format!(
                 "{}",
                 Shape::Primitive {
+                    name: "foo".to_owned(),
+                    description: String::new(),
+                }
+            ),
+            "<foo>"
+        );
+    }
+
+    #[test]
+    fn shape_display_boolean() {
+        assert_eq!(
+            format!(
+                "{}",
+                Shape::Boolean {
                     name: "foo".to_owned(),
                     description: String::new(),
                 }
@@ -2048,6 +2256,7 @@ mod tests {
                         },
                     ],
                     optional: vec![],
+                    booleans: vec![],
                 }))
             ),
             "[--<foo> <baz>]"
@@ -2120,6 +2329,7 @@ mod tests {
                         },
                     ],
                     optional: vec![],
+                    booleans: vec![],
                 }
             ),
             "<foo> <baz>"
@@ -2152,6 +2362,43 @@ mod tests {
                             aliases: Vec::new(),
                             shape: Shape::Primitive {
                                 name: "qux".to_owned(),
+                                description: String::new(),
+                            },
+                            index: 1,
+                        },
+                    ],
+                    booleans: vec![],
+                }
+            ),
+            "[options]"
+        );
+    }
+
+    #[test]
+    fn shape_display_struct_only_boolean_fields() {
+        assert_eq!(
+            format!(
+                "{}",
+                Shape::Struct {
+                    name: "",
+                    description: String::new(),
+                    required: vec![],
+                    optional: vec![],
+                    booleans: vec![
+                        Field {
+                            name: "foo",
+                            description: String::new(),
+                            aliases: Vec::new(),
+                            shape: Shape::Empty {
+                                description: String::new(),
+                            },
+                            index: 0,
+                        },
+                        Field {
+                            name: "baz",
+                            description: String::new(),
+                            aliases: Vec::new(),
+                            shape: Shape::Empty {
                                 description: String::new(),
                             },
                             index: 1,
@@ -2215,6 +2462,7 @@ mod tests {
                             index: 3,
                         },
                     ],
+                    booleans: vec![],
                 }
             ),
             "[options] <foo> <baz>"
@@ -2252,6 +2500,7 @@ mod tests {
                             index: 1,
                         },
                     ],
+                    booleans: vec![],
                 }
             ),
             "[Struct options]"

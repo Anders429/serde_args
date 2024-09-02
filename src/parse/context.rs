@@ -1,13 +1,13 @@
 use std::vec;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum Segment {
     Identifier(&'static str),
     Value(Vec<u8>),
     Context(Context),
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Context {
     pub(crate) segments: Vec<Segment>,
 }
