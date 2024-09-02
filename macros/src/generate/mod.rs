@@ -236,7 +236,7 @@ pub(crate) fn phase_2(
 
     // Define a `From` implementation from Phase 1.
     let from = from_container_to_newtype(
-        &container,
+        container,
         &TypePath {
             qself: None,
             path: Path {
@@ -280,7 +280,7 @@ pub(crate) fn phase_2(
     );
     // Define a `From` implementation into Phase 1.
     let into = from_newtype_to_container(
-        &container,
+        container,
         &TypePath {
             qself: None,
             path: Path {
