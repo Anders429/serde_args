@@ -502,7 +502,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                             ))
                                         }
                                     }
-                                    shape @ _ => {
+                                    shape => {
                                         // Required fields.
                                         let key_info = KeyInfo {
                                             discriminant,
