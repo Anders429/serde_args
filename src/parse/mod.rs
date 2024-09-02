@@ -340,10 +340,9 @@ where
                                 expecting: optional
                                     .iter()
                                     .chain(booleans.iter())
-                                    .map(|field| {
+                                    .flat_map(|field| {
                                         iter::once(field.name).chain(field.aliases.iter().copied())
                                     })
-                                    .flatten()
                                     .collect(),
                             });
                         }
@@ -399,10 +398,9 @@ where
                             expecting: optional
                                 .iter()
                                 .chain(booleans.iter())
-                                .map(|field| {
+                                .flat_map(|field| {
                                     iter::once(field.name).chain(field.aliases.iter().copied())
                                 })
-                                .flatten()
                                 .collect(),
                         });
                     }
@@ -460,10 +458,9 @@ where
                     name: String::from_utf8_lossy(&variant_name).into(),
                     expecting: variants
                         .iter()
-                        .map(|variant| {
+                        .flat_map(|variant| {
                             iter::once(variant.name).chain(variant.aliases.iter().copied())
                         })
-                        .flatten()
                         .collect(),
                 })
             })?;
@@ -501,10 +498,9 @@ where
                         name: variant_name_str.into(),
                         expecting: variants
                             .iter()
-                            .map(|variant| {
+                            .flat_map(|variant| {
                                 iter::once(variant.name).chain(variant.aliases.iter().copied())
                             })
-                            .flatten()
                             .collect(),
                     });
                 }
@@ -523,10 +519,9 @@ where
                     name: String::from_utf8_lossy(&variant_name).into(),
                     expecting: variants
                         .iter()
-                        .map(|variant| {
+                        .flat_map(|variant| {
                             iter::once(variant.name).chain(variant.aliases.iter().copied())
                         })
-                        .flatten()
                         .collect(),
                 })
             })?;
@@ -547,8 +542,9 @@ where
                 name: variant_name_str.into(),
                 expecting: variants
                     .iter()
-                    .map(|variant| iter::once(variant.name).chain(variant.aliases.iter().copied()))
-                    .flatten()
+                    .flat_map(|variant| {
+                        iter::once(variant.name).chain(variant.aliases.iter().copied())
+                    })
                     .collect(),
             })
         }
@@ -595,11 +591,10 @@ where
                                     name: String::from_utf8_lossy(&value).into(),
                                     expecting: options
                                         .iter()
-                                        .map(|field| {
+                                        .flat_map(|field| {
                                             iter::once(field.name)
                                                 .chain(field.aliases.iter().copied())
                                         })
-                                        .flatten()
                                         .collect(),
                                 }))?;
                             let mut optional_context = Context { segments: vec![] };
@@ -676,10 +671,9 @@ where
                                 name: String::from_utf8_lossy(&value).into(),
                                 expecting: options
                                     .iter()
-                                    .map(|field| {
+                                    .flat_map(|field| {
                                         iter::once(field.name).chain(field.aliases.iter().copied())
                                     })
-                                    .flatten()
                                     .collect(),
                             }))?;
                         let mut optional_context = Context { segments: vec![] };
@@ -718,10 +712,9 @@ where
                                 name: identifier.into(),
                                 expecting: options
                                     .iter()
-                                    .map(|field| {
+                                    .flat_map(|field| {
                                         iter::once(field.name).chain(field.aliases.iter().copied())
                                     })
-                                    .flatten()
                                     .collect(),
                             });
                         }
@@ -955,11 +948,10 @@ where
                                     name: String::from_utf8_lossy(&variant_name).into(),
                                     expecting: variants
                                         .iter()
-                                        .map(|variant| {
+                                        .flat_map(|variant| {
                                             iter::once(variant.name)
                                                 .chain(variant.aliases.iter().copied())
                                         })
-                                        .flatten()
                                         .collect(),
                                 })
                             })?;
@@ -1002,11 +994,10 @@ where
                                 name: variant_name_str.into(),
                                 expecting: variants
                                     .iter()
-                                    .map(|variant| {
+                                    .flat_map(|variant| {
                                         iter::once(variant.name)
                                             .chain(variant.aliases.iter().copied())
                                     })
-                                    .flatten()
                                     .collect(),
                             });
                         }
@@ -1016,11 +1007,10 @@ where
                                     name: String::from_utf8_lossy(&value).into(),
                                     expecting: options
                                         .iter()
-                                        .map(|field| {
+                                        .flat_map(|field| {
                                             iter::once(field.name)
                                                 .chain(field.aliases.iter().copied())
                                         })
-                                        .flatten()
                                         .collect(),
                                 }))?;
                             let mut optional_context = Context { segments: vec![] };
@@ -1060,11 +1050,10 @@ where
                                     name: identifier.into(),
                                     expecting: options
                                         .iter()
-                                        .map(|field| {
+                                        .flat_map(|field| {
                                             iter::once(field.name)
                                                 .chain(field.aliases.iter().copied())
                                         })
-                                        .flatten()
                                         .collect(),
                                 });
                             }
@@ -1078,11 +1067,10 @@ where
                                     name: String::from_utf8_lossy(&variant_name).into(),
                                     expecting: variants
                                         .iter()
-                                        .map(|variant| {
+                                        .flat_map(|variant| {
                                             iter::once(variant.name)
                                                 .chain(variant.aliases.iter().copied())
                                         })
-                                        .flatten()
                                         .collect(),
                                 })
                             })?;
@@ -1117,11 +1105,10 @@ where
                                 name: variant_name_str.into(),
                                 expecting: variants
                                     .iter()
-                                    .map(|variant| {
+                                    .flat_map(|variant| {
                                         iter::once(variant.name)
                                             .chain(variant.aliases.iter().copied())
                                     })
-                                    .flatten()
                                     .collect(),
                             });
                         }
@@ -1145,11 +1132,10 @@ where
                                     name: String::from_utf8_lossy(&variant_name).into(),
                                     expecting: variants
                                         .iter()
-                                        .map(|variant| {
+                                        .flat_map(|variant| {
                                             iter::once(variant.name)
                                                 .chain(variant.aliases.iter().copied())
                                         })
-                                        .flatten()
                                         .collect(),
                                 })
                             })?;
@@ -1180,11 +1166,10 @@ where
                                     name: variant_name_str.into(),
                                     expecting: variants
                                         .iter()
-                                        .map(|variant| {
+                                        .flat_map(|variant| {
                                             iter::once(variant.name)
                                                 .chain(variant.aliases.iter().copied())
                                         })
-                                        .flatten()
                                         .collect(),
                                 });
                             }
@@ -1196,11 +1181,10 @@ where
                                     name: String::from_utf8_lossy(&value).into(),
                                     expecting: options
                                         .iter()
-                                        .map(|field| {
+                                        .flat_map(|field| {
                                             iter::once(field.name)
                                                 .chain(field.aliases.iter().copied())
                                         })
-                                        .flatten()
                                         .collect(),
                                 }))?;
                             let mut optional_context = Context { segments: vec![] };
@@ -1240,11 +1224,10 @@ where
                                     name: identifier.into(),
                                     expecting: options
                                         .iter()
-                                        .map(|field| {
+                                        .flat_map(|field| {
                                             iter::once(field.name)
                                                 .chain(field.aliases.iter().copied())
                                         })
-                                        .flatten()
                                         .collect(),
                                 });
                             }
@@ -1258,11 +1241,10 @@ where
                                     name: String::from_utf8_lossy(&variant_name).into(),
                                     expecting: variants
                                         .iter()
-                                        .map(|variant| {
+                                        .flat_map(|variant| {
                                             iter::once(variant.name)
                                                 .chain(variant.aliases.iter().copied())
                                         })
-                                        .flatten()
                                         .collect(),
                                 })
                             })?;
@@ -1289,11 +1271,10 @@ where
                                     name: variant_name_str.into(),
                                     expecting: variants
                                         .iter()
-                                        .map(|variant| {
+                                        .flat_map(|variant| {
                                             iter::once(variant.name)
                                                 .chain(variant.aliases.iter().copied())
                                         })
-                                        .flatten()
                                         .collect(),
                                 });
                             }
