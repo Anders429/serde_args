@@ -453,8 +453,8 @@ where
             let variant_name = args
                 .next_positional()
                 .ok_or(Error::MissingArguments(vec![name.into()]))?;
-            let variant_name_str = str::from_utf8(&variant_name).or_else(|_| {
-                Err(Error::UnrecognizedVariant {
+            let variant_name_str =
+                str::from_utf8(&variant_name).map_err(|_| Error::UnrecognizedVariant {
                     name: String::from_utf8_lossy(&variant_name).into(),
                     expecting: variants
                         .iter()
@@ -462,8 +462,7 @@ where
                             iter::once(variant.name).chain(variant.aliases.iter().copied())
                         })
                         .collect(),
-                })
-            })?;
+                })?;
 
             let mut variants_iter = variants.clone().into_iter();
             loop {
@@ -514,8 +513,8 @@ where
             let variant_name = args
                 .next_positional()
                 .ok_or(Error::MissingArguments(vec![enum_name.into()]))?;
-            let variant_name_str = str::from_utf8(&variant_name).or_else(|_| {
-                Err(Error::UnrecognizedVariant {
+            let variant_name_str =
+                str::from_utf8(&variant_name).map_err(|_| Error::UnrecognizedVariant {
                     name: String::from_utf8_lossy(&variant_name).into(),
                     expecting: variants
                         .iter()
@@ -523,8 +522,7 @@ where
                             iter::once(variant.name).chain(variant.aliases.iter().copied())
                         })
                         .collect(),
-                })
-            })?;
+                })?;
 
             for variant in variants.iter_mut() {
                 if let Some(static_variant_name) = iter::once(variant.name)
@@ -943,8 +941,8 @@ where
                         .ok_or(Error::MissingArguments(vec![name.to_owned()]))?;
                     match token {
                         Token::Positional(variant_name) => {
-                            let variant_name_str = str::from_utf8(&variant_name).or_else(|_| {
-                                Err(Error::UnrecognizedVariant {
+                            let variant_name_str = str::from_utf8(&variant_name).map_err(|_| {
+                                Error::UnrecognizedVariant {
                                     name: String::from_utf8_lossy(&variant_name).into(),
                                     expecting: variants
                                         .iter()
@@ -953,7 +951,7 @@ where
                                                 .chain(variant.aliases.iter().copied())
                                         })
                                         .collect(),
-                                })
+                                }
                             })?;
                             for variant in variants.clone() {
                                 if let Some(static_variant_name) = iter::once(variant.name)
@@ -1062,8 +1060,8 @@ where
                             let variant_name = args
                                 .next_positional()
                                 .ok_or(Error::MissingArguments(vec![name.to_owned()]))?;
-                            let variant_name_str = str::from_utf8(&variant_name).or_else(|_| {
-                                Err(Error::UnrecognizedVariant {
+                            let variant_name_str = str::from_utf8(&variant_name).map_err(|_| {
+                                Error::UnrecognizedVariant {
                                     name: String::from_utf8_lossy(&variant_name).into(),
                                     expecting: variants
                                         .iter()
@@ -1072,7 +1070,7 @@ where
                                                 .chain(variant.aliases.iter().copied())
                                         })
                                         .collect(),
-                                })
+                                }
                             })?;
                             for variant in variants.clone() {
                                 if let Some(static_variant_name) = iter::once(variant.name)
@@ -1127,8 +1125,8 @@ where
                         .ok_or(Error::MissingArguments(vec![enum_name.to_owned()]))?;
                     match token {
                         Token::Positional(variant_name) => {
-                            let variant_name_str = str::from_utf8(&variant_name).or_else(|_| {
-                                Err(Error::UnrecognizedVariant {
+                            let variant_name_str = str::from_utf8(&variant_name).map_err(|_| {
+                                Error::UnrecognizedVariant {
                                     name: String::from_utf8_lossy(&variant_name).into(),
                                     expecting: variants
                                         .iter()
@@ -1137,7 +1135,7 @@ where
                                                 .chain(variant.aliases.iter().copied())
                                         })
                                         .collect(),
-                                })
+                                }
                             })?;
                             let mut found = false;
                             for mut variant in variants.clone() {
@@ -1236,8 +1234,8 @@ where
                             let variant_name = args
                                 .next_positional()
                                 .ok_or(Error::MissingArguments(vec![enum_name.to_owned()]))?;
-                            let variant_name_str = str::from_utf8(&variant_name).or_else(|_| {
-                                Err(Error::UnrecognizedVariant {
+                            let variant_name_str = str::from_utf8(&variant_name).map_err(|_| {
+                                Error::UnrecognizedVariant {
                                     name: String::from_utf8_lossy(&variant_name).into(),
                                     expecting: variants
                                         .iter()
@@ -1246,7 +1244,7 @@ where
                                                 .chain(variant.aliases.iter().copied())
                                         })
                                         .collect(),
-                                })
+                                }
                             })?;
                             let mut found = false;
                             for mut variant in variants.clone() {
