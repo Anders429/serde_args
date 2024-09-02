@@ -2,17 +2,61 @@
 
 mod from;
 
-pub(crate) use from::{from_container_to_newtype, from_newtype_to_container};
+pub(crate) use from::{
+    from_container_to_newtype,
+    from_newtype_to_container,
+};
 
-use crate::{container::Descriptions, Container};
-use proc_macro2::{Delimiter, Group, Literal, Punct, Spacing, Span, TokenStream, TokenTree};
-use quote::{quote, ToTokens};
+use crate::{
+    container::Descriptions,
+    Container,
+};
+use proc_macro2::{
+    Delimiter,
+    Group,
+    Literal,
+    Punct,
+    Spacing,
+    Span,
+    TokenStream,
+    TokenTree,
+};
+use quote::{
+    quote,
+    ToTokens,
+};
 use std::iter;
 use syn::{
-    punctuated::Punctuated, token::Bracket, token::Paren, AngleBracketedGenericArguments,
-    AttrStyle, Attribute, Field, FieldMutability, Fields, FieldsUnnamed, GenericArgument,
-    GenericParam, Generics, Ident, Item, ItemStruct, MacroDelimiter, Meta, MetaList, Path,
-    PathArguments, PathSegment, Token, Type, TypeParam, TypeParamBound, TypePath, Visibility,
+    punctuated::Punctuated,
+    token::{
+        Bracket,
+        Paren,
+    },
+    AngleBracketedGenericArguments,
+    AttrStyle,
+    Attribute,
+    Field,
+    FieldMutability,
+    Fields,
+    FieldsUnnamed,
+    GenericArgument,
+    GenericParam,
+    Generics,
+    Ident,
+    Item,
+    ItemStruct,
+    MacroDelimiter,
+    Meta,
+    MetaList,
+    Path,
+    PathArguments,
+    PathSegment,
+    Token,
+    Type,
+    TypeParam,
+    TypeParamBound,
+    TypePath,
+    Visibility,
 };
 
 fn push_serde_attribute(attrs: &mut Vec<Attribute>, meta_tokens: TokenStream) {
@@ -496,15 +540,30 @@ pub(crate) fn phase_3(mut container: Container, module: &Ident) -> TokenStream {
 
 #[cfg(test)]
 mod tests {
-    use super::{phase_1, phase_2, phase_3, push_serde_attribute};
+    use super::{
+        phase_1,
+        phase_2,
+        phase_3,
+        push_serde_attribute,
+    };
     use crate::{
-        container::{Descriptions, Documentation},
+        container::{
+            Descriptions,
+            Documentation,
+        },
         test::OuterAttributes,
     };
     use claims::assert_ok;
-    use proc_macro2::{Span, TokenTree};
+    use proc_macro2::{
+        Span,
+        TokenTree,
+    };
     use std::iter;
-    use syn::{parse2 as parse, parse_str, File};
+    use syn::{
+        parse2 as parse,
+        parse_str,
+        File,
+    };
 
     #[test]
     fn push_serde_attribute_empty() {

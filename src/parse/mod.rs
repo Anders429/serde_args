@@ -2,12 +2,27 @@ mod context;
 mod error;
 mod token;
 
-pub(crate) use context::{Context, ContextIter, Segment};
+pub(crate) use context::{
+    Context,
+    ContextIter,
+    Segment,
+};
 pub(crate) use error::Error;
 
-use crate::trace::{Field, Shape};
-use std::{ffi::OsString, iter, str, vec};
-use token::{ParsedArgs, Token};
+use crate::trace::{
+    Field,
+    Shape,
+};
+use std::{
+    ffi::OsString,
+    iter,
+    str,
+    vec,
+};
+use token::{
+    ParsedArgs,
+    Token,
+};
 
 pub(crate) fn parse<Arg, Args>(args: Args, shape: &mut Shape) -> Result<Context, Error>
 where
@@ -128,7 +143,8 @@ where
             Ok(context)
         }
         Shape::Optional(ref mut optional_shape) => {
-            // This is a "positional optional". It starts its own isolated context, which only contains its own optional value if it exists.
+            // This is a "positional optional". It starts its own isolated context, which only
+            // contains its own optional value if it exists.
             match **optional_shape {
                 Shape::Empty { .. } | Shape::Optional(_) => {
                     if let Some(next) = args.next_positional() {
@@ -722,9 +738,11 @@ where
                 }
             },
             Shape::Optional(_) => {
-                // This is a "positional optional". It starts its own isolated context, which only contains its own optional value if it exists.
+                // This is a "positional optional". It starts its own isolated context, which only
+                // contains its own optional value if it exists.
                 //
-                // We therefore simply parse in a no-option context, thereby ignoring all parent context options.
+                // We therefore simply parse in a no-option context, thereby ignoring all parent
+                // context options.
                 context = parse_context_no_options(args, shape, context)?;
             }
             Shape::Struct {
@@ -1299,9 +1317,21 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{parse, Context, Error, Segment};
-    use crate::trace::{Field, Shape, Variant};
-    use claims::{assert_err_eq, assert_ok_eq};
+    use super::{
+        parse,
+        Context,
+        Error,
+        Segment,
+    };
+    use crate::trace::{
+        Field,
+        Shape,
+        Variant,
+    };
+    use claims::{
+        assert_err_eq,
+        assert_ok_eq,
+    };
 
     #[test]
     fn parse_empty() {

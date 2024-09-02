@@ -1,8 +1,16 @@
-use super::{de, parse, trace, trace::Shape};
+use super::{
+    de,
+    parse,
+    trace,
+    trace::Shape,
+};
 use std::{
     ffi::OsString,
     fmt,
-    fmt::{Display, Formatter},
+    fmt::{
+        Display,
+        Formatter,
+    },
     iter,
 };
 
@@ -247,10 +255,18 @@ impl std::error::Error for Error {}
 mod tests {
     use super::{
         super::{
-            de, parse, trace,
-            trace::{Field, Shape, Variant},
+            de,
+            parse,
+            trace,
+            trace::{
+                Field,
+                Shape,
+                Variant,
+            },
         },
-        Error, Kind, UsageError,
+        Error,
+        Kind,
+        UsageError,
     };
 
     #[test]

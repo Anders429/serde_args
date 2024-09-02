@@ -6,19 +6,41 @@ mod keys;
 mod shape;
 
 pub(crate) use error::Error;
-pub(crate) use shape::{Field, Shape, Variant};
+pub(crate) use shape::{
+    Field,
+    Shape,
+    Variant,
+};
 
 use crate::key;
 use hash::IdentityHasher;
-use keys::{Fields, KeyInfo, Keys, Variants};
+use keys::{
+    Fields,
+    KeyInfo,
+    Keys,
+    Variants,
+};
 use serde::{
     de,
-    de::{DeserializeSeed, Deserializer as _, Expected, MapAccess, Unexpected, Visitor},
+    de::{
+        DeserializeSeed,
+        Deserializer as _,
+        Expected,
+        MapAccess,
+        Unexpected,
+        Visitor,
+    },
 };
 use std::{
     fmt,
-    fmt::{Display, Formatter},
-    hash::{Hash, Hasher},
+    fmt::{
+        Display,
+        Formatter,
+    },
+    hash::{
+        Hash,
+        Hasher,
+    },
     mem,
 };
 
@@ -730,20 +752,45 @@ impl<'de> de::VariantAccess<'de> for VariantAccess<'_> {
 #[cfg(test)]
 mod tests {
     use super::{
-        trace, Deserializer, EnumAccess, Error, Field, Shape, Status, StructAccess, Trace, Variant,
+        trace,
+        Deserializer,
+        EnumAccess,
+        Error,
+        Field,
+        Shape,
+        Status,
+        StructAccess,
+        Trace,
+        Variant,
         VariantAccess,
     };
     use crate::key::DeserializerError;
-    use claims::{assert_err, assert_err_eq, assert_ok, assert_ok_eq, assert_some_eq};
+    use claims::{
+        assert_err,
+        assert_err_eq,
+        assert_ok,
+        assert_ok_eq,
+        assert_some_eq,
+    };
     use serde::{
         de,
         de::{
-            Deserialize, EnumAccess as _, Error as _, IgnoredAny, MapAccess, Unexpected,
-            VariantAccess as _, Visitor,
+            Deserialize,
+            EnumAccess as _,
+            Error as _,
+            IgnoredAny,
+            MapAccess,
+            Unexpected,
+            VariantAccess as _,
+            Visitor,
         },
     };
     use serde_derive::Deserialize;
-    use std::{fmt, fmt::Formatter, marker::PhantomData};
+    use std::{
+        fmt,
+        fmt::Formatter,
+        marker::PhantomData,
+    };
 
     #[test]
     fn status_display_success() {

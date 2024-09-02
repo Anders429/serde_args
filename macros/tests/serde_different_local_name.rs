@@ -1,10 +1,20 @@
 //! Testing serialization and deserialization behavior when using the `#[help]` attribute when the
 //! `serde` traits are imported with different local names.
 
-use claims::{assert_ok, assert_ok_eq};
-use serde::{Deserialize as MyDeserialize, Serialize as MySerialize};
+use claims::{
+    assert_ok,
+    assert_ok_eq,
+};
+use serde::{
+    Deserialize as MyDeserialize,
+    Serialize as MySerialize,
+};
 use serde_args_macros::help;
-use serde_assert::{Deserializer, Serializer, Token};
+use serde_assert::{
+    Deserializer,
+    Serializer,
+    Token,
+};
 
 #[help]
 #[derive(Clone, Debug, MyDeserialize, Eq, PartialEq, MySerialize)]

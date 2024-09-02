@@ -1,10 +1,28 @@
 use crate::Container;
-use proc_macro2::{Delimiter, Group, Span, TokenStream};
+use proc_macro2::{
+    Delimiter,
+    Group,
+    Span,
+    TokenStream,
+};
 use quote::quote;
 use syn::{
     punctuated::Punctuated,
-    token::{Brace, Paren},
-    FieldPat, Fields, Ident, Lit, LitInt, Member, Pat, PatIdent, PatLit, PatStruct, PatTupleStruct,
+    token::{
+        Brace,
+        Paren,
+    },
+    FieldPat,
+    Fields,
+    Ident,
+    Lit,
+    LitInt,
+    Member,
+    Pat,
+    PatIdent,
+    PatLit,
+    PatStruct,
+    PatTupleStruct,
     Type,
 };
 
@@ -250,9 +268,19 @@ pub(crate) fn from_container_to_newtype(
 
 #[cfg(test)]
 mod tests {
-    use super::{from_container_to_newtype, from_newtype_to_container};
-    use claims::{assert_ok, assert_ok_eq};
-    use syn::{parse2 as parse, parse_str, File};
+    use super::{
+        from_container_to_newtype,
+        from_newtype_to_container,
+    };
+    use claims::{
+        assert_ok,
+        assert_ok_eq,
+    };
+    use syn::{
+        parse2 as parse,
+        parse_str,
+        File,
+    };
 
     #[test]
     fn from_newtype_to_container_enum_no_variants() {

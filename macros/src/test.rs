@@ -2,7 +2,10 @@
 
 use syn::{
     parse,
-    parse::{Parse, ParseStream},
+    parse::{
+        Parse,
+        ParseStream,
+    },
     Attribute,
 };
 
@@ -18,12 +21,25 @@ impl Parse for OuterAttributes {
 mod tests {
     use super::OuterAttributes;
     use claims::assert_ok_eq;
-    use proc_macro2::{Delimiter, Group, Span, TokenStream};
+    use proc_macro2::{
+        Delimiter,
+        Group,
+        Span,
+        TokenStream,
+    };
     use quote::ToTokens;
     use std::iter;
     use syn::{
-        parse_str, token::Bracket, AttrStyle, Attribute, Ident, Meta, Path, PathArguments,
-        PathSegment, Token,
+        parse_str,
+        token::Bracket,
+        AttrStyle,
+        Attribute,
+        Ident,
+        Meta,
+        Path,
+        PathArguments,
+        PathSegment,
+        Token,
     };
 
     #[test]

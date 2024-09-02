@@ -19,7 +19,10 @@ impl Hasher for IdentityHasher {
 mod tests {
     use super::IdentityHasher;
     use std::{
-        hash::{Hash, Hasher},
+        hash::{
+            Hash,
+            Hasher,
+        },
         mem::discriminant,
     };
 

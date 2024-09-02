@@ -1,7 +1,16 @@
-use crate::{generate, Container};
-use proc_macro2::{Span, TokenStream};
+use crate::{
+    generate,
+    Container,
+};
+use proc_macro2::{
+    Span,
+    TokenStream,
+};
 use quote::quote;
-use syn::{parse2 as parse, Ident};
+use syn::{
+    parse2 as parse,
+    Ident,
+};
 
 pub(super) fn process(item: TokenStream) -> TokenStream {
     // Parse the descriptions from the container.
@@ -37,7 +46,11 @@ mod tests {
     use claims::assert_ok;
     use proc_macro2::TokenStream;
     use std::str::FromStr;
-    use syn::{parse2 as parse, parse_str, File};
+    use syn::{
+        parse2 as parse,
+        parse_str,
+        File,
+    };
 
     #[test]
     fn process_struct() {

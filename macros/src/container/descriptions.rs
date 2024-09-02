@@ -1,4 +1,8 @@
-use syn::{Attribute, Expr, Meta};
+use syn::{
+    Attribute,
+    Expr,
+    Meta,
+};
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct Documentation<'a> {

@@ -1,4 +1,7 @@
-use std::{ffi::OsString, str};
+use std::{
+    ffi::OsString,
+    str,
+};
 
 #[derive(Debug, Eq, PartialEq)]
 pub(super) enum Token {
@@ -105,8 +108,15 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{ParsedArgs, Token};
-    use claims::{assert_none, assert_some, assert_some_eq};
+    use super::{
+        ParsedArgs,
+        Token,
+    };
+    use claims::{
+        assert_none,
+        assert_some,
+        assert_some_eq,
+    };
     use std::ffi::OsString;
 
     #[test]

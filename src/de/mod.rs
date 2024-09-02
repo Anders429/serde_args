@@ -4,13 +4,28 @@ pub(crate) use error::Error;
 
 use crate::{
     key,
-    parse::{Context, ContextIter, Segment},
+    parse::{
+        Context,
+        ContextIter,
+        Segment,
+    },
 };
 use serde::{
     de,
-    de::{DeserializeSeed, Deserializer as _, Error as _, MapAccess, Unexpected, Visitor},
+    de::{
+        DeserializeSeed,
+        Deserializer as _,
+        Error as _,
+        MapAccess,
+        Unexpected,
+        Visitor,
+    },
 };
-use std::{num::IntErrorKind, str, str::FromStr};
+use std::{
+    num::IntErrorKind,
+    str,
+    str::FromStr,
+};
 
 pub(crate) struct Deserializer {
     context: ContextIter,
@@ -617,7 +632,8 @@ impl<'de> MapAccess<'de> for StructAccess {
         match self.struct_context.next() {
             Some(Segment::Context(context)) => {
                 let mut field_context = context.into_iter();
-                // Extract the identifier, which should always be the first element for this type of context.
+                // Extract the identifier, which should always be the first element for this type of
+                // context.
                 match field_context.next() {
                     Some(Segment::Identifier(field)) => {
                         self.field_context = Some(field_context);
@@ -719,21 +735,46 @@ impl<'de> de::VariantAccess<'de> for VariantAccess {
 
 #[cfg(test)]
 mod tests {
-    use super::{Deserializer, EnumAccess, Error, FieldDeserializer, StructAccess, VariantAccess};
+    use super::{
+        Deserializer,
+        EnumAccess,
+        Error,
+        FieldDeserializer,
+        StructAccess,
+        VariantAccess,
+    };
     use crate::{
         key::DeserializerError,
-        parse::{Context, Segment},
+        parse::{
+            Context,
+            Segment,
+        },
     };
-    use claims::{assert_err_eq, assert_none, assert_ok, assert_ok_eq, assert_some_eq};
+    use claims::{
+        assert_err_eq,
+        assert_none,
+        assert_ok,
+        assert_ok_eq,
+        assert_some_eq,
+    };
     use serde::{
         de,
         de::{
-            Deserialize, EnumAccess as _, Error as _, IgnoredAny, MapAccess, Unexpected,
-            VariantAccess as _, Visitor,
+            Deserialize,
+            EnumAccess as _,
+            Error as _,
+            IgnoredAny,
+            MapAccess,
+            Unexpected,
+            VariantAccess as _,
+            Visitor,
         },
     };
     use serde_derive::Deserialize;
-    use std::{fmt, fmt::Formatter};
+    use std::{
+        fmt,
+        fmt::Formatter,
+    };
 
     #[test]
     #[should_panic(expected = "entered unreachable code")]

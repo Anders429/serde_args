@@ -1,13 +1,22 @@
 mod descriptions;
 
-pub(crate) use descriptions::{Descriptions, Documentation};
+pub(crate) use descriptions::{
+    Descriptions,
+    Documentation,
+};
 
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{
     parse,
-    parse::{Parse, ParseStream},
-    Ident, Item, ItemEnum, ItemStruct,
+    parse::{
+        Parse,
+        ParseStream,
+    },
+    Ident,
+    Item,
+    ItemEnum,
+    ItemStruct,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -123,10 +132,17 @@ impl ToTokens for Container {
 
 #[cfg(test)]
 mod tests {
-    use super::{descriptions::Documentation, Container, Descriptions};
+    use super::{
+        descriptions::Documentation,
+        Container,
+        Descriptions,
+    };
     use claims::assert_ok;
     use proc_macro2::Span;
-    use syn::{parse_str, Ident};
+    use syn::{
+        parse_str,
+        Ident,
+    };
 
     #[test]
     fn struct_descriptions_none() {

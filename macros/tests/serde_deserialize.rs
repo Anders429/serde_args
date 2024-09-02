@@ -3,7 +3,10 @@
 use claims::assert_ok_eq;
 use serde::Deserialize;
 use serde_args_macros::help;
-use serde_assert::{Deserializer, Token};
+use serde_assert::{
+    Deserializer,
+    Token,
+};
 
 #[help]
 #[derive(Debug, Deserialize, Eq, PartialEq)]

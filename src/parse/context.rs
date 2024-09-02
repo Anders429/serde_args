@@ -38,7 +38,10 @@ impl Iterator for ContextIter {
 
 #[cfg(test)]
 mod tests {
-    use super::{Context, Segment};
+    use super::{
+        Context,
+        Segment,
+    };
 
     #[test]
     fn iter_empty() {

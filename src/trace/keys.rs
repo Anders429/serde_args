@@ -1,4 +1,9 @@
-use super::{Error, Field, Shape, Variant};
+use super::{
+    Error,
+    Field,
+    Shape,
+    Variant,
+};
 use serde::de::Expected;
 use std::slice;
 
@@ -194,10 +199,22 @@ impl From<Keys> for Shape {
 #[cfg(test)]
 mod tests {
     use super::{
-        super::{Error, Field, Shape, Variant},
-        Fields, KeyInfo, Keys, Variants,
+        super::{
+            Error,
+            Field,
+            Shape,
+            Variant,
+        },
+        Fields,
+        KeyInfo,
+        Keys,
+        Variants,
     };
-    use claims::{assert_err_eq, assert_matches, assert_ok_eq};
+    use claims::{
+        assert_err_eq,
+        assert_matches,
+        assert_ok_eq,
+    };
 
     #[test]
     fn shape_from_fields_empty() {

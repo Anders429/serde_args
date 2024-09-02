@@ -1,7 +1,11 @@
 use serde::de::Expected;
 use std::{
     fmt,
-    fmt::{Display, Formatter, Write},
+    fmt::{
+        Display,
+        Formatter,
+        Write,
+    },
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -318,7 +322,11 @@ impl Display for Shape {
 
 #[cfg(test)]
 mod tests {
-    use super::{Field, Shape, Variant};
+    use super::{
+        Field,
+        Shape,
+        Variant,
+    };
     use serde::de::IgnoredAny;
 
     #[test]

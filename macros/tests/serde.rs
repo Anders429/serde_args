@@ -1,9 +1,19 @@
 //! Testing serialization and deserialization behavior when using the `#[help]` attribute.
 
-use claims::{assert_ok, assert_ok_eq};
-use serde::{Deserialize, Serialize};
+use claims::{
+    assert_ok,
+    assert_ok_eq,
+};
+use serde::{
+    Deserialize,
+    Serialize,
+};
 use serde_args_macros::help;
-use serde_assert::{Deserializer, Serializer, Token};
+use serde_assert::{
+    Deserializer,
+    Serializer,
+    Token,
+};
 
 #[help]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]

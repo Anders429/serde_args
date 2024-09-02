@@ -1,10 +1,16 @@
 use serde::{
     de,
-    de::{Expected, Unexpected},
+    de::{
+        Expected,
+        Unexpected,
+    },
 };
 use std::{
     fmt,
-    fmt::{Display, Formatter},
+    fmt::{
+        Display,
+        Formatter,
+    },
 };
 
 #[derive(Debug, Eq, PartialEq)]
@@ -100,7 +106,10 @@ impl de::Error for Error {
 #[cfg(test)]
 mod tests {
     use super::Error;
-    use serde::de::{Error as _, Unexpected};
+    use serde::de::{
+        Error as _,
+        Unexpected,
+    };
 
     #[test]
     fn error_custom() {

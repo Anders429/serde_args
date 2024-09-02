@@ -2,7 +2,10 @@ mod distance;
 
 use std::{
     fmt,
-    fmt::{Display, Formatter},
+    fmt::{
+        Display,
+        Formatter,
+    },
 };
 
 #[derive(Debug, Eq, PartialEq)]
@@ -51,7 +54,8 @@ impl Display for Error {
                 let hint = expecting
                     .iter()
                     .filter(|field| {
-                        // Only compare long options with long options and short options with short options.
+                        // Only compare long options with long options and short options with short
+                        // options.
                         if name_count <= 1 {
                             field.chars().count() == 1
                         } else {

@@ -1,8 +1,14 @@
-use claims::{assert_err, assert_ok};
+use claims::{
+    assert_err,
+    assert_ok,
+};
 use std::{
     ffi::OsString,
     fmt,
-    fmt::{Display, Formatter},
+    fmt::{
+        Display,
+        Formatter,
+    },
     io,
     io::Read,
     path::PathBuf,

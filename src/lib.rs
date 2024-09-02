@@ -10,8 +10,16 @@ pub use serde_args_macros::help;
 
 use de::Deserializer;
 use parse::parse;
-use serde::de::{Deserialize, DeserializeSeed};
-use std::{env, ffi::OsString, marker::PhantomData, path::PathBuf};
+use serde::de::{
+    Deserialize,
+    DeserializeSeed,
+};
+use std::{
+    env,
+    ffi::OsString,
+    marker::PhantomData,
+    path::PathBuf,
+};
 use trace::trace;
 
 pub fn from_args_seed<'de, D>(seed: D) -> Result<D::Value, Error>

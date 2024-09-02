@@ -1,10 +1,23 @@
 //! Tests ensuring integration with other serde extension crates (such as `serde_with`) still work.
 
-use claims::{assert_ok, assert_ok_eq};
-use serde::{Deserialize, Serialize};
+use claims::{
+    assert_ok,
+    assert_ok_eq,
+};
+use serde::{
+    Deserialize,
+    Serialize,
+};
 use serde_args_macros::help;
-use serde_assert::{Deserializer, Serializer, Token};
-use serde_with::{serde_as, DisplayFromStr};
+use serde_assert::{
+    Deserializer,
+    Serializer,
+    Token,
+};
+use serde_with::{
+    serde_as,
+    DisplayFromStr,
+};
 
 #[help]
 #[serde_as]

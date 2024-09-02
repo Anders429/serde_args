@@ -1,4 +1,8 @@
-use serde::{de, de::Visitor, forward_to_deserialize_any};
+use serde::{
+    de,
+    de::Visitor,
+    forward_to_deserialize_any,
+};
 use std::marker::PhantomData;
 
 pub(crate) struct Deserializer<Error> {
@@ -50,15 +54,28 @@ pub(crate) trait DeserializerError {
 
 #[cfg(test)]
 mod tests {
-    use super::{Deserializer, DeserializerError};
-    use claims::{assert_err_eq, assert_ok_eq};
+    use super::{
+        Deserializer,
+        DeserializerError,
+    };
+    use claims::{
+        assert_err_eq,
+        assert_ok_eq,
+    };
     use serde::{
         de,
-        de::{Deserializer as _, IgnoredAny, Visitor},
+        de::{
+            Deserializer as _,
+            IgnoredAny,
+            Visitor,
+        },
     };
     use std::{
         fmt,
-        fmt::{Display, Formatter},
+        fmt::{
+            Display,
+            Formatter,
+        },
     };
 
     #[derive(Debug, Eq, PartialEq)]
