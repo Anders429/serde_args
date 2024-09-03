@@ -160,7 +160,7 @@ impl Display for Kind {
                                 let mut combined = iter::once(variant.name)
                                     .chain(variant.aliases.iter().copied())
                                     .fold(String::new(), |combined, variant| {
-                                        combined + &variant + " "
+                                        combined + variant + " "
                                     });
                                 combined.push_str(&format!("{}", variant.shape));
                                 combined
