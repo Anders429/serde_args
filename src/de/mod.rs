@@ -363,11 +363,8 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     {
         match self.context.next() {
             Some(Segment::Value(raw)) => {
-                let value_string = str::from_utf8(&raw).or_else(|_| {
-                    Err(Error::invalid_type(
-                        Unexpected::Other(&String::from_utf8_lossy(&raw)),
-                        &visitor,
-                    ))
+                let value_string = str::from_utf8(&raw).map_err(|_| {
+                    Error::invalid_type(Unexpected::Other(&String::from_utf8_lossy(&raw)), &visitor)
                 })?;
                 let chars = value_string.chars().collect::<Vec<char>>();
                 if chars.len() == 1 {
@@ -391,11 +388,8 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     {
         match self.context.next() {
             Some(Segment::Value(raw)) => {
-                let value_string = str::from_utf8(&raw).or_else(|_| {
-                    Err(Error::invalid_type(
-                        Unexpected::Other(&String::from_utf8_lossy(&raw)),
-                        &visitor,
-                    ))
+                let value_string = str::from_utf8(&raw).map_err(|_| {
+                    Error::invalid_type(Unexpected::Other(&String::from_utf8_lossy(&raw)), &visitor)
                 })?;
                 visitor.visit_str(value_string)
             }
