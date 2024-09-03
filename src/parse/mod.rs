@@ -309,7 +309,7 @@ where
                     for (optional_name, mut optional_context) in parsed_options {
                         let mut found = false;
                         // Find whether the optional name is in this struct.
-                        for optional_field in (&mut *optional).into_iter() {
+                        for optional_field in optional.iter() {
                             if optional_name == optional_field.name
                                 || optional_field.aliases.contains(&optional_name)
                             {
@@ -321,7 +321,7 @@ where
                             }
                         }
                         if !found {
-                            for boolean_field in (&mut *booleans).into_iter() {
+                            for boolean_field in booleans.iter() {
                                 if optional_name == boolean_field.name
                                     || boolean_field.aliases.contains(&optional_name)
                                 {
@@ -379,7 +379,7 @@ where
                         }
                     }
                     if !found {
-                        for boolean_field in (&mut *booleans).into_iter() {
+                        for boolean_field in booleans.iter() {
                             if optional_name == boolean_field.name
                                 || boolean_field.aliases.contains(&optional_name)
                             {
