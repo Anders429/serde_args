@@ -370,10 +370,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
                 if chars.len() == 1 {
                     visitor.visit_char(chars[0])
                 } else {
-                    Err(Error::invalid_type(
-                        Unexpected::Str(&value_string),
-                        &visitor,
-                    ))
+                    Err(Error::invalid_type(Unexpected::Str(value_string), &visitor))
                 }
             }
             _ => {
