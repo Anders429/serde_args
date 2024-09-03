@@ -66,7 +66,7 @@ where
     };
 
     // Handle overriding options.
-    for (option_name, _option_context) in options {
+    if let Some((option_name, _option_context)) = options.into_iter().next() {
         match option_name {
             "help" | "h" => return Err(Error::Help),
             _ => {
