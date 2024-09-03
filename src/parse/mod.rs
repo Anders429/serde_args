@@ -428,7 +428,7 @@ where
                 for field_name in
                     iter::once(&boolean_field.name).chain(boolean_field.aliases.iter())
                 {
-                    if found_fields.contains(&&field_name) {
+                    if found_fields.contains(&field_name) {
                         found = true;
                         break;
                     }
@@ -918,7 +918,7 @@ where
                     for field_name in
                         iter::once(&boolean_field.name).chain(boolean_field.aliases.iter())
                     {
-                        if found_fields.contains(&&field_name) {
+                        if found_fields.contains(&field_name) {
                             found = true;
                             break;
                         }
