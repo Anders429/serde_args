@@ -45,7 +45,7 @@ impl Display for Error {
                 write!(
                     formatter,
                     "unexpected positional argument: {}",
-                    String::from_utf8_lossy(&argument)
+                    String::from_utf8_lossy(argument)
                 )
             }
             Self::UnrecognizedOption { name, expecting } => {
