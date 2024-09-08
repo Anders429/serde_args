@@ -326,18 +326,18 @@ pub(crate) fn phase_2(
     // Define the `expecting()` match statements.
     let container_exprs = descriptions
         .container
-        .exprs
+        .lines
         .into_iter()
-        .map(|expr| quote!(formatter.write_str(#expr)?;));
+        .map(|line| quote!(formatter.write_str(#line)?;));
     let key_exprs = descriptions
         .keys
         .into_iter()
         .enumerate()
         .map(|(index, documentation)| {
             let documentation_exprs = documentation
-                .exprs
+                .lines
                 .into_iter()
-                .map(|expr| quote!(formatter.write_str(#expr)?;));
+                .map(|line| quote!(formatter.write_str(#line)?;));
             quote!(Some(#index) => {#(#documentation_exprs)*})
         });
 
@@ -793,19 +793,19 @@ mod tests {
         assert_eq!(
             assert_ok!(parse::<File>(phase_2(&container, Descriptions {
                 container: Documentation {
-                    exprs: vec![
-                        assert_ok!(&parse_str("\"container documentation.\"")),
+                    lines: vec![
+                        "container documentation.".into(),
                     ],
                 },
                 keys: vec![
                     Documentation {
-                        exprs: vec![
-                            assert_ok!(&parse_str("\"bar documentation.\"")),
+                        lines: vec![
+                            "bar documentation.".into(),
                         ],
                     },
                     Documentation {
-                        exprs: vec![
-                            assert_ok!(&parse_str("\"baz documentation.\"")),
+                        lines: vec![
+                            "baz documentation.".into(),
                         ],
                     }
                 ],
@@ -900,19 +900,19 @@ mod tests {
         assert_eq!(
             assert_ok!(parse::<File>(phase_2(&container, Descriptions {
                 container: Documentation {
-                    exprs: vec![
-                        assert_ok!(&parse_str("\"container documentation.\"")),
+                    lines: vec![
+                        "container documentation.".into(),
                     ],
                 },
                 keys: vec![
                     Documentation {
-                        exprs: vec![
-                            assert_ok!(&parse_str("\"bar documentation.\"")),
+                        lines: vec![
+                            "bar documentation.".into(),
                         ],
                     },
                     Documentation {
-                        exprs: vec![
-                            assert_ok!(&parse_str("\"baz documentation.\"")),
+                        lines: vec![
+                            "baz documentation.".into(),
                         ],
                     }
                 ],

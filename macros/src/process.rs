@@ -174,13 +174,13 @@ mod tests {
                             fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                                 match formatter.width() {
                                     Some(0usize) => {
-                                        formatter.write_str(\" bar documentation.\")?;
+                                        formatter.write_str(\"bar documentation.\")?;
                                     }
                                     Some(1usize) => {
-                                        formatter.write_str(\" baz documentation.\")?;
+                                        formatter.write_str(\"baz documentation.\")?;
                                     }
                                     _ => {
-                                        formatter.write_str(\" container documentation.\")?;
+                                        formatter.write_str(\"container documentation.\")?;
                                     }
                                 }
                                 Ok(())
@@ -369,13 +369,13 @@ mod tests {
                             fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                                 match formatter.width() {
                                     Some(0usize) => {
-                                        formatter.write_str(\" bar documentation.\")?;
+                                        formatter.write_str(\"bar documentation.\")?;
                                     }
                                     Some(1usize) => {
-                                        formatter.write_str(\" baz documentation.\")?;
+                                        formatter.write_str(\"baz documentation.\")?;
                                     }
                                     _ => {
-                                        formatter.write_str(\" container documentation.\")?;
+                                        formatter.write_str(\"container documentation.\")?;
                                     }
                                 }
                                 Ok(())

@@ -156,10 +156,10 @@ mod tests {
             )))
             .descriptions(),
             Descriptions {
-                container: Documentation { exprs: vec![] },
+                container: Documentation { lines: vec![] },
                 keys: vec![
-                    Documentation { exprs: vec![] },
-                    Documentation { exprs: vec![] },
+                    Documentation { lines: vec![] },
+                    Documentation { lines: vec![] },
                 ]
             }
         );
@@ -179,11 +179,11 @@ mod tests {
             .descriptions(),
             Descriptions {
                 container: Documentation {
-                    exprs: vec![assert_ok!(&parse_str("\" Hello, world!\""))],
+                    lines: vec!["Hello, world!".into()],
                 },
                 keys: vec![
-                    Documentation { exprs: vec![] },
-                    Documentation { exprs: vec![] },
+                    Documentation { lines: vec![] },
+                    Documentation { lines: vec![] },
                 ]
             }
         );
@@ -203,13 +203,13 @@ mod tests {
             )))
             .descriptions(),
             Descriptions {
-                container: Documentation { exprs: vec![] },
+                container: Documentation { lines: vec![] },
                 keys: vec![
                     Documentation {
-                        exprs: vec![assert_ok!(&parse_str("\" Bar documentation.\""))]
+                        lines: vec!["Bar documentation.".into()]
                     },
                     Documentation {
-                        exprs: vec![assert_ok!(&parse_str("\" Baz documentation.\""))]
+                        lines: vec!["Baz documentation.".into()]
                     },
                 ]
             }
@@ -232,14 +232,14 @@ mod tests {
             .descriptions(),
             Descriptions {
                 container: Documentation {
-                    exprs: vec![assert_ok!(&parse_str("\" Hello, world!\""))]
+                    lines: vec!["Hello, world!".into()]
                 },
                 keys: vec![
                     Documentation {
-                        exprs: vec![assert_ok!(&parse_str("\" Bar documentation.\""))]
+                        lines: vec!["Bar documentation.".into()]
                     },
                     Documentation {
-                        exprs: vec![assert_ok!(&parse_str("\" Baz documentation.\""))]
+                        lines: vec!["Baz documentation.".into()]
                     },
                 ]
             }
@@ -265,23 +265,14 @@ mod tests {
             .descriptions(),
             Descriptions {
                 container: Documentation {
-                    exprs: vec![
-                        assert_ok!(&parse_str("\" Hello, world!\"")),
-                        assert_ok!(&parse_str("\" Second line.\""))
-                    ]
+                    lines: vec!["Hello, world!".into(), "Second line.".into(),]
                 },
                 keys: vec![
                     Documentation {
-                        exprs: vec![
-                            assert_ok!(&parse_str("\" Bar documentation.\"")),
-                            assert_ok!(&parse_str("\" Second line bar.\""))
-                        ]
+                        lines: vec!["Bar documentation.".into(), "Second line bar.".into(),]
                     },
                     Documentation {
-                        exprs: vec![
-                            assert_ok!(&parse_str("\" Baz documentation.\"")),
-                            assert_ok!(&parse_str("\" Second line baz.\""))
-                        ]
+                        lines: vec!["Baz documentation.".into(), "Second line baz.".into(),]
                     },
                 ]
             }
@@ -300,10 +291,10 @@ mod tests {
             )))
             .descriptions(),
             Descriptions {
-                container: Documentation { exprs: vec![] },
+                container: Documentation { lines: vec![] },
                 keys: vec![
-                    Documentation { exprs: vec![] },
-                    Documentation { exprs: vec![] },
+                    Documentation { lines: vec![] },
+                    Documentation { lines: vec![] },
                 ]
             }
         );
@@ -323,11 +314,11 @@ mod tests {
             .descriptions(),
             Descriptions {
                 container: Documentation {
-                    exprs: vec![assert_ok!(&parse_str("\" Hello, world!\""))],
+                    lines: vec!["Hello, world!".into()],
                 },
                 keys: vec![
-                    Documentation { exprs: vec![] },
-                    Documentation { exprs: vec![] },
+                    Documentation { lines: vec![] },
+                    Documentation { lines: vec![] },
                 ]
             }
         );
@@ -347,13 +338,13 @@ mod tests {
             )))
             .descriptions(),
             Descriptions {
-                container: Documentation { exprs: vec![] },
+                container: Documentation { lines: vec![] },
                 keys: vec![
                     Documentation {
-                        exprs: vec![assert_ok!(&parse_str("\" Bar documentation.\""))]
+                        lines: vec!["Bar documentation.".into()]
                     },
                     Documentation {
-                        exprs: vec![assert_ok!(&parse_str("\" Baz documentation.\""))]
+                        lines: vec!["Baz documentation.".into()]
                     },
                 ]
             }
@@ -376,14 +367,14 @@ mod tests {
             .descriptions(),
             Descriptions {
                 container: Documentation {
-                    exprs: vec![assert_ok!(&parse_str("\" Hello, world!\""))]
+                    lines: vec!["Hello, world!".into()]
                 },
                 keys: vec![
                     Documentation {
-                        exprs: vec![assert_ok!(&parse_str("\" Bar documentation.\""))]
+                        lines: vec!["Bar documentation.".into()]
                     },
                     Documentation {
-                        exprs: vec![assert_ok!(&parse_str("\" Baz documentation.\""))]
+                        lines: vec!["Baz documentation.".into()]
                     },
                 ]
             }
@@ -409,23 +400,14 @@ mod tests {
             .descriptions(),
             Descriptions {
                 container: Documentation {
-                    exprs: vec![
-                        assert_ok!(&parse_str("\" Hello, world!\"")),
-                        assert_ok!(&parse_str("\" Second line.\""))
-                    ]
+                    lines: vec!["Hello, world!".into(), "Second line.".into(),]
                 },
                 keys: vec![
                     Documentation {
-                        exprs: vec![
-                            assert_ok!(&parse_str("\" Bar documentation.\"")),
-                            assert_ok!(&parse_str("\" Second line bar.\""))
-                        ]
+                        lines: vec!["Bar documentation.".into(), "Second line bar.".into(),]
                     },
                     Documentation {
-                        exprs: vec![
-                            assert_ok!(&parse_str("\" Baz documentation.\"")),
-                            assert_ok!(&parse_str("\" Second line baz.\""))
-                        ]
+                        lines: vec!["Baz documentation.".into(), "Second line baz.".into(),]
                     },
                 ]
             }
@@ -441,10 +423,10 @@ mod tests {
             )))
             .descriptions(),
             Descriptions {
-                container: Documentation { exprs: vec![] },
+                container: Documentation { lines: vec![] },
                 keys: vec![
-                    Documentation { exprs: vec![] },
-                    Documentation { exprs: vec![] },
+                    Documentation { lines: vec![] },
+                    Documentation { lines: vec![] },
                 ]
             }
         );
@@ -461,11 +443,11 @@ mod tests {
             .descriptions(),
             Descriptions {
                 container: Documentation {
-                    exprs: vec![assert_ok!(&parse_str("\" Hello, world!\"")),]
+                    lines: vec!["Hello, world!".into(),]
                 },
                 keys: vec![
-                    Documentation { exprs: vec![] },
-                    Documentation { exprs: vec![] },
+                    Documentation { lines: vec![] },
+                    Documentation { lines: vec![] },
                 ]
             }
         );
@@ -485,13 +467,13 @@ mod tests {
             )))
             .descriptions(),
             Descriptions {
-                container: Documentation { exprs: vec![] },
+                container: Documentation { lines: vec![] },
                 keys: vec![
                     Documentation {
-                        exprs: vec![assert_ok!(&parse_str("\" Bar documentation.\""))]
+                        lines: vec!["Bar documentation.".into()]
                     },
                     Documentation {
-                        exprs: vec![assert_ok!(&parse_str("\" Baz documentation.\""))]
+                        lines: vec!["Baz documentation.".into()]
                     },
                 ]
             }
@@ -514,14 +496,14 @@ mod tests {
             .descriptions(),
             Descriptions {
                 container: Documentation {
-                    exprs: vec![assert_ok!(&parse_str("\" Hello, world!\"")),]
+                    lines: vec!["Hello, world!".into()]
                 },
                 keys: vec![
                     Documentation {
-                        exprs: vec![assert_ok!(&parse_str("\" Bar documentation.\""))]
+                        lines: vec!["Bar documentation.".into()]
                     },
                     Documentation {
-                        exprs: vec![assert_ok!(&parse_str("\" Baz documentation.\""))]
+                        lines: vec!["Baz documentation.".into()]
                     },
                 ]
             }
@@ -547,23 +529,14 @@ mod tests {
             .descriptions(),
             Descriptions {
                 container: Documentation {
-                    exprs: vec![
-                        assert_ok!(&parse_str("\" Hello, world!\"")),
-                        assert_ok!(&parse_str("\" Second line.\"")),
-                    ]
+                    lines: vec!["Hello, world!".into(), "Second line.".into(),]
                 },
                 keys: vec![
                     Documentation {
-                        exprs: vec![
-                            assert_ok!(&parse_str("\" Bar documentation.\"")),
-                            assert_ok!(&parse_str("\" Second line bar.\"")),
-                        ]
+                        lines: vec!["Bar documentation.".into(), "Second line bar.".into(),]
                     },
                     Documentation {
-                        exprs: vec![
-                            assert_ok!(&parse_str("\" Baz documentation.\"")),
-                            assert_ok!(&parse_str("\" Second line baz.\"")),
-                        ]
+                        lines: vec!["Baz documentation.".into(), "Second line baz.".into(),]
                     },
                 ]
             }

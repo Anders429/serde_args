@@ -1,34 +1,39 @@
 use syn::{
     Attribute,
     Expr,
+    Lit,
     Meta,
 };
 
 #[derive(Debug, Eq, PartialEq)]
-pub(crate) struct Documentation<'a> {
-    pub(crate) exprs: Vec<&'a Expr>,
+pub(crate) struct Documentation {
+    pub(crate) lines: Vec<String>,
 }
 
-impl<'a> From<&'a Vec<Attribute>> for Documentation<'a> {
-    fn from(attrs: &'a Vec<Attribute>) -> Self {
-        let mut exprs = Vec::new();
+impl From<&Vec<Attribute>> for Documentation {
+    fn from(attrs: &Vec<Attribute>) -> Self {
+        let mut lines = Vec::new();
         for attr in attrs {
             if let Meta::NameValue(name_value) = &attr.meta {
                 if let Some(ident) = name_value.path.get_ident() {
                     if *ident == "doc" {
-                        exprs.push(&name_value.value);
+                        if let Expr::Lit(literal) = &name_value.value {
+                            if let Lit::Str(string) = &literal.lit {
+                                lines.push(string.value().trim().to_owned());
+                            }
+                        }
                     }
                 }
             }
         }
-        Self { exprs }
+        Self { lines }
     }
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub(crate) struct Descriptions<'a> {
-    pub(crate) container: Documentation<'a>,
-    pub(crate) keys: Vec<Documentation<'a>>,
+pub(crate) struct Descriptions {
+    pub(crate) container: Documentation,
+    pub(crate) keys: Vec<Documentation>,
 }
 
 #[cfg(test)]
@@ -42,7 +47,7 @@ mod tests {
     fn documentation_from_attributes_none() {
         assert_eq!(
             Documentation::from(&vec![]),
-            Documentation { exprs: vec![] }
+            Documentation { lines: vec![] }
         );
     }
 
@@ -55,7 +60,7 @@ mod tests {
                 ))
                 .0
             ),
-            Documentation { exprs: vec![] }
+            Documentation { lines: vec![] }
         );
     }
 
@@ -66,7 +71,7 @@ mod tests {
                 &assert_ok!(parse_str::<OuterAttributes>("#[doc = \"foo bar baz\"]")).0
             ),
             Documentation {
-                exprs: vec![&assert_ok!(parse_str("\"foo bar baz\""))]
+                lines: vec!["foo bar baz".into(),]
             }
         );
     }
@@ -81,10 +86,7 @@ mod tests {
                 .0
             ),
             Documentation {
-                exprs: vec![
-                    &assert_ok!(parse_str("\"foo bar baz\"")),
-                    &assert_ok!(parse_str("\"qux quux\""))
-                ]
+                lines: vec!["foo bar baz".into(), "qux quux".into(),]
             }
         );
     }
@@ -99,9 +101,9 @@ mod tests {
                 .0
             ),
             Documentation {
-                exprs: vec![
-                    &assert_ok!(parse_str("\"foo bar baz\"")),
-                    &assert_ok!(parse_str("\"qux quux\""))
+                lines: vec![
+                    "foo bar baz".into(),
+                    "qux quux".into(),
                 ]
             }
         );
