@@ -1,0 +1,9 @@
+[package]
+name = "enum_help_color"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+serde_args = {path = "../../.."}
+serde = {version = "1.0.203", features = ["derive"]}

@@ -447,3 +447,19 @@ fn enum_help() {
         "This is a description of my program.\n\nUSAGE: {name} <Command>\n\nRequired Arguments:\n  <Command>  This is a description of my program.\n\nOverride Options:\n  -h --help  Display this message.\n\nCommand Variants:\n  foo                       Don't provide any arguments to this command.\n  bar <u8>                  Provide one argument to this command.\n  baz [--<a string>]        You can do zero or one arguments for this command.\n  qux [options] <required>  This command takes a required argument and an optional flag.\n"
     );
 }
+
+#[test]
+fn struct_help_color() {
+    assert_run_err!(
+        Command::new("tests/from_args/struct_help_color").args(["--help"]),
+        "This is a description of my program.\n\n\x1b[97mUSAGE\x1b[0m: \x1b[96m{name}\x1b[0m \x1b[36m[options] <foo> <baz>\x1b[0m\n\n\x1b[97mRequired Arguments:\x1b[0m\n  \x1b[96m<foo>\x1b[0m  Not just any string, but your favorite string.\n  \x1b[96m<baz>\x1b[0m  Any number other than 9.\n\n\x1b[97mGlobal Options:\x1b[0m\n  \x1b[96m-q\x1b[0m \x1b[96m--qux\x1b[0m \x1b[36m<u8>\x1b[0m  Determines the quxiness of the program.\n\n\x1b[97mOverride Options:\x1b[0m\n  \x1b[96m-h --help\x1b[0m  Display this message.\n"
+    );
+}
+
+#[test]
+fn enum_help_color() {
+    assert_run_err!(
+        Command::new("tests/from_args/enum_help_color").args(["--help"]),
+        "This is a description of my program.\n\n\x1b[97mUSAGE\x1b[0m: \x1b[96m{name}\x1b[0m \x1b[36m<Command>\x1b[0m\n\n\x1b[97mRequired Arguments:\x1b[0m\n  \x1b[96m<Command>\x1b[0m  This is a description of my program.\n\n\x1b[97mOverride Options:\x1b[0m\n  \x1b[96m-h --help\x1b[0m  Display this message.\n\n\x1b[97mCommand Variants:\x1b[0m\n  \x1b[96mfoo \x1b[0m\x1b[36m\x1b[0m                      Don't provide any arguments to this command.\n  \x1b[96mbar \x1b[0m\x1b[36m<u8>\x1b[0m                  Provide one argument to this command.\n  \x1b[96mbaz \x1b[0m\x1b[36m[--<a string>]\x1b[0m        You can do zero or one arguments for this command.\n  \x1b[96mqux \x1b[0m\x1b[36m[options] <required>\x1b[0m  This command takes a required argument and an optional flag.\n"
+    );
+}
