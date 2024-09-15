@@ -424,7 +424,7 @@ fn r#enum() {
     );
     assert_run_err!(
         Command::new("tests/from_args/enum").args(["qux", "--help", "foo"]),
-        "USAGE: {name} qux [qux options] <required>\n\nRequired Arguments:\n  <required>  \n\nGlobal Options:\n  --optional <a string>  \n\nOverride Options:\n  -h --help  Display this message.\n"
+        "USAGE: {name} qux [options] <required>\n\nRequired Arguments:\n  <required>  \n\nGlobal Options:\n  --optional <a string>  \n\nOverride Options:\n  -h --help  Display this message.\n"
     );
     assert_run_err!(
         Command::new("tests/from_args/enum").args(["quux"]),

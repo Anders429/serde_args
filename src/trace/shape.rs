@@ -314,7 +314,11 @@ impl Display for Shape {
                 write!(formatter, "<{}>", name)
             }
             Self::Variant { name, shape, .. } => {
-                write!(formatter, "{} {:#}", name, shape)
+                if formatter.alternate() {
+                    write!(formatter, "{} {:#}", name, shape)
+                } else {
+                    write!(formatter, "{} {}", name, shape)
+                }
             }
         }
     }
