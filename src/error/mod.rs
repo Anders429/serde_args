@@ -108,7 +108,7 @@ impl Display for Kind {
                         let optional_groups = shape.optional_groups();
                         for (index, (name, group)) in optional_groups.iter().enumerate() {
                             if !group.is_empty() {
-                                if index == 0 {
+                                if index == 0 && matches!(shape, Shape::Struct { .. }) {
                                     write!(
                                         formatter,
                                         "\n\n{bright_white_start}Global Options:{bright_white_end}"
@@ -116,7 +116,7 @@ impl Display for Kind {
                                 } else {
                                     write!(
                                         formatter,
-                                        "\n\n{bright_white_start}{} Options{bright_white_end}",
+                                        "\n\n{bright_white_start}{} Options:{bright_white_end}",
                                         name
                                     )?;
                                 }
