@@ -369,6 +369,7 @@ mod tests {
                         executable_path: "executable_name".into(),
                         shape: Shape::Empty {
                             description: "description".into(),
+                            version: None,
                         },
                     }
                 }
@@ -477,7 +478,10 @@ mod tests {
                                     name: "foo",
                                     description: "bar".into(),
                                     aliases: vec!["f"],
-                                    shape: Shape::Empty {description: "not shown".into()},
+                                    shape: Shape::Empty {
+                                        description: "not shown".into(),
+                                        version: None,
+                                    },
                                 },
                                 Variant {
                                     name: "baz",
@@ -512,7 +516,10 @@ mod tests {
                                     name: "foo",
                                     description: "bar".into(),
                                     aliases: vec!["f"],
-                                    shape: Shape::Empty {description: "not shown".into()},
+                                    shape: Shape::Empty {
+                                        description: "not shown".into(),
+                                        version: None,
+                                    },
                                 },
                                 Variant {
                                     name: "baz",
@@ -581,6 +588,7 @@ mod tests {
                         executable_path: "executable_name".into(),
                         shape: Shape::Empty {
                             description: "description".into(),
+                            version: None,
                         },
                     }
                 }
@@ -689,7 +697,10 @@ mod tests {
                                     name: "foo",
                                     description: "bar".into(),
                                     aliases: vec!["f"],
-                                    shape: Shape::Empty {description: "not shown".into()},
+                                    shape: Shape::Empty {
+                                        description: "not shown".into(),
+                                        version: None,
+                                    },
                                 },
                                 Variant {
                                     name: "baz",
@@ -724,7 +735,10 @@ mod tests {
                                     name: "foo",
                                     description: "bar".into(),
                                     aliases: vec!["f"],
-                                    shape: Shape::Empty {description: "not shown".into()},
+                                    shape: Shape::Empty {
+                                        description: "not shown".into(),
+                                        version: None,
+                                    },
                                 },
                                 Variant {
                                     name: "baz",

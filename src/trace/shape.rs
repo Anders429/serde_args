@@ -83,6 +83,7 @@ impl Display for Variant {
 pub(crate) enum Shape {
     Empty {
         description: String,
+        version: Option<String>,
     },
     Primitive {
         name: String,
@@ -116,8 +117,16 @@ pub(crate) enum Shape {
 
 impl Shape {
     pub(super) fn empty_from_visitor(expected: &dyn Expected) -> Self {
+        let description = format!("{}", expected);
+        let version = format!("{:v<}", expected);
+
         Self::Empty {
             description: format!("{}", expected),
+            version: if version == description {
+                None
+            } else {
+                Some(version)
+            },
         }
     }
 
@@ -137,7 +146,7 @@ impl Shape {
 
     pub(crate) fn description(&self) -> &str {
         match self {
-            Self::Empty { description }
+            Self::Empty { description, .. }
             | Self::Primitive { description, .. }
             | Self::Boolean { description, .. }
             | Self::Struct { description, .. }
@@ -339,7 +348,8 @@ mod tests {
                     description: String::new(),
                     aliases: Vec::new(),
                     shape: Shape::Empty {
-                        description: String::new()
+                        description: String::new(),
+                        version: None,
                     },
                     index: 0,
                 }
@@ -399,6 +409,7 @@ mod tests {
                     aliases: Vec::new(),
                     shape: Shape::Optional(Box::new(Shape::Empty {
                         description: String::new(),
+                        version: None,
                     })),
                     index: 0,
                 }
@@ -568,7 +579,8 @@ mod tests {
                     description: String::new(),
                     aliases: Vec::new(),
                     shape: Shape::Empty {
-                        description: String::new()
+                        description: String::new(),
+                        version: None,
                     },
                 }
             ),
@@ -672,7 +684,8 @@ mod tests {
                                 description: String::new(),
                                 aliases: vec![],
                                 shape: Shape::Empty {
-                                    description: String::new()
+                                    description: String::new(),
+                                    version: None,
                                 },
                             },
                             Variant {
@@ -680,7 +693,8 @@ mod tests {
                                 description: String::new(),
                                 aliases: vec![],
                                 shape: Shape::Empty {
-                                    description: String::new()
+                                    description: String::new(),
+                                    version: None,
                                 },
                             }
                         ],
@@ -722,6 +736,7 @@ mod tests {
             Shape::empty_from_visitor(&IgnoredAny),
             Shape::Empty {
                 description: "anything at all".to_owned(),
+                version: None,
             }
         );
     }
@@ -741,7 +756,8 @@ mod tests {
     fn shape_empty_description() {
         assert_eq!(
             Shape::Empty {
-                description: "foo".into()
+                description: "foo".into(),
+                version: None,
             }
             .description(),
             "foo"
@@ -831,7 +847,8 @@ mod tests {
     fn shape_empty_required_arguments() {
         assert_eq!(
             Shape::Empty {
-                description: String::new()
+                description: String::new(),
+                version: None,
             }
             .required_arguments(),
             vec![]
@@ -906,7 +923,8 @@ mod tests {
                     description: "qux".into(),
                     aliases: vec![],
                     shape: Shape::Empty {
-                        description: String::new()
+                        description: String::new(),
+                        version: None,
                     },
                 }],
             }
@@ -937,7 +955,8 @@ mod tests {
     fn shape_empty_optional_groups() {
         assert_eq!(
             Shape::Empty {
-                description: String::new()
+                description: String::new(),
+                version: None,
             }
             .optional_groups(),
             vec![]
@@ -1036,6 +1055,7 @@ mod tests {
                     aliases: Vec::new(),
                     shape: Shape::Empty {
                         description: String::new(),
+                        version: None,
                     },
                     index: 1,
                 },],
@@ -1049,6 +1069,7 @@ mod tests {
                     aliases: Vec::new(),
                     shape: Shape::Empty {
                         description: String::new(),
+                        version: None,
                     },
                     index: 1,
                 },]
@@ -1479,7 +1500,8 @@ mod tests {
     fn shape_empty_variant_groups() {
         assert_eq!(
             Shape::Empty {
-                description: String::new()
+                description: String::new(),
+                version: None,
             }
             .variant_groups(),
             vec![]
@@ -1502,7 +1524,8 @@ mod tests {
     fn shape_optional_variant_groups() {
         assert_eq!(
             Shape::Optional(Box::new(Shape::Empty {
-                description: String::new()
+                description: String::new(),
+                version: None,
             }))
             .variant_groups(),
             vec![]
@@ -1521,7 +1544,8 @@ mod tests {
                         description: "bar".into(),
                         aliases: vec![],
                         shape: Shape::Empty {
-                            description: String::new()
+                            description: String::new(),
+                            version: None,
                         },
                     },
                     Variant {
@@ -1529,7 +1553,8 @@ mod tests {
                         description: "qux".into(),
                         aliases: vec![],
                         shape: Shape::Empty {
-                            description: String::new()
+                            description: String::new(),
+                            version: None,
                         },
                     },
                 ],
@@ -1543,7 +1568,8 @@ mod tests {
                         description: "bar".into(),
                         aliases: vec![],
                         shape: Shape::Empty {
-                            description: String::new()
+                            description: String::new(),
+                            version: None,
                         },
                     },
                     &Variant {
@@ -1551,7 +1577,8 @@ mod tests {
                         description: "qux".into(),
                         aliases: vec![],
                         shape: Shape::Empty {
-                            description: String::new()
+                            description: String::new(),
+                            version: None,
                         },
                     },
                 ]
@@ -1615,7 +1642,8 @@ mod tests {
                                     description: "b".into(),
                                     aliases: vec![],
                                     shape: Shape::Empty {
-                                        description: String::new()
+                                        description: String::new(),
+                                        version: None,
                                     },
                                 },
                                 Variant {
@@ -1623,7 +1651,8 @@ mod tests {
                                     description: "d".into(),
                                     aliases: vec![],
                                     shape: Shape::Empty {
-                                        description: String::new()
+                                        description: String::new(),
+                                        version: None,
                                     },
                                 },
                             ],
@@ -1643,7 +1672,8 @@ mod tests {
                                     description: "f".into(),
                                     aliases: vec![],
                                     shape: Shape::Empty {
-                                        description: String::new()
+                                        description: String::new(),
+                                        version: None,
                                     },
                                 },
                                 Variant {
@@ -1651,7 +1681,8 @@ mod tests {
                                     description: "h".into(),
                                     aliases: vec![],
                                     shape: Shape::Empty {
-                                        description: String::new()
+                                        description: String::new(),
+                                        version: None,
                                     },
                                 },
                             ],
@@ -1672,7 +1703,8 @@ mod tests {
                             description: "b".into(),
                             aliases: vec![],
                             shape: Shape::Empty {
-                                description: String::new()
+                                description: String::new(),
+                                version: None,
                             },
                         },
                         &Variant {
@@ -1680,7 +1712,8 @@ mod tests {
                             description: "d".into(),
                             aliases: vec![],
                             shape: Shape::Empty {
-                                description: String::new()
+                                description: String::new(),
+                                version: None,
                             },
                         },
                     ]
@@ -1693,7 +1726,8 @@ mod tests {
                             description: "f".into(),
                             aliases: vec![],
                             shape: Shape::Empty {
-                                description: String::new()
+                                description: String::new(),
+                                version: None,
                             },
                         },
                         &Variant {
@@ -1701,7 +1735,8 @@ mod tests {
                             description: "h".into(),
                             aliases: vec![],
                             shape: Shape::Empty {
-                                description: String::new()
+                                description: String::new(),
+                                version: None,
                             },
                         },
                     ]
@@ -1722,7 +1757,8 @@ mod tests {
                         description: "bar".into(),
                         aliases: vec![],
                         shape: Shape::Empty {
-                            description: String::new()
+                            description: String::new(),
+                            version: None,
                         },
                     },
                     Variant {
@@ -1730,7 +1766,8 @@ mod tests {
                         description: "qux".into(),
                         aliases: vec![],
                         shape: Shape::Empty {
-                            description: String::new()
+                            description: String::new(),
+                            version: None,
                         },
                     },
                 ],
@@ -1744,7 +1781,8 @@ mod tests {
                         description: "bar".into(),
                         aliases: vec![],
                         shape: Shape::Empty {
-                            description: String::new()
+                            description: String::new(),
+                            version: None,
                         },
                     },
                     &Variant {
@@ -1752,7 +1790,8 @@ mod tests {
                         description: "qux".into(),
                         aliases: vec![],
                         shape: Shape::Empty {
-                            description: String::new()
+                            description: String::new(),
+                            version: None,
                         },
                     },
                 ]
@@ -1777,7 +1816,8 @@ mod tests {
                         description: "bar".into(),
                         aliases: vec![],
                         shape: Shape::Empty {
-                            description: String::new()
+                            description: String::new(),
+                            version: None,
                         },
                     },
                     Variant {
@@ -1785,7 +1825,8 @@ mod tests {
                         description: "qux".into(),
                         aliases: vec![],
                         shape: Shape::Empty {
-                            description: String::new()
+                            description: String::new(),
+                            version: None,
                         },
                     },
                 ],
@@ -1799,7 +1840,8 @@ mod tests {
     fn shape_empty_trailing_options() {
         assert_eq!(
             Shape::Empty {
-                description: String::new()
+                description: String::new(),
+                version: None,
             }
             .trailing_options(),
             Vec::<&Field>::new()
@@ -1938,6 +1980,7 @@ mod tests {
                         aliases: Vec::new(),
                         shape: Shape::Empty {
                             description: String::new(),
+                            version: None,
                         },
                         index: 0,
                     },
@@ -1947,6 +1990,7 @@ mod tests {
                         aliases: Vec::new(),
                         shape: Shape::Empty {
                             description: String::new(),
+                            version: None,
                         },
                         index: 1,
                     },
@@ -1960,6 +2004,7 @@ mod tests {
                     aliases: Vec::new(),
                     shape: Shape::Empty {
                         description: String::new(),
+                        version: None,
                     },
                     index: 0,
                 },
@@ -1969,6 +2014,7 @@ mod tests {
                     aliases: Vec::new(),
                     shape: Shape::Empty {
                         description: String::new(),
+                        version: None,
                     },
                     index: 1,
                 },
@@ -2158,6 +2204,7 @@ mod tests {
                 "{}",
                 Shape::Empty {
                     description: String::new(),
+                    version: None,
                 }
             ),
             ""
@@ -2199,6 +2246,7 @@ mod tests {
                 "{}",
                 Shape::Optional(Box::new(Shape::Empty {
                     description: String::new(),
+                    version: None,
                 }))
             ),
             "[--]"
@@ -2399,6 +2447,7 @@ mod tests {
                             aliases: Vec::new(),
                             shape: Shape::Empty {
                                 description: String::new(),
+                                version: None,
                             },
                             index: 0,
                         },
@@ -2408,6 +2457,7 @@ mod tests {
                             aliases: Vec::new(),
                             shape: Shape::Empty {
                                 description: String::new(),
+                                version: None,
                             },
                             index: 1,
                         },

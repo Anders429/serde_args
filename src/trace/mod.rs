@@ -137,6 +137,10 @@ fn description_from_visitor(visitor: &dyn Expected) -> String {
     format!("{}", visitor)
 }
 
+fn version_from_visitor(visitor: &dyn Expected) -> String {
+    format!("{:v<}", visitor)
+}
+
 #[derive(Debug, Eq, PartialEq)]
 struct Deserializer {
     keys: Keys,
@@ -297,8 +301,22 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             Keys::Newtype(mut shape) => {
                 // Extract descriptions.
                 let container_description = description_from_visitor(&visitor);
+                let container_version = {
+                    let version = version_from_visitor(&visitor);
+                    if version == container_description {
+                        None
+                    } else {
+                        Some(version)
+                    }
+                };
                 match &mut shape {
-                    Shape::Empty { description } => *description = container_description,
+                    Shape::Empty {
+                        description,
+                        version,
+                    } => {
+                        *description = container_description;
+                        *version = container_version;
+                    }
                     Shape::Primitive { name, description }
                     | Shape::Boolean { name, description } => {
                         *name = struct_name.into();
@@ -474,6 +492,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                             discriminant,
                                             shape: Shape::Empty {
                                                 description: bool_description,
+                                                version: None,
                                             },
                                         };
                                         let mut found = false;
@@ -705,6 +724,7 @@ impl<'de> de::VariantAccess<'de> for VariantAccess<'_> {
     fn unit_variant(self) -> Result<(), Self::Error> {
         Err(Trace(Ok(Status::Success(Shape::Empty {
             description: "".into(),
+            version: None,
         }))))
     }
 
@@ -790,6 +810,7 @@ mod tests {
                 "{}",
                 Status::Success(Shape::Empty {
                     description: String::new(),
+                    version: None,
                 })
             ),
             "success: "
@@ -808,6 +829,7 @@ mod tests {
                 "{}",
                 Trace(Ok(Status::Success(Shape::Empty {
                     description: String::new(),
+                    version: None,
                 })))
             ),
             "status: success: "
@@ -1258,7 +1280,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(<()>::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Empty {
-                description: "unit".to_owned()
+                description: "unit".to_owned(),
+                version: None,
             })
         );
     }
@@ -1273,7 +1296,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(Unit::deserialize(&mut deserializer)).0,
             Status::Success(Shape::Empty {
-                description: "unit struct Unit".to_owned()
+                description: "unit struct Unit".to_owned(),
+                version: None,
             })
         );
     }
@@ -1569,6 +1593,7 @@ mod tests {
                     aliases: Vec::new(),
                     shape: Shape::Empty {
                         description: "a boolean".to_owned(),
+                        version: None,
                     },
                     index: 0,
                 },],
@@ -1740,7 +1765,8 @@ mod tests {
                         description: "".into(),
                         aliases: vec![],
                         shape: Shape::Empty {
-                            description: "unit".into()
+                            description: "unit".into(),
+                            version: None,
                         },
                     },
                     Variant {
@@ -1748,7 +1774,8 @@ mod tests {
                         description: "".into(),
                         aliases: vec![],
                         shape: Shape::Empty {
-                            description: "unit".into()
+                            description: "unit".into(),
+                            version: None,
                         },
                     },
                 ],
@@ -1826,7 +1853,8 @@ mod tests {
                         description: "".into(),
                         aliases: vec![],
                         shape: Shape::Empty {
-                            description: "unit".into()
+                            description: "unit".into(),
+                            version: None,
                         },
                     },
                 ],
@@ -1875,7 +1903,8 @@ mod tests {
                                     description: "".into(),
                                     aliases: vec![],
                                     shape: Shape::Empty {
-                                        description: "unit".into()
+                                        description: "unit".into(),
+                                        version: None,
                                     },
                                 },
                                 Variant {
@@ -1883,7 +1912,8 @@ mod tests {
                                     description: "".into(),
                                     aliases: vec![],
                                     shape: Shape::Empty {
-                                        description: "unit".into()
+                                        description: "unit".into(),
+                                        version: None,
                                     },
                                 },
                             ],
@@ -1894,7 +1924,8 @@ mod tests {
                         description: "".into(),
                         aliases: vec![],
                         shape: Shape::Empty {
-                            description: "unit".into()
+                            description: "unit".into(),
+                            version: None,
                         },
                     },
                 ],
@@ -1980,7 +2011,8 @@ mod tests {
                                                 description: "".into(),
                                                 aliases: vec![],
                                                 shape: Shape::Empty {
-                                                    description: "unit".into()
+                                                    description: "unit".into(),
+                                                    version: None,
                                                 },
                                             },
                                             Variant {
@@ -1988,7 +2020,8 @@ mod tests {
                                                 description: "".into(),
                                                 aliases: vec![],
                                                 shape: Shape::Empty {
-                                                    description: "unit".into()
+                                                    description: "unit".into(),
+                                                    version: None,
                                                 },
                                             },
                                         ],
@@ -1999,7 +2032,8 @@ mod tests {
                                     description: "".into(),
                                     aliases: vec![],
                                     shape: Shape::Empty {
-                                        description: "unit".into()
+                                        description: "unit".into(),
+                                        version: None,
                                     },
                                 },
                             ],
@@ -2010,7 +2044,8 @@ mod tests {
                         description: "".into(),
                         aliases: vec![],
                         shape: Shape::Empty {
-                            description: "unit".into()
+                            description: "unit".into(),
+                            version: None,
                         },
                     },
                 ],
@@ -2113,7 +2148,8 @@ mod tests {
         assert_ok_eq!(
             assert_err!(variant_access.unit_variant()).0,
             Status::Success(Shape::Empty {
-                description: String::new()
+                description: String::new(),
+                version: None,
             })
         );
     }
@@ -2239,7 +2275,8 @@ mod tests {
                         description: String::new(),
                         aliases: vec![],
                         shape: Shape::Empty {
-                            description: "unit".into()
+                            description: "unit".into(),
+                            version: None,
                         },
                         index: 1,
                     }
@@ -2516,6 +2553,7 @@ mod tests {
                         aliases: vec![],
                         shape: Shape::Empty {
                             description: String::new(),
+                            version: None,
                         },
                     },
                     Variant {
@@ -2524,6 +2562,7 @@ mod tests {
                         aliases: vec![],
                         shape: Shape::Empty {
                             description: String::new(),
+                            version: None,
                         },
                     },
                 ],
@@ -2593,6 +2632,7 @@ mod tests {
                         aliases: vec!["f"],
                         shape: Shape::Empty {
                             description: String::new(),
+                            version: None,
                         },
                     },
                     Variant {
@@ -2601,6 +2641,7 @@ mod tests {
                         aliases: vec!["b"],
                         shape: Shape::Empty {
                             description: String::new(),
+                            version: None,
                         },
                     },
                 ],

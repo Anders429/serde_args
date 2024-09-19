@@ -36,6 +36,7 @@ where
         aliases: vec!["h"],
         shape: Shape::Empty {
             description: String::new(),
+            version: None,
         },
         index: 0,
     }];
@@ -55,6 +56,7 @@ where
             &mut parsed_args,
             &mut Shape::Empty {
                 description: String::new(),
+                version: None,
             },
             &mut override_options,
             Context { segments: vec![] },
@@ -355,6 +357,7 @@ where
                     args,
                     &mut Shape::Empty {
                         description: String::new(),
+                        version: None,
                     },
                     &mut optional
                         .clone()
@@ -861,6 +864,7 @@ where
                         args,
                         &mut Shape::Empty {
                             description: String::new(),
+                            version: None,
                         },
                         &mut combined_options,
                         context,
@@ -1316,7 +1320,8 @@ mod tests {
             parse(
                 Vec::<&str>::new(),
                 &mut Shape::Empty {
-                    description: String::new()
+                    description: String::new(),
+                    version: None,
                 },
             ),
             Context {
@@ -1454,6 +1459,7 @@ mod tests {
                 ["-"],
                 &mut Shape::Optional(Box::new(Shape::Empty {
                     description: String::new(),
+                    version: None,
                 }))
             ),
             Context {
@@ -1469,6 +1475,7 @@ mod tests {
                 Vec::<&str>::new(),
                 &mut Shape::Optional(Box::new(Shape::Empty {
                     description: String::new(),
+                    version: None,
                 }))
             ),
             Context { segments: vec![] }
@@ -1482,6 +1489,7 @@ mod tests {
                 ["--"],
                 &mut Shape::Optional(Box::new(Shape::Empty {
                     description: String::new(),
+                    version: None,
                 }))
             ),
             Context { segments: vec![] }
@@ -1774,6 +1782,7 @@ mod tests {
                             aliases: vec![],
                             shape: Shape::Empty {
                                 description: String::new(),
+                                version: None,
                             },
                             index: 0,
                         },
@@ -1822,6 +1831,7 @@ mod tests {
                             aliases: vec![],
                             shape: Shape::Empty {
                                 description: String::new(),
+                                version: None,
                             },
                             index: 0,
                         },
@@ -1831,6 +1841,7 @@ mod tests {
                             aliases: vec![],
                             shape: Shape::Empty {
                                 description: String::new(),
+                                version: None,
                             },
                             index: 1,
                         },
@@ -2090,6 +2101,7 @@ mod tests {
                             aliases: vec![],
                             shape: Shape::Empty {
                                 description: String::new(),
+                                version: None,
                             },
                             index: 0,
                         },
@@ -2099,6 +2111,7 @@ mod tests {
                             aliases: vec![],
                             shape: Shape::Empty {
                                 description: String::new(),
+                                version: None,
                             },
                             index: 1,
                         }
@@ -2140,6 +2153,7 @@ mod tests {
                         aliases: vec![],
                         shape: Shape::Empty {
                             description: String::new(),
+                            version: None,
                         }
                     }],
                 }))
@@ -2166,6 +2180,7 @@ mod tests {
                         aliases: vec!["f"],
                         shape: Shape::Empty {
                             description: String::new(),
+                            version: None,
                         }
                     }],
                 }))
@@ -2192,6 +2207,7 @@ mod tests {
                         aliases: vec![],
                         shape: Shape::Empty {
                             description: String::new(),
+                            version: None,
                         }
                     }],
                 }))
@@ -2241,6 +2257,7 @@ mod tests {
                         aliases: vec![],
                         shape: Shape::Empty {
                             description: String::new(),
+                            version: None,
                         }
                     }],
                 }))
@@ -2484,6 +2501,7 @@ mod tests {
                         aliases: vec![],
                         shape: Shape::Empty {
                             description: String::new(),
+                            version: None,
                         },
                         index: 0,
                     }],
@@ -2513,6 +2531,7 @@ mod tests {
                         aliases: vec![],
                         shape: Shape::Empty {
                             description: String::new(),
+                            version: None,
                         },
                         index: 0,
                     }],
@@ -2542,6 +2561,7 @@ mod tests {
                         aliases: vec!["qux"],
                         shape: Shape::Empty {
                             description: String::new(),
+                            version: None,
                         },
                         index: 0,
                     }],
@@ -2571,6 +2591,7 @@ mod tests {
                         aliases: vec!["qux"],
                         shape: Shape::Empty {
                             description: String::new(),
+                            version: None,
                         },
                         index: 0,
                     }],
@@ -2977,6 +2998,7 @@ mod tests {
                         aliases: vec![],
                         shape: Shape::Empty {
                             description: String::new(),
+                            version: None,
                         }
                     }],
                 }
@@ -3002,6 +3024,7 @@ mod tests {
                             aliases: vec![],
                             shape: Shape::Empty {
                                 description: String::new(),
+                                version: None,
                             }
                         },
                         Variant {
@@ -3010,6 +3033,7 @@ mod tests {
                             aliases: vec![],
                             shape: Shape::Empty {
                                 description: String::new(),
+                                version: None,
                             }
                         }
                     ],
@@ -3035,6 +3059,7 @@ mod tests {
                         aliases: vec!["f"],
                         shape: Shape::Empty {
                             description: String::new(),
+                            version: None,
                         }
                     }],
                 }
@@ -3084,6 +3109,7 @@ mod tests {
                         aliases: vec![],
                         shape: Shape::Empty {
                             description: String::new(),
+                            version: None,
                         }
                     }],
                 }
