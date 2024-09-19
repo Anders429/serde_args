@@ -494,6 +494,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                     }
                                     Shape::Boolean {
                                         description: bool_description,
+                                        version,
                                         ..
                                     } => {
                                         // Boolean fields.
@@ -501,7 +502,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                             discriminant,
                                             shape: Shape::Empty {
                                                 description: bool_description,
-                                                version: None,
+                                                version,
                                             },
                                         };
                                         let mut found = false;
