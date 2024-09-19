@@ -330,6 +330,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "bar".to_owned(),
                             description: String::new(),
+                            version: None,
                         },
                     }
                 }
@@ -350,6 +351,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "bar".to_owned(),
                             description: String::new(),
+                            version: None,
                         },
                     }
                 }
@@ -390,6 +392,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "name".into(),
                             description: "description".into(),
+                            version: None,
                         },
                     }
                 }
@@ -410,6 +413,7 @@ mod tests {
                         shape: Shape::Optional(Box::new(Shape::Primitive {
                             name: "name".into(),
                             description: "description".into(),
+                            version: None,
                         })),
                     }
                 }
@@ -437,6 +441,7 @@ mod tests {
                                 shape: Shape::Primitive {
                                     name: "not shown".into(),
                                     description: "not shown".into(),
+                                    version: None,
                                 },
                                 index: 0,
                             }],
@@ -448,6 +453,7 @@ mod tests {
                                     shape: Shape::Primitive {
                                         name: "u64".into(),
                                         description: "not shown".into(),
+                                        version: None,
                                     },
                                     index: 0,
                                 }
@@ -487,7 +493,11 @@ mod tests {
                                     name: "baz",
                                     description: "qux".into(),
                                     aliases: vec![],
-                                    shape: Shape::Primitive {name: "i32".into(), description: "not shown".into()},
+                                    shape: Shape::Primitive {
+                                        name: "i32".into(),
+                                        description: "not shown".into(), 
+                                        version: None,
+                                    },
                                 }
                             ],
                         },
@@ -510,7 +520,11 @@ mod tests {
                         shape: Shape::Variant {
                             name: "f".into(),
                             description: "bar".into(),
-                            shape: Box::new(Shape::Primitive {name: "i32".into(), description: "i32 description".into()}),
+                            shape: Box::new(Shape::Primitive {
+                                name: "i32".into(),
+                                description: "i32 description".into(), 
+                                version: None,
+                            }),
                             variants: vec![
                                 Variant {
                                     name: "foo",
@@ -525,7 +539,11 @@ mod tests {
                                     name: "baz",
                                     description: "qux".into(),
                                     aliases: vec![],
-                                    shape: Shape::Primitive {name: "i32".into(), description: "not shown".into()},
+                                    shape: Shape::Primitive {
+                                        name: "i32".into(),
+                                        description: "not shown".into(),
+                                        version: None,
+                                    },
                                 }
                             ],
                             enum_name: "name",
@@ -549,6 +567,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "bar".to_owned(),
                             description: String::new(),
+                            version: None,
                         },
                     }
                 }
@@ -569,6 +588,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "bar".to_owned(),
                             description: String::new(),
+                            version: None,
                         },
                     }
                 }
@@ -609,6 +629,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "name".into(),
                             description: "description".into(),
+                            version: None,
                         },
                     }
                 }
@@ -629,6 +650,7 @@ mod tests {
                         shape: Shape::Optional(Box::new(Shape::Primitive {
                             name: "name".into(),
                             description: "description".into(),
+                            version: None,
                         })),
                     }
                 }
@@ -656,6 +678,7 @@ mod tests {
                                 shape: Shape::Primitive {
                                     name: "not shown".into(),
                                     description: "not shown".into(),
+                                    version: None,
                                 },
                                 index: 0,
                             }],
@@ -667,6 +690,7 @@ mod tests {
                                     shape: Shape::Primitive {
                                         name: "u64".into(),
                                         description: "not shown".into(),
+                                        version: None,
                                     },
                                     index: 0,
                                 }
@@ -706,7 +730,11 @@ mod tests {
                                     name: "baz",
                                     description: "qux".into(),
                                     aliases: vec![],
-                                    shape: Shape::Primitive {name: "i32".into(), description: "not shown".into()},
+                                    shape: Shape::Primitive {
+                                        name: "i32".into(),
+                                        description: "not shown".into(),
+                                        version: None,
+                                    },
                                 }
                             ],
                         },
@@ -729,7 +757,11 @@ mod tests {
                         shape: Shape::Variant {
                             name: "f".into(),
                             description: "bar".into(),
-                            shape: Box::new(Shape::Primitive {name: "i32".into(), description: "i32 description".into()}),
+                            shape: Box::new(Shape::Primitive {
+                                name: "i32".into(),
+                                description: "i32 description".into(),
+                                version: None,
+                            }),
                             variants: vec![
                                 Variant {
                                     name: "foo",
@@ -744,7 +776,11 @@ mod tests {
                                     name: "baz",
                                     description: "qux".into(),
                                     aliases: vec![],
-                                    shape: Shape::Primitive {name: "i32".into(), description: "not shown".into()},
+                                    shape: Shape::Primitive {
+                                        name: "i32".into(),
+                                        description: "not shown".into(),
+                                        version: None,
+                                    },
                                 }
                             ],
                             enum_name: "name",

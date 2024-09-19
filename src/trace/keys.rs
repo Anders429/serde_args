@@ -252,6 +252,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "foo".to_owned(),
                             description: String::new(),
+                            version: None,
                         },
                     },
                     vec!["bar"],
@@ -271,6 +272,7 @@ mod tests {
                     shape: Shape::Primitive {
                         name: "foo".to_owned(),
                         description: String::new(),
+                        version: None,
                     },
                     index: 0,
                 },],
@@ -295,6 +297,7 @@ mod tests {
                             shape: Shape::Primitive {
                                 name: "foo".to_owned(),
                                 description: String::new(),
+                                version: None,
                             },
                         },
                         vec!["bar"],
@@ -307,6 +310,7 @@ mod tests {
                             shape: Shape::Primitive {
                                 description: String::new(),
                                 name: "baz".to_owned(),
+                                version: None,
                             },
                         },
                         vec!["qux"],
@@ -328,6 +332,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "foo".to_owned(),
                             description: String::new(),
+                            version: None,
                         },
                         index: 0,
                     },
@@ -338,6 +343,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "baz".to_owned(),
                             description: String::new(),
+                            version: None,
                         },
                         index: 1,
                     },
@@ -362,6 +368,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "foo".to_owned(),
                             description: String::new(),
+                            version: None,
                         },
                     },
                     vec!["bar", "baz", "qux"],
@@ -381,6 +388,7 @@ mod tests {
                     shape: Shape::Primitive {
                         name: "foo".to_owned(),
                         description: String::new(),
+                        version: None,
                     },
                     index: 0,
                 },],
@@ -416,6 +424,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "foo".to_owned(),
                             description: String::new(),
+                            version: None,
                         },
                     },
                     vec!["bar"],
@@ -432,6 +441,7 @@ mod tests {
                     shape: Shape::Primitive {
                         name: "foo".to_owned(),
                         description: String::new(),
+                        version: None,
                     },
                 }],
             }
@@ -453,6 +463,7 @@ mod tests {
                             shape: Shape::Primitive {
                                 name: "foo".to_owned(),
                                 description: String::new(),
+                                version: None,
                             },
                         },
                         vec!["bar"],
@@ -464,6 +475,7 @@ mod tests {
                             shape: Shape::Primitive {
                                 description: String::new(),
                                 name: "baz".to_owned(),
+                                version: None,
                             },
                         },
                         vec!["qux"],
@@ -482,6 +494,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "foo".to_owned(),
                             description: String::new(),
+                            version: None,
                         },
                     },
                     Variant {
@@ -491,6 +504,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "baz".to_owned(),
                             description: String::new(),
+                            version: None,
                         },
                     }
                 ],
@@ -512,6 +526,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "foo".to_owned(),
                             description: String::new(),
+                            version: None,
                         },
                     },
                     vec!["bar", "baz", "qux"],
@@ -528,6 +543,7 @@ mod tests {
                     shape: Shape::Primitive {
                         name: "foo".to_owned(),
                         description: String::new(),
+                        version: None,
                     },
                 }],
             }
@@ -677,6 +693,7 @@ mod tests {
                             shape: Shape::Primitive {
                                 name: "foo".to_owned(),
                                 description: String::new(),
+                                version: None,
                             },
                         },
                         vec!["bar"],
@@ -689,6 +706,7 @@ mod tests {
                             shape: Shape::Primitive {
                                 description: String::new(),
                                 name: "baz".to_owned(),
+                                version: None,
                             },
                         },
                         vec!["qux"],
@@ -710,6 +728,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "foo".to_owned(),
                             description: String::new(),
+                            version: None,
                         },
                         index: 0,
                     },
@@ -720,6 +739,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "baz".to_owned(),
                             description: String::new(),
+                            version: None,
                         },
                         index: 1,
                     },
@@ -745,6 +765,7 @@ mod tests {
                             shape: Shape::Primitive {
                                 name: "foo".to_owned(),
                                 description: String::new(),
+                                version: None,
                             },
                         },
                         vec!["bar"],
@@ -756,6 +777,7 @@ mod tests {
                             shape: Shape::Primitive {
                                 description: String::new(),
                                 name: "baz".to_owned(),
+                                version: None,
                             },
                         },
                         vec!["qux"],
@@ -774,6 +796,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "foo".to_owned(),
                             description: String::new(),
+                            version: None,
                         },
                     },
                     Variant {
@@ -783,6 +806,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "baz".to_owned(),
                             description: String::new(),
+                            version: None,
                         },
                     }
                 ],

@@ -317,10 +317,19 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                         *description = container_description;
                         *version = container_version;
                     }
-                    Shape::Primitive { name, description }
-                    | Shape::Boolean { name, description } => {
+                    Shape::Primitive {
+                        name,
+                        description,
+                        version,
+                    }
+                    | Shape::Boolean {
+                        name,
+                        description,
+                        version,
+                    } => {
                         *name = struct_name.into();
                         *description = container_description;
+                        *version = container_version;
                     }
                     Shape::Optional(_) => {}
                     Shape::Struct {
@@ -914,6 +923,7 @@ mod tests {
             Status::Success(Shape::Primitive {
                 name: "anything at all".to_owned(),
                 description: "anything at all".to_owned(),
+                version: None,
             })
         );
     }
@@ -969,6 +979,7 @@ mod tests {
             Status::Success(Shape::Boolean {
                 name: "a boolean".to_owned(),
                 description: "a boolean".to_owned(),
+                version: None,
             })
         );
     }
@@ -982,6 +993,7 @@ mod tests {
             Status::Success(Shape::Primitive {
                 name: "i8".to_owned(),
                 description: "i8".to_owned(),
+                version: None,
             })
         );
     }
@@ -995,6 +1007,7 @@ mod tests {
             Status::Success(Shape::Primitive {
                 name: "i16".to_owned(),
                 description: "i16".to_owned(),
+                version: None,
             })
         );
     }
@@ -1008,6 +1021,7 @@ mod tests {
             Status::Success(Shape::Primitive {
                 name: "i32".to_owned(),
                 description: "i32".to_owned(),
+                version: None,
             })
         );
     }
@@ -1021,6 +1035,7 @@ mod tests {
             Status::Success(Shape::Primitive {
                 name: "i64".to_owned(),
                 description: "i64".to_owned(),
+                version: None,
             })
         );
     }
@@ -1034,6 +1049,7 @@ mod tests {
             Status::Success(Shape::Primitive {
                 name: "i128".to_owned(),
                 description: "i128".to_owned(),
+                version: None,
             })
         );
     }
@@ -1047,6 +1063,7 @@ mod tests {
             Status::Success(Shape::Primitive {
                 name: "u8".to_owned(),
                 description: "u8".to_owned(),
+                version: None,
             })
         );
     }
@@ -1060,6 +1077,7 @@ mod tests {
             Status::Success(Shape::Primitive {
                 name: "u16".to_owned(),
                 description: "u16".to_owned(),
+                version: None,
             })
         );
     }
@@ -1073,6 +1091,7 @@ mod tests {
             Status::Success(Shape::Primitive {
                 name: "u32".to_owned(),
                 description: "u32".to_owned(),
+                version: None,
             })
         );
     }
@@ -1086,6 +1105,7 @@ mod tests {
             Status::Success(Shape::Primitive {
                 name: "u64".to_owned(),
                 description: "u64".to_owned(),
+                version: None,
             })
         );
     }
@@ -1099,6 +1119,7 @@ mod tests {
             Status::Success(Shape::Primitive {
                 name: "u128".to_owned(),
                 description: "u128".to_owned(),
+                version: None,
             })
         );
     }
@@ -1112,6 +1133,7 @@ mod tests {
             Status::Success(Shape::Primitive {
                 name: "f32".to_owned(),
                 description: "f32".to_owned(),
+                version: None,
             })
         );
     }
@@ -1125,6 +1147,7 @@ mod tests {
             Status::Success(Shape::Primitive {
                 name: "f64".to_owned(),
                 description: "f64".to_owned(),
+                version: None,
             })
         );
     }
@@ -1138,6 +1161,7 @@ mod tests {
             Status::Success(Shape::Primitive {
                 name: "a character".to_owned(),
                 description: "a character".to_owned(),
+                version: None,
             })
         );
     }
@@ -1151,6 +1175,7 @@ mod tests {
             Status::Success(Shape::Primitive {
                 name: "a borrowed string".to_owned(),
                 description: "a borrowed string".to_owned(),
+                version: None,
             })
         );
     }
@@ -1164,6 +1189,7 @@ mod tests {
             Status::Success(Shape::Primitive {
                 name: "a string".to_owned(),
                 description: "a string".to_owned(),
+                version: None,
             })
         );
     }
@@ -1199,6 +1225,7 @@ mod tests {
             Status::Success(Shape::Primitive {
                 name: "bytes".to_owned(),
                 description: "bytes".to_owned(),
+                version: None,
             })
         );
     }
@@ -1234,6 +1261,7 @@ mod tests {
             Status::Success(Shape::Primitive {
                 name: "byte buf".to_owned(),
                 description: "byte buf".to_owned(),
+                version: None,
             })
         );
     }
@@ -1269,6 +1297,7 @@ mod tests {
             Status::Success(Shape::Primitive {
                 name: "identifier".to_owned(),
                 description: "identifier".to_owned(),
+                version: None,
             })
         );
     }
@@ -1311,6 +1340,7 @@ mod tests {
             Status::Success(Shape::Optional(Box::new(Shape::Primitive {
                 name: "i32".to_owned(),
                 description: "i32".to_owned(),
+                version: None,
             })))
         );
     }
@@ -1334,6 +1364,7 @@ mod tests {
             Status::Success(Shape::Primitive {
                 name: "Newtype".to_owned(),
                 description: "tuple struct Newtype".to_owned(),
+                version: None,
             })
         );
     }
@@ -1372,6 +1403,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "usize".to_owned(),
                             description: "usize".to_owned(),
+                            version: None,
                         },
                         index: 0,
                     },
@@ -1382,6 +1414,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "a string".to_owned(),
                             description: "a string".to_owned(),
+                            version: None,
                         },
                         index: 1,
                     },
@@ -1479,6 +1512,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "usize".to_owned(),
                             description: "usize".to_owned(),
+                            version: None,
                         },
                         index: 0,
                     },
@@ -1489,6 +1523,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "a string".to_owned(),
                             description: "a string".to_owned(),
+                            version: None,
                         },
                         index: 1,
                     },
@@ -1532,6 +1567,7 @@ mod tests {
                     shape: Shape::Primitive {
                         name: "a string".to_owned(),
                         description: "a string".to_owned(),
+                        version: None,
                     },
                     index: 1,
                 },],
@@ -1542,6 +1578,7 @@ mod tests {
                     shape: Shape::Primitive {
                         name: "usize".to_owned(),
                         description: "usize".to_owned(),
+                        version: None,
                     },
                     index: 0,
                 },],
@@ -1583,6 +1620,7 @@ mod tests {
                     shape: Shape::Primitive {
                         name: "a string".to_owned(),
                         description: "a string".to_owned(),
+                        version: None,
                     },
                     index: 1,
                 },],
@@ -1652,6 +1690,7 @@ mod tests {
                                 shape: Shape::Primitive {
                                     name: "usize".to_owned(),
                                     description: "usize".to_owned(),
+                                    version: None,
                                 },
                                 index: 0,
                             },],
@@ -1667,6 +1706,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "isize".to_owned(),
                             description: "isize".to_owned(),
+                            version: None,
                         },
                         index: 1,
                     }
@@ -1720,6 +1760,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "usize".to_owned(),
                             description: "usize".to_owned(),
+                            version: None,
                         },
                         index: 0,
                     },
@@ -1730,6 +1771,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "a string".to_owned(),
                             description: "a string".to_owned(),
+                            version: None,
                         },
                         index: 1,
                     },
@@ -1832,6 +1874,7 @@ mod tests {
                                 shape: Shape::Primitive {
                                     name: "a string".to_owned(),
                                     description: "a string".to_owned(),
+                                    version: None,
                                 },
                                 index: 1,
                             },],
@@ -1842,6 +1885,7 @@ mod tests {
                                 shape: Shape::Primitive {
                                     name: "usize".to_owned(),
                                     description: "usize".to_owned(),
+                                    version: None,
                                 },
                                 index: 0,
                             },],
@@ -2105,6 +2149,7 @@ mod tests {
             Status::Success(Shape::Primitive {
                 name: "i32".to_owned(),
                 description: "i32".to_owned(),
+                version: None,
             })
         );
     }
@@ -2165,7 +2210,8 @@ mod tests {
             assert_err!(variant_access.newtype_variant::<u64>()).0,
             Status::Success(Shape::Primitive {
                 name: "u64".into(),
-                description: "u64".into()
+                description: "u64".into(),
+                version: None,
             })
         );
     }
@@ -2266,7 +2312,8 @@ mod tests {
                         aliases: vec![],
                         shape: Shape::Primitive {
                             name: "u64".into(),
-                            description: "u64".into()
+                            description: "u64".into(),
+                            version: None,
                         },
                         index: 0,
                     },
@@ -2369,6 +2416,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "a string".into(),
                             description: "a string".into(),
+                            version: None,
                         },
                         index: 0,
                     },
@@ -2379,6 +2427,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "u32".into(),
                             description: "u32".into(),
+                            version: None,
                         },
                         index: 1,
                     },
@@ -2473,6 +2522,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "a string".into(),
                             description: "a string".into(),
+                            version: None,
                         },
                         index: 0,
                     },
@@ -2483,6 +2533,7 @@ mod tests {
                         shape: Shape::Primitive {
                             name: "u32".into(),
                             description: "u32".into(),
+                            version: None,
                         },
                         index: 1,
                     },
