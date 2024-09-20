@@ -2099,6 +2099,358 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_empty_version() {
+        #[derive(Debug)]
+        struct Empty;
+
+        impl<'de> Deserialize<'de> for Empty {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct EmptyVisitor;
+
+                impl<'de> Visitor<'de> for EmptyVisitor {
+                    type Value = Empty;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        if formatter.fill() == 'v' {
+                            formatter.write_str("version")
+                        } else {
+                            formatter.write_str("description")
+                        }
+                    }
+                }
+
+                deserializer.deserialize_unit(EmptyVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::new();
+
+        assert_ok_eq!(
+            assert_err!(Empty::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Empty {
+                description: "description".to_owned(),
+                version: Some("version".to_owned()),
+            })
+        );
+    }
+
+    #[test]
+    fn deserialize_bool_version() {
+        #[derive(Debug)]
+        struct Bool;
+
+        impl<'de> Deserialize<'de> for Bool {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct BoolVisitor;
+
+                impl<'de> Visitor<'de> for BoolVisitor {
+                    type Value = Bool;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        if formatter.fill() == 'v' {
+                            formatter.write_str("version")
+                        } else {
+                            formatter.write_str("description")
+                        }
+                    }
+                }
+
+                deserializer.deserialize_bool(BoolVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::new();
+
+        assert_ok_eq!(
+            assert_err!(Bool::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Boolean {
+                name: "description".to_owned(),
+                description: "description".to_owned(),
+                version: Some("version".to_owned()),
+            })
+        );
+    }
+
+    #[test]
+    fn deserialize_primitive_version() {
+        #[derive(Debug)]
+        struct Primitive;
+
+        impl<'de> Deserialize<'de> for Primitive {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct PrimitiveVisitor;
+
+                impl<'de> Visitor<'de> for PrimitiveVisitor {
+                    type Value = Primitive;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        if formatter.fill() == 'v' {
+                            formatter.write_str("version")
+                        } else {
+                            formatter.write_str("description")
+                        }
+                    }
+                }
+
+                deserializer.deserialize_u8(PrimitiveVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::new();
+
+        assert_ok_eq!(
+            assert_err!(Primitive::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Primitive {
+                name: "description".to_owned(),
+                description: "description".to_owned(),
+                version: Some("version".to_owned()),
+            })
+        );
+    }
+
+    #[test]
+    fn deserialize_newtype_empty_version() {
+        #[derive(Debug)]
+        struct Newtype;
+
+        impl<'de> Deserialize<'de> for Newtype {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct NewtypeVisitor;
+
+                impl<'de> Visitor<'de> for NewtypeVisitor {
+                    type Value = Newtype;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        if formatter.fill() == 'v' {
+                            formatter.write_str("version")
+                        } else {
+                            formatter.write_str("description")
+                        }
+                    }
+
+                    fn visit_newtype_struct<D>(
+                        self,
+                        deserializer: D,
+                    ) -> Result<Self::Value, D::Error>
+                    where
+                        D: de::Deserializer<'de>,
+                    {
+                        <()>::deserialize(deserializer)?;
+                        Ok(Newtype)
+                    }
+                }
+
+                deserializer.deserialize_newtype_struct("Newtype", NewtypeVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::new();
+
+        // Trace the newtype.
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        // Finish.
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Empty {
+                description: "description".to_owned(),
+                version: Some("version".to_owned()),
+            })
+        );
+    }
+
+    #[test]
+    fn deserialize_newtype_bool_version() {
+        #[derive(Debug)]
+        struct Newtype;
+
+        impl<'de> Deserialize<'de> for Newtype {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct NewtypeVisitor;
+
+                impl<'de> Visitor<'de> for NewtypeVisitor {
+                    type Value = Newtype;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        if formatter.fill() == 'v' {
+                            formatter.write_str("version")
+                        } else {
+                            formatter.write_str("description")
+                        }
+                    }
+
+                    fn visit_newtype_struct<D>(
+                        self,
+                        deserializer: D,
+                    ) -> Result<Self::Value, D::Error>
+                    where
+                        D: de::Deserializer<'de>,
+                    {
+                        bool::deserialize(deserializer)?;
+                        Ok(Newtype)
+                    }
+                }
+
+                deserializer.deserialize_newtype_struct("Newtype", NewtypeVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::new();
+
+        // Trace the newtype.
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        // Finish.
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Boolean {
+                name: "Newtype".to_owned(),
+                description: "description".to_owned(),
+                version: Some("version".to_owned()),
+            })
+        );
+    }
+
+    #[test]
+    fn deserialize_newtype_primitive_version() {
+        #[derive(Debug)]
+        struct Newtype;
+
+        impl<'de> Deserialize<'de> for Newtype {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct NewtypeVisitor;
+
+                impl<'de> Visitor<'de> for NewtypeVisitor {
+                    type Value = Newtype;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        if formatter.fill() == 'v' {
+                            formatter.write_str("version")
+                        } else {
+                            formatter.write_str("description")
+                        }
+                    }
+
+                    fn visit_newtype_struct<D>(
+                        self,
+                        deserializer: D,
+                    ) -> Result<Self::Value, D::Error>
+                    where
+                        D: de::Deserializer<'de>,
+                    {
+                        u8::deserialize(deserializer)?;
+                        Ok(Newtype)
+                    }
+                }
+
+                deserializer.deserialize_newtype_struct("Newtype", NewtypeVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::new();
+
+        // Trace the newtype.
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        // Finish.
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Primitive {
+                name: "Newtype".to_owned(),
+                description: "description".to_owned(),
+                version: Some("version".to_owned()),
+            })
+        );
+    }
+
+    #[test]
+    fn deserialize_boolean_field_version() {
+        #[derive(Debug)]
+        struct Bool;
+
+        impl<'de> Deserialize<'de> for Bool {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct BoolVisitor;
+
+                impl<'de> Visitor<'de> for BoolVisitor {
+                    type Value = Bool;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        if formatter.fill() == 'v' {
+                            formatter.write_str("version")
+                        } else {
+                            formatter.write_str("description")
+                        }
+                    }
+                }
+
+                deserializer.deserialize_bool(BoolVisitor)
+            }
+        }
+
+        #[derive(Debug, Deserialize)]
+        #[allow(dead_code)]
+        struct Struct {
+            foo: Bool,
+        }
+
+        let mut deserializer = Deserializer::new();
+
+        // Trace the field.
+        assert_ok_eq!(
+            assert_err!(Struct::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        // Finish.
+        assert_ok_eq!(
+            assert_err!(Struct::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Struct {
+                name: "Struct",
+                description: "struct Struct".into(),
+                required: vec![],
+                optional: vec![],
+                booleans: vec![Field {
+                    name: "foo",
+                    description: String::new(),
+                    aliases: Vec::new(),
+                    shape: Shape::Empty {
+                        description: "description".to_owned(),
+                        version: Some("version".to_owned()),
+                    },
+                    index: 0,
+                },],
+            })
+        );
+    }
+
+    #[test]
     fn key_deserializer_unsupported() {
         assert_eq!(
             Deserializer::unsupported(),
