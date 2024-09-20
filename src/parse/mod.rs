@@ -1648,6 +1648,7 @@ mod tests {
                 &mut Shape::Optional(Box::new(Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![],
                     optional: vec![],
                     booleans: vec![],
@@ -1667,6 +1668,7 @@ mod tests {
                 &mut Shape::Optional(Box::new(Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![],
                     optional: vec![],
                     booleans: vec![],
@@ -1684,6 +1686,7 @@ mod tests {
                 &mut Shape::Optional(Box::new(Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![],
                     optional: vec![],
                     booleans: vec![],
@@ -1701,6 +1704,7 @@ mod tests {
                 &mut Shape::Optional(Box::new(Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![Field {
                         name: "bar",
                         description: String::new(),
@@ -1734,6 +1738,7 @@ mod tests {
                 &mut Shape::Optional(Box::new(Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![Field {
                         name: "bar",
                         description: String::new(),
@@ -1761,6 +1766,7 @@ mod tests {
                 &mut Shape::Optional(Box::new(Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![Field {
                         name: "bar",
                         description: String::new(),
@@ -1794,6 +1800,7 @@ mod tests {
                 &mut Shape::Optional(Box::new(Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![
                         Field {
                             name: "baz",
@@ -1844,6 +1851,7 @@ mod tests {
                 &mut Shape::Optional(Box::new(Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![
                         Field {
                             name: "bar",
@@ -1893,6 +1901,7 @@ mod tests {
                 &mut Shape::Optional(Box::new(Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![
                         Field {
                             name: "bar",
@@ -1950,6 +1959,7 @@ mod tests {
                 &mut Shape::Optional(Box::new(Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![
                         Field {
                             name: "bar",
@@ -2023,6 +2033,7 @@ mod tests {
                 &mut Shape::Optional(Box::new(Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![
                         Field {
                             name: "bar",
@@ -2076,6 +2087,7 @@ mod tests {
                 &mut Shape::Optional(Box::new(Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![],
                     optional: vec![
                         Field {
@@ -2122,6 +2134,7 @@ mod tests {
                 &mut Shape::Optional(Box::new(Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![],
                     optional: vec![],
                     booleans: vec![
@@ -2309,6 +2322,7 @@ mod tests {
                 &mut Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![],
                     optional: vec![],
                     booleans: vec![],
@@ -2326,6 +2340,7 @@ mod tests {
                 &mut Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![Field {
                         name: "bar",
                         description: String::new(),
@@ -2357,6 +2372,7 @@ mod tests {
                 &mut Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![
                         Field {
                             name: "baz",
@@ -2406,6 +2422,7 @@ mod tests {
                 &mut Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![],
                     optional: vec![Field {
                         name: "bar",
@@ -2433,6 +2450,7 @@ mod tests {
                 &mut Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![],
                     optional: vec![Field {
                         name: "bar",
@@ -2464,6 +2482,7 @@ mod tests {
                 &mut Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![],
                     optional: vec![Field {
                         name: "bar",
@@ -2495,6 +2514,7 @@ mod tests {
                 &mut Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![],
                     optional: vec![Field {
                         name: "bar",
@@ -2531,6 +2551,7 @@ mod tests {
                 &mut Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![],
                     optional: vec![],
                     booleans: vec![Field {
@@ -2561,6 +2582,7 @@ mod tests {
                 &mut Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![],
                     optional: vec![],
                     booleans: vec![Field {
@@ -2591,6 +2613,7 @@ mod tests {
                 &mut Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![],
                     optional: vec![],
                     booleans: vec![Field {
@@ -2621,6 +2644,7 @@ mod tests {
                 &mut Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![],
                     optional: vec![],
                     booleans: vec![Field {
@@ -2656,6 +2680,7 @@ mod tests {
                 &mut Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![
                         Field {
                             name: "foo",
@@ -2745,6 +2770,7 @@ mod tests {
                 &mut Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![
                         Field {
                             name: "inner_struct",
@@ -2753,6 +2779,7 @@ mod tests {
                             shape: Shape::Struct {
                                 name: "",
                                 description: String::new(),
+                                version: None,
                                 required: vec![Field {
                                     name: "foo",
                                     description: String::new(),
@@ -2856,6 +2883,7 @@ mod tests {
                 &mut Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![
                         Field {
                             name: "foo",
@@ -2942,6 +2970,7 @@ mod tests {
                 &mut Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![
                         Field {
                             name: "quux",
@@ -2961,6 +2990,7 @@ mod tests {
                             shape: Shape::Struct {
                                 name: "",
                                 description: String::new(),
+                                version: None,
                                 required: vec![Field {
                                     name: "foo",
                                     description: String::new(),

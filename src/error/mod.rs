@@ -434,6 +434,7 @@ mod tests {
                         shape: Shape::Struct {
                             name: "name".into(),
                             description: "description".into(),
+                            version: None,
                             required: vec![Field {
                                 name: "foo",
                                 description: "foo bar".into(),
@@ -671,6 +672,7 @@ mod tests {
                         shape: Shape::Struct {
                             name: "name".into(),
                             description: "description".into(),
+                            version: None,
                             required: vec![Field {
                                 name: "foo",
                                 description: "foo bar".into(),

@@ -18,6 +18,7 @@ pub(super) struct KeyInfo {
 pub(super) struct Fields {
     pub(super) name: &'static str,
     pub(super) description: String,
+    pub(super) version: Option<String>,
     pub(super) iter: slice::Iter<'static, &'static str>,
     pub(super) revisit: Option<&'static str>,
     pub(super) required_fields: Vec<(KeyInfo, Vec<&'static str>, String, usize)>,
@@ -30,6 +31,7 @@ impl From<Fields> for Shape {
         Shape::Struct {
             name: fields.name,
             description: fields.description,
+            version: fields.version,
             required: fields
                 .required_fields
                 .into_iter()
@@ -222,6 +224,7 @@ mod tests {
             Shape::from(Fields {
                 name: "",
                 description: String::new(),
+                version: None,
                 iter: [].iter(),
                 revisit: None,
                 required_fields: vec![],
@@ -231,6 +234,7 @@ mod tests {
             Shape::Struct {
                 name: "",
                 description: String::new(),
+                version: None,
                 required: vec![],
                 optional: vec![],
                 booleans: vec![],
@@ -244,6 +248,7 @@ mod tests {
             Shape::from(Fields {
                 name: "",
                 description: String::new(),
+                version: None,
                 iter: [].iter(),
                 revisit: None,
                 required_fields: vec![(
@@ -265,6 +270,7 @@ mod tests {
             Shape::Struct {
                 name: "",
                 description: String::new(),
+                version: None,
                 required: vec![Field {
                     name: "bar",
                     description: String::new(),
@@ -288,6 +294,7 @@ mod tests {
             Shape::from(Fields {
                 name: "",
                 description: String::new(),
+                version: None,
                 iter: [].iter(),
                 revisit: None,
                 required_fields: vec![
@@ -324,6 +331,7 @@ mod tests {
             Shape::Struct {
                 name: "",
                 description: String::new(),
+                version: None,
                 required: vec![
                     Field {
                         name: "bar",
@@ -360,6 +368,7 @@ mod tests {
             Shape::from(Fields {
                 name: "",
                 description: String::new(),
+                version: None,
                 iter: [].iter(),
                 revisit: None,
                 required_fields: vec![(
@@ -381,6 +390,7 @@ mod tests {
             Shape::Struct {
                 name: "",
                 description: String::new(),
+                version: None,
                 required: vec![Field {
                     name: "bar",
                     description: String::new(),
@@ -558,6 +568,7 @@ mod tests {
             keys.get_fields_or_insert(Fields {
                 name: "",
                 description: String::new(),
+                version: None,
                 iter: [].iter(),
                 revisit: None,
                 required_fields: vec![],
@@ -567,6 +578,7 @@ mod tests {
             &mut Fields {
                 name: "",
                 description: String::new(),
+                version: None,
                 iter: [].iter(),
                 revisit: None,
                 required_fields: vec![],
@@ -582,6 +594,7 @@ mod tests {
         let mut keys = Keys::Fields(Fields {
             name: "foo",
             description: "bar".into(),
+            version: None,
             iter: [].iter(),
             revisit: None,
             required_fields: vec![],
@@ -593,6 +606,7 @@ mod tests {
             keys.get_fields_or_insert(Fields {
                 name: "",
                 description: String::new(),
+                version: None,
                 iter: [].iter(),
                 revisit: None,
                 required_fields: vec![],
@@ -602,6 +616,7 @@ mod tests {
             &mut Fields {
                 name: "foo",
                 description: "bar".into(),
+                version: None,
                 iter: [].iter(),
                 revisit: None,
                 required_fields: vec![],
@@ -620,6 +635,7 @@ mod tests {
             keys.get_fields_or_insert(Fields {
                 name: "",
                 description: String::new(),
+                version: None,
                 iter: [].iter(),
                 revisit: None,
                 required_fields: vec![],
@@ -647,6 +663,7 @@ mod tests {
         let mut keys = Keys::Fields(Fields {
             name: "",
             description: String::new(),
+            version: None,
             iter: [].iter(),
             revisit: None,
             required_fields: vec![],
@@ -684,6 +701,7 @@ mod tests {
             Shape::from(Keys::Fields(Fields {
                 name: "",
                 description: String::new(),
+                version: None,
                 iter: [].iter(),
                 revisit: None,
                 required_fields: vec![
@@ -720,6 +738,7 @@ mod tests {
             Shape::Struct {
                 name: "",
                 description: String::new(),
+                version: None,
                 required: vec![
                     Field {
                         name: "bar",

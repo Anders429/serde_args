@@ -335,6 +335,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                     Shape::Struct {
                         name,
                         description,
+                        version,
                         required,
                         optional,
                         booleans,
@@ -343,6 +344,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                         if !container_description.is_empty() {
                             *description = container_description.clone();
                         }
+                        *version = container_version;
                         for field in required
                             .iter_mut()
                             .chain(optional.iter_mut())
@@ -421,11 +423,21 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
     where
         V: Visitor<'de>,
     {
+        let description = description_from_visitor(&visitor);
+        let version = {
+            let version = version_from_visitor(&visitor);
+            if version == description {
+                None
+            } else {
+                Some(version)
+            }
+        };
         let fields = self
             .keys
             .get_fields_or_insert(Fields {
                 name,
-                description: description_from_visitor(&visitor),
+                description,
+                version,
                 iter: fields.iter(),
                 revisit: None,
                 required_fields: Vec::new(),
@@ -1396,6 +1408,7 @@ mod tests {
             Status::Success(Shape::Struct {
                 name: "Struct",
                 description: "struct Struct".into(),
+                version: None,
                 required: vec![
                     Field {
                         name: "foo",
@@ -1457,6 +1470,7 @@ mod tests {
             Status::Success(Shape::Struct {
                 name: "Struct",
                 description: "empty struct".into(),
+                version: None,
                 required: vec![],
                 optional: vec![],
                 booleans: vec![],
@@ -1505,6 +1519,7 @@ mod tests {
             Status::Success(Shape::Struct {
                 name: "Struct",
                 description: "struct Struct".into(),
+                version: None,
                 required: vec![
                     Field {
                         name: "f",
@@ -1561,6 +1576,7 @@ mod tests {
             Status::Success(Shape::Struct {
                 name: "Struct",
                 description: "struct Struct".into(),
+                version: None,
                 required: vec![Field {
                     name: "bar",
                     description: String::new(),
@@ -1614,6 +1630,7 @@ mod tests {
             Status::Success(Shape::Struct {
                 name: "Struct",
                 description: "struct Struct".into(),
+                version: None,
                 required: vec![Field {
                     name: "bar",
                     description: String::new(),
@@ -1676,6 +1693,7 @@ mod tests {
             Status::Success(Shape::Struct {
                 name: "Nested",
                 description: "struct Nested".into(),
+                version: None,
                 required: vec![
                     Field {
                         name: "struct",
@@ -1684,6 +1702,7 @@ mod tests {
                         shape: Shape::Struct {
                             name: "Struct",
                             description: "struct Struct".into(),
+                            version: None,
                             required: vec![Field {
                                 name: "foo",
                                 description: String::new(),
@@ -1753,6 +1772,7 @@ mod tests {
             Status::Success(Shape::Struct {
                 name: "Newtype",
                 description: "tuple struct Newtype".into(),
+                version: None,
                 required: vec![
                     Field {
                         name: "foo",
@@ -1868,6 +1888,7 @@ mod tests {
                         shape: Shape::Struct {
                             name: "Struct",
                             description: "struct Struct".into(),
+                            version: None,
                             required: vec![Field {
                                 name: "bar",
                                 description: String::new(),
@@ -2218,6 +2239,49 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_struct_version() {
+        #[derive(Debug)]
+        struct Struct;
+
+        impl<'de> Deserialize<'de> for Struct {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct StructVisitor;
+
+                impl<'de> Visitor<'de> for StructVisitor {
+                    type Value = Struct;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        if formatter.fill() == 'v' {
+                            formatter.write_str("version")
+                        } else {
+                            formatter.write_str("description")
+                        }
+                    }
+                }
+
+                deserializer.deserialize_struct("Struct", &[], StructVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::new();
+
+        assert_ok_eq!(
+            assert_err!(Struct::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Struct {
+                name: "Struct",
+                description: "description".to_owned(),
+                version: Some("version".to_owned()),
+                required: vec![],
+                optional: vec![],
+                booleans: vec![],
+            })
+        );
+    }
+
+    #[test]
     fn deserialize_newtype_empty_version() {
         #[derive(Debug)]
         struct Newtype;
@@ -2388,6 +2452,88 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_newtype_struct_version() {
+        #[derive(Debug)]
+        struct Struct;
+
+        impl<'de> Deserialize<'de> for Struct {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct StructVisitor;
+
+                impl<'de> Visitor<'de> for StructVisitor {
+                    type Value = Struct;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        formatter.write_str("inner description")
+                    }
+                }
+
+                deserializer.deserialize_struct("Struct", &[], StructVisitor)
+            }
+        }
+
+        #[derive(Debug)]
+        struct Newtype;
+
+        impl<'de> Deserialize<'de> for Newtype {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct NewtypeVisitor;
+
+                impl<'de> Visitor<'de> for NewtypeVisitor {
+                    type Value = Newtype;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        if formatter.fill() == 'v' {
+                            formatter.write_str("version")
+                        } else {
+                            formatter.write_str("description")
+                        }
+                    }
+
+                    fn visit_newtype_struct<D>(
+                        self,
+                        deserializer: D,
+                    ) -> Result<Self::Value, D::Error>
+                    where
+                        D: de::Deserializer<'de>,
+                    {
+                        Struct::deserialize(deserializer)?;
+                        Ok(Newtype)
+                    }
+                }
+
+                deserializer.deserialize_newtype_struct("Newtype", NewtypeVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::new();
+
+        // Trace the newtype.
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        // Finish.
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Struct {
+                name: "Newtype",
+                description: "description".to_owned(),
+                version: Some("version".to_owned()),
+                required: vec![],
+                optional: vec![],
+                booleans: vec![],
+            })
+        );
+    }
+
+    #[test]
     fn deserialize_boolean_field_version() {
         #[derive(Debug)]
         struct Bool;
@@ -2434,6 +2580,7 @@ mod tests {
             Status::Success(Shape::Struct {
                 name: "Struct",
                 description: "struct Struct".into(),
+                version: None,
                 required: vec![],
                 optional: vec![],
                 booleans: vec![Field {
@@ -2658,6 +2805,7 @@ mod tests {
             Status::Success(Shape::Struct {
                 name: "foo",
                 description: "struct variant".into(),
+                version: None,
                 required: vec![
                     Field {
                         name: "bar",
@@ -2761,6 +2909,7 @@ mod tests {
             Shape::Struct {
                 name: "Struct",
                 description: "Struct description".into(),
+                version: None,
                 required: vec![
                     Field {
                         name: "foo",
@@ -2867,6 +3016,7 @@ mod tests {
             Shape::Struct {
                 name: "Struct",
                 description: "Struct description".into(),
+                version: None,
                 required: vec![
                     Field {
                         name: "foo",

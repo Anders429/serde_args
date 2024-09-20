@@ -99,6 +99,7 @@ pub(crate) enum Shape {
     Struct {
         name: &'static str,
         description: String,
+        version: Option<String>,
         required: Vec<Field>,
         optional: Vec<Field>,
         booleans: Vec<Field>,
@@ -512,6 +513,7 @@ mod tests {
                     shape: Shape::Optional(Box::new(Shape::Struct {
                         name: "",
                         description: String::new(),
+                        version: None,
                         required: vec![
                             Field {
                                 name: "bar",
@@ -665,6 +667,7 @@ mod tests {
                     shape: Shape::Struct {
                         name: "",
                         description: String::new(),
+                        version: None,
                         required: vec![Field {
                             name: "bar",
                             description: String::new(),
@@ -827,6 +830,7 @@ mod tests {
             Shape::Struct {
                 name: "",
                 description: "foo".into(),
+                version: None,
                 required: vec![Field {
                     name: "bar",
                     description: String::new(),
@@ -922,6 +926,7 @@ mod tests {
             Shape::Struct {
                 name: "Struct",
                 description: String::new(),
+                version: None,
                 required: vec![Field {
                     name: "foo",
                     description: "bar".into(),
@@ -1035,6 +1040,7 @@ mod tests {
             Shape::Optional(Box::new(Shape::Struct {
                 name: "Struct",
                 description: String::new(),
+                version: None,
                 required: vec![Field {
                     name: "foo",
                     description: "bar".into(),
@@ -1083,6 +1089,7 @@ mod tests {
             Shape::Optional(Box::new(Shape::Struct {
                 name: "Struct",
                 description: String::new(),
+                version: None,
                 required: vec![Field {
                     name: "foo",
                     description: "bar".into(),
@@ -1129,6 +1136,7 @@ mod tests {
             Shape::Struct {
                 name: "Struct",
                 description: String::new(),
+                version: None,
                 required: vec![
                     Field {
                         name: "foo",
@@ -1167,6 +1175,7 @@ mod tests {
             Shape::Struct {
                 name: "Struct",
                 description: String::new(),
+                version: None,
                 required: vec![],
                 optional: vec![
                     Field {
@@ -1231,6 +1240,7 @@ mod tests {
             Shape::Struct {
                 name: "Struct",
                 description: String::new(),
+                version: None,
                 required: vec![
                     Field {
                         name: "foo",
@@ -1239,6 +1249,7 @@ mod tests {
                         shape: Shape::Struct {
                             name: "Nested",
                             description: String::new(),
+                            version: None,
                             required: vec![],
                             optional: vec![
                                 Field {
@@ -1275,6 +1286,7 @@ mod tests {
                         shape: Shape::Struct {
                             name: "NotIncluded",
                             description: String::new(),
+                            version: None,
                             required: vec![
                                 Field {
                                     name: "foo",
@@ -1312,6 +1324,7 @@ mod tests {
                     shape: Shape::Struct {
                         name: "NotIncluded",
                         description: String::new(),
+                        version: None,
                         required: vec![
                             Field {
                                 name: "foo",
@@ -1354,6 +1367,7 @@ mod tests {
                         shape: Shape::Struct {
                             name: "NotIncluded",
                             description: String::new(),
+                            version: None,
                             required: vec![
                                 Field {
                                     name: "foo",
@@ -1428,6 +1442,7 @@ mod tests {
                     shape: Shape::Struct {
                         name: "Struct",
                         description: String::new(),
+                        version: None,
                         required: vec![],
                         optional: vec![
                             Field {
@@ -1471,6 +1486,7 @@ mod tests {
                 shape: Box::new(Shape::Struct {
                     name: "Struct",
                     description: String::new(),
+                    version: None,
                     required: vec![],
                     optional: vec![
                         Field {
@@ -1505,6 +1521,7 @@ mod tests {
                     shape: Shape::Struct {
                         name: "Struct",
                         description: String::new(),
+                        version: None,
                         required: vec![],
                         optional: vec![
                             Field {
@@ -1663,6 +1680,7 @@ mod tests {
             Shape::Struct {
                 name: "Struct",
                 description: String::new(),
+                version: None,
                 required: vec![
                     Field {
                         name: "foo",
@@ -1701,6 +1719,7 @@ mod tests {
             Shape::Struct {
                 name: "Struct",
                 description: String::new(),
+                version: None,
                 required: vec![
                     Field {
                         name: "foo",
@@ -1954,6 +1973,7 @@ mod tests {
             Shape::Optional(Box::new(Shape::Struct {
                 name: "Struct",
                 description: String::new(),
+                version: None,
                 required: vec![],
                 optional: vec![
                     Field {
@@ -1992,6 +2012,7 @@ mod tests {
             Shape::Struct {
                 name: "Struct",
                 description: String::new(),
+                version: None,
                 required: vec![],
                 optional: vec![
                     Field {
@@ -2053,6 +2074,7 @@ mod tests {
             Shape::Struct {
                 name: "Struct",
                 description: String::new(),
+                version: None,
                 required: vec![],
                 optional: vec![],
                 booleans: vec![
@@ -2110,6 +2132,7 @@ mod tests {
             Shape::Struct {
                 name: "Struct",
                 description: String::new(),
+                version: None,
                 required: vec![
                     Field {
                         name: "foo",
@@ -2168,6 +2191,7 @@ mod tests {
                     shape: Shape::Struct {
                         name: "Struct",
                         description: String::new(),
+                        version: None,
                         required: vec![],
                         optional: vec![
                             Field {
@@ -2230,6 +2254,7 @@ mod tests {
                 shape: Box::new(Shape::Struct {
                     name: "Struct",
                     description: String::new(),
+                    version: None,
                     required: vec![],
                     optional: vec![
                         Field {
@@ -2384,6 +2409,7 @@ mod tests {
                 Shape::Optional(Box::new(Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![
                         Field {
                             name: "foo",
@@ -2460,6 +2486,7 @@ mod tests {
                 Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![
                         Field {
                             name: "foo",
@@ -2500,6 +2527,7 @@ mod tests {
                 Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![],
                     optional: vec![
                         Field {
@@ -2540,6 +2568,7 @@ mod tests {
                 Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![],
                     optional: vec![],
                     booleans: vec![
@@ -2578,6 +2607,7 @@ mod tests {
                 Shape::Struct {
                     name: "",
                     description: String::new(),
+                    version: None,
                     required: vec![
                         Field {
                             name: "foo",
@@ -2641,6 +2671,7 @@ mod tests {
                 Shape::Struct {
                     name: "Struct",
                     description: String::new(),
+                    version: None,
                     required: vec![],
                     optional: vec![
                         Field {
