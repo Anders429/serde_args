@@ -480,6 +480,7 @@ mod tests {
                         shape: Shape::Enum {
                             name: "name".into(),
                             description: "description".into(),
+                            version: None,
                             variants: vec![
                                 Variant {
                                     name: "foo",
@@ -718,6 +719,7 @@ mod tests {
                         shape: Shape::Enum {
                             name: "name".into(),
                             description: "description".into(),
+                            version: None,
                             variants: vec![
                                 Variant {
                                     name: "foo",

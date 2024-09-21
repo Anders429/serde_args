@@ -95,6 +95,7 @@ impl Eq for Fields {}
 pub(super) struct Variants {
     pub(super) name: &'static str,
     pub(super) description: String,
+    pub(super) version: Option<String>,
     pub(super) iter: slice::Iter<'static, &'static str>,
     pub(super) revisit: Option<&'static str>,
     pub(super) variants: Vec<(KeyInfo, Vec<&'static str>, String)>,
@@ -106,9 +107,19 @@ impl Variants {
         variants: &'static [&'static str],
         visitor: &dyn Expected,
     ) -> Self {
+        let description = format!("{}", visitor);
+        let version = {
+            let version = format!("{:v<}", visitor);
+            if version == description {
+                None
+            } else {
+                Some(version)
+            }
+        };
         Self {
             name,
-            description: format!("{}", visitor),
+            description,
+            version,
             iter: variants.iter(),
             revisit: None,
             variants: Vec::new(),
@@ -121,6 +132,7 @@ impl From<Variants> for Shape {
         Shape::Enum {
             name: variants.name,
             description: variants.description,
+            version: variants.version,
             variants: variants
                 .variants
                 .into_iter()
@@ -415,6 +427,7 @@ mod tests {
             Shape::Enum {
                 name: "",
                 description: String::new(),
+                version: None,
                 variants: vec![],
             }
         );
@@ -426,6 +439,7 @@ mod tests {
             Shape::from(Variants {
                 name: "",
                 description: String::new(),
+                version: None,
                 iter: [].iter(),
                 revisit: None,
                 variants: vec![(
@@ -444,6 +458,7 @@ mod tests {
             Shape::Enum {
                 name: "",
                 description: String::new(),
+                version: None,
                 variants: vec![Variant {
                     name: "bar",
                     description: String::new(),
@@ -464,6 +479,7 @@ mod tests {
             Shape::from(Variants {
                 name: "",
                 description: String::new(),
+                version: None,
                 iter: [].iter(),
                 revisit: None,
                 variants: vec![
@@ -496,6 +512,7 @@ mod tests {
             Shape::Enum {
                 name: "",
                 description: String::new(),
+                version: None,
                 variants: vec![
                     Variant {
                         name: "bar",
@@ -528,6 +545,7 @@ mod tests {
             Shape::from(Variants {
                 name: "",
                 description: String::new(),
+                version: None,
                 iter: [].iter(),
                 revisit: None,
                 variants: vec![(
@@ -546,6 +564,7 @@ mod tests {
             Shape::Enum {
                 name: "",
                 description: String::new(),
+                version: None,
                 variants: vec![Variant {
                     name: "bar",
                     description: String::new(),
@@ -775,6 +794,7 @@ mod tests {
             Shape::from(Keys::Variants(Variants {
                 name: "",
                 description: String::new(),
+                version: None,
                 iter: [].iter(),
                 revisit: None,
                 variants: vec![
@@ -807,6 +827,7 @@ mod tests {
             Shape::Enum {
                 name: "",
                 description: String::new(),
+                version: None,
                 variants: vec![
                     Variant {
                         name: "bar",

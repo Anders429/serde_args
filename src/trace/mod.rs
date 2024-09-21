@@ -359,12 +359,14 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                     Shape::Enum {
                         name,
                         description,
+                        version,
                         variants,
                     } => {
                         *name = struct_name;
                         if !container_description.is_empty() {
                             *description = container_description.clone();
                         }
+                        *version = container_version;
                         for (index, variant) in variants.iter_mut().enumerate() {
                             let description = key_description_from_visitor(&visitor, index);
                             if description != container_description && !description.is_empty() {
@@ -1822,6 +1824,7 @@ mod tests {
             Status::Success(Shape::Enum {
                 name: "Result",
                 description: "enum Result".into(),
+                version: None,
                 variants: vec![
                     Variant {
                         name: "Ok",
@@ -1880,6 +1883,7 @@ mod tests {
             Status::Success(Shape::Enum {
                 name: "Result",
                 description: "enum Result".into(),
+                version: None,
                 variants: vec![
                     Variant {
                         name: "Ok",
@@ -1955,6 +1959,7 @@ mod tests {
             Status::Success(Shape::Enum {
                 name: "Result",
                 description: "enum Result".into(),
+                version: None,
                 variants: vec![
                     Variant {
                         name: "Ok",
@@ -1963,6 +1968,7 @@ mod tests {
                         shape: Shape::Enum {
                             name: "Result",
                             description: "enum Result".into(),
+                            version: None,
                             variants: vec![
                                 Variant {
                                     name: "Ok",
@@ -2055,6 +2061,7 @@ mod tests {
             Status::Success(Shape::Enum {
                 name: "Result",
                 description: "enum Result".into(),
+                version: None,
                 variants: vec![
                     Variant {
                         name: "Ok",
@@ -2063,6 +2070,7 @@ mod tests {
                         shape: Shape::Enum {
                             name: "Result",
                             description: "enum Result".into(),
+                            version: None,
                             variants: vec![
                                 Variant {
                                     name: "Ok",
@@ -2071,6 +2079,7 @@ mod tests {
                                     shape: Shape::Enum {
                                         name: "Result",
                                         description: "enum Result".into(),
+                                        version: None,
                                         variants: vec![
                                             Variant {
                                                 name: "Ok",
@@ -2277,6 +2286,47 @@ mod tests {
                 required: vec![],
                 optional: vec![],
                 booleans: vec![],
+            })
+        );
+    }
+
+    #[test]
+    fn deserialize_enum_version() {
+        #[derive(Debug)]
+        struct Enum;
+
+        impl<'de> Deserialize<'de> for Enum {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct EnumVisitor;
+
+                impl<'de> Visitor<'de> for EnumVisitor {
+                    type Value = Enum;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        if formatter.fill() == 'v' {
+                            formatter.write_str("version")
+                        } else {
+                            formatter.write_str("description")
+                        }
+                    }
+                }
+
+                deserializer.deserialize_enum("Enum", &[], EnumVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::new();
+
+        assert_ok_eq!(
+            assert_err!(Enum::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Enum {
+                name: "Enum",
+                description: "description".to_owned(),
+                version: Some("version".to_owned()),
+                variants: vec![],
             })
         );
     }
@@ -2529,6 +2579,86 @@ mod tests {
                 required: vec![],
                 optional: vec![],
                 booleans: vec![],
+            })
+        );
+    }
+
+    #[test]
+    fn deserialize_newtype_enum_version() {
+        #[derive(Debug)]
+        struct Enum;
+
+        impl<'de> Deserialize<'de> for Enum {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct EnumVisitor;
+
+                impl<'de> Visitor<'de> for EnumVisitor {
+                    type Value = Enum;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        formatter.write_str("inner description")
+                    }
+                }
+
+                deserializer.deserialize_enum("Enum", &[], EnumVisitor)
+            }
+        }
+
+        #[derive(Debug)]
+        struct Newtype;
+
+        impl<'de> Deserialize<'de> for Newtype {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct NewtypeVisitor;
+
+                impl<'de> Visitor<'de> for NewtypeVisitor {
+                    type Value = Newtype;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        if formatter.fill() == 'v' {
+                            formatter.write_str("version")
+                        } else {
+                            formatter.write_str("description")
+                        }
+                    }
+
+                    fn visit_newtype_struct<D>(
+                        self,
+                        deserializer: D,
+                    ) -> Result<Self::Value, D::Error>
+                    where
+                        D: de::Deserializer<'de>,
+                    {
+                        Enum::deserialize(deserializer)?;
+                        Ok(Newtype)
+                    }
+                }
+
+                deserializer.deserialize_newtype_struct("Newtype", NewtypeVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::new();
+
+        // Trace the newtype.
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        // Finish.
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Enum {
+                name: "Newtype",
+                description: "description".to_owned(),
+                version: Some("version".to_owned()),
+                variants: vec![],
             })
         );
     }
@@ -3100,6 +3230,7 @@ mod tests {
             Shape::Enum {
                 name: "Enum",
                 description: "Enum description".into(),
+                version: None,
                 variants: vec![
                     Variant {
                         name: "foo",
@@ -3179,6 +3310,7 @@ mod tests {
             Shape::Enum {
                 name: "Enum",
                 description: "Enum description".into(),
+                version: None,
                 variants: vec![
                     Variant {
                         name: "foo",

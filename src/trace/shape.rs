@@ -107,6 +107,7 @@ pub(crate) enum Shape {
     Enum {
         name: &'static str,
         description: String,
+        version: Option<String>,
         variants: Vec<Variant>,
     },
     Variant {
@@ -560,6 +561,7 @@ mod tests {
                     shape: Shape::Optional(Box::new(Shape::Enum {
                         name: "bar",
                         description: String::new(),
+                        version: None,
                         variants: vec![],
                     })),
                     index: 0,
@@ -710,6 +712,7 @@ mod tests {
                     shape: Shape::Enum {
                         name: "bar",
                         description: String::new(),
+                        version: None,
                         variants: vec![
                             Variant {
                                 name: "baz",
@@ -856,6 +859,7 @@ mod tests {
             Shape::Enum {
                 name: "foo",
                 description: "bar".into(),
+                version: None,
                 variants: vec![],
             }
             .description(),
@@ -962,6 +966,7 @@ mod tests {
             Shape::Enum {
                 name: "foo",
                 description: "bar".into(),
+                version: None,
                 variants: vec![Variant {
                     name: "baz",
                     description: "qux".into(),
@@ -1435,6 +1440,7 @@ mod tests {
             Shape::Enum {
                 name: "foo",
                 description: String::new(),
+                version: None,
                 variants: vec![Variant {
                     name: "baz",
                     description: "qux".into(),
@@ -1626,6 +1632,7 @@ mod tests {
             Shape::Optional(Box::new(Shape::Enum {
                 name: "Enum",
                 description: String::new(),
+                version: None,
                 variants: vec![
                     Variant {
                         name: "foo",
@@ -1728,6 +1735,7 @@ mod tests {
                         shape: Shape::Enum {
                             name: "Enum1",
                             description: String::new(),
+                            version: None,
                             variants: vec![
                                 Variant {
                                     name: "a",
@@ -1758,6 +1766,7 @@ mod tests {
                         shape: Shape::Enum {
                             name: "Enum2",
                             description: String::new(),
+                            version: None,
                             variants: vec![
                                 Variant {
                                     name: "e",
@@ -1843,6 +1852,7 @@ mod tests {
             Shape::Enum {
                 name: "Enum",
                 description: String::new(),
+                version: None,
                 variants: vec![
                     Variant {
                         name: "foo",
@@ -2171,6 +2181,7 @@ mod tests {
             Shape::Enum {
                 name: "foo",
                 description: String::new(),
+                version: None,
                 variants: vec![],
             }
             .trailing_options(),
@@ -2184,6 +2195,7 @@ mod tests {
             Shape::Enum {
                 name: "foo",
                 description: String::new(),
+                version: None,
                 variants: vec![Variant {
                     name: "baz",
                     description: "qux".into(),
@@ -2450,6 +2462,7 @@ mod tests {
                 Shape::Optional(Box::new(Shape::Enum {
                     name: "foo",
                     description: String::new(),
+                    version: None,
                     variants: vec![],
                 }))
             ),
@@ -2712,6 +2725,7 @@ mod tests {
                 Shape::Enum {
                     name: "foo",
                     description: String::new(),
+                    version: None,
                     variants: vec![],
                 }
             ),

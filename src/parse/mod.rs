@@ -2190,6 +2190,7 @@ mod tests {
                 &mut Shape::Optional(Box::new(Shape::Enum {
                     name: "Enum",
                     description: String::new(),
+                    version: None,
                     variants: vec![Variant {
                         name: "foo",
                         description: String::new(),
@@ -2217,6 +2218,7 @@ mod tests {
                 &mut Shape::Optional(Box::new(Shape::Enum {
                     name: "Enum",
                     description: String::new(),
+                    version: None,
                     variants: vec![Variant {
                         name: "foo",
                         description: String::new(),
@@ -2244,6 +2246,7 @@ mod tests {
                 &mut Shape::Optional(Box::new(Shape::Enum {
                     name: "Enum",
                     description: String::new(),
+                    version: None,
                     variants: vec![Variant {
                         name: "foo",
                         description: String::new(),
@@ -2267,6 +2270,7 @@ mod tests {
                 &mut Shape::Optional(Box::new(Shape::Enum {
                     name: "Enum",
                     description: String::new(),
+                    version: None,
                     variants: vec![Variant {
                         name: "foo",
                         description: String::new(),
@@ -2295,6 +2299,7 @@ mod tests {
                 &mut Shape::Optional(Box::new(Shape::Enum {
                     name: "Enum",
                     description: String::new(),
+                    version: None,
                     variants: vec![Variant {
                         name: "",
                         description: String::new(),
@@ -3080,6 +3085,7 @@ mod tests {
                 &mut Shape::Enum {
                     name: "Enum",
                     description: String::new(),
+                    version: None,
                     variants: vec![Variant {
                         name: "foo",
                         description: String::new(),
@@ -3105,6 +3111,7 @@ mod tests {
                 &mut Shape::Enum {
                     name: "Enum",
                     description: String::new(),
+                    version: None,
                     variants: vec![
                         Variant {
                             name: "foo",
@@ -3141,6 +3148,7 @@ mod tests {
                 &mut Shape::Enum {
                     name: "Enum",
                     description: String::new(),
+                    version: None,
                     variants: vec![Variant {
                         name: "foo",
                         description: String::new(),
@@ -3166,6 +3174,7 @@ mod tests {
                 &mut Shape::Enum {
                     name: "Enum",
                     description: String::new(),
+                    version: None,
                     variants: vec![Variant {
                         name: "foo",
                         description: String::new(),
@@ -3192,6 +3201,7 @@ mod tests {
                 &mut Shape::Enum {
                     name: "Enum",
                     description: String::new(),
+                    version: None,
                     variants: vec![Variant {
                         name: "foo",
                         description: String::new(),
