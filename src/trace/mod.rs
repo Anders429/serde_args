@@ -280,8 +280,10 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
         fn key_description_from_visitor(visitor: &dyn Expected, key: usize) -> String {
             format!("{:#key$}", visitor)
         }
-        // If the contained type is a struct or enum, we attempt to overwrite descriptions using
-        // this visitor.
+        fn key_version_from_visitor(visitor: &dyn Expected, key: usize) -> String {
+            format!("{:v<key$}", visitor)
+        }
+        // Attempt to overwrite descriptions and versions using this visitor.
         match mem::replace(&mut self.keys, Keys::None) {
             Keys::None => {
                 match visitor.visit_newtype_struct(
@@ -381,8 +383,19 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                         }
                         for (index, variant) in variants.iter_mut().enumerate() {
                             let description = key_description_from_visitor(&visitor, index);
+                            let version = {
+                                let version = key_version_from_visitor(&visitor, index);
+                                if version == description || version == container_description {
+                                    None
+                                } else {
+                                    Some(version)
+                                }
+                            };
                             if description != container_description && !description.is_empty() {
                                 variant.description = description;
+                            }
+                            if version.is_some() {
+                                variant.version = version;
                             }
                         }
                     }
@@ -614,9 +627,12 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
             .take()
             .or_else(|| variants.iter.next().copied())
         {
-            // Obtain description for the possible next variant.
+            // Obtain description and version for the possible next variant.
             fn variant_description_from_visitor(visitor: &dyn Expected, variant: usize) -> String {
                 format!("{:#variant$}", visitor)
+            }
+            fn variant_version_from_visitor(visitor: &dyn Expected, variant: usize) -> String {
+                format!("{:v<variant$}", visitor)
             }
             let description = {
                 let description =
@@ -625,6 +641,14 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                     String::new()
                 } else {
                     description
+                }
+            };
+            let version = {
+                let version = variant_version_from_visitor(&visitor, variants.variants.len());
+                if version == variants.description || version == description {
+                    None
+                } else {
+                    Some(version)
                 }
             };
             // Process the current variant.
@@ -645,7 +669,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                     shape,
                                 };
                                 let mut found = false;
-                                for (info, names, _description) in variants.variants.iter_mut() {
+                                for (info, names, _description, _version) in
+                                    variants.variants.iter_mut()
+                                {
                                     if *info == key_info {
                                         found = true;
                                         names.push(variant);
@@ -653,9 +679,12 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                                     }
                                 }
                                 if !found {
-                                    variants
-                                        .variants
-                                        .push((key_info, vec![variant], description));
+                                    variants.variants.push((
+                                        key_info,
+                                        vec![variant],
+                                        description,
+                                        version,
+                                    ));
                                 }
                                 self.recursive_deserializer = None;
                             }
@@ -1841,6 +1870,7 @@ mod tests {
                     Variant {
                         name: "Ok",
                         description: "".into(),
+                        version: None,
                         aliases: vec![],
                         shape: Shape::Empty {
                             description: "unit".into(),
@@ -1850,6 +1880,7 @@ mod tests {
                     Variant {
                         name: "Err",
                         description: "".into(),
+                        version: None,
                         aliases: vec![],
                         shape: Shape::Empty {
                             description: "unit".into(),
@@ -1900,6 +1931,7 @@ mod tests {
                     Variant {
                         name: "Ok",
                         description: "".into(),
+                        version: None,
                         aliases: vec![],
                         shape: Shape::Struct {
                             name: "Struct",
@@ -1933,6 +1965,7 @@ mod tests {
                     Variant {
                         name: "Err",
                         description: "".into(),
+                        version: None,
                         aliases: vec![],
                         shape: Shape::Empty {
                             description: "unit".into(),
@@ -1976,6 +2009,7 @@ mod tests {
                     Variant {
                         name: "Ok",
                         description: "".into(),
+                        version: None,
                         aliases: vec![],
                         shape: Shape::Enum {
                             name: "Result",
@@ -1985,6 +2019,7 @@ mod tests {
                                 Variant {
                                     name: "Ok",
                                     description: "".into(),
+                                    version: None,
                                     aliases: vec![],
                                     shape: Shape::Empty {
                                         description: "unit".into(),
@@ -1994,6 +2029,7 @@ mod tests {
                                 Variant {
                                     name: "Err",
                                     description: "".into(),
+                                    version: None,
                                     aliases: vec![],
                                     shape: Shape::Empty {
                                         description: "unit".into(),
@@ -2006,6 +2042,7 @@ mod tests {
                     Variant {
                         name: "Err",
                         description: "".into(),
+                        version: None,
                         aliases: vec![],
                         shape: Shape::Empty {
                             description: "unit".into(),
@@ -2078,6 +2115,7 @@ mod tests {
                     Variant {
                         name: "Ok",
                         description: "".into(),
+                        version: None,
                         aliases: vec![],
                         shape: Shape::Enum {
                             name: "Result",
@@ -2087,6 +2125,7 @@ mod tests {
                                 Variant {
                                     name: "Ok",
                                     description: "".into(),
+                                    version: None,
                                     aliases: vec![],
                                     shape: Shape::Enum {
                                         name: "Result",
@@ -2096,6 +2135,7 @@ mod tests {
                                             Variant {
                                                 name: "Ok",
                                                 description: "".into(),
+                                                version: None,
                                                 aliases: vec![],
                                                 shape: Shape::Empty {
                                                     description: "unit".into(),
@@ -2105,6 +2145,7 @@ mod tests {
                                             Variant {
                                                 name: "Err",
                                                 description: "".into(),
+                                                version: None,
                                                 aliases: vec![],
                                                 shape: Shape::Empty {
                                                     description: "unit".into(),
@@ -2117,6 +2158,7 @@ mod tests {
                                 Variant {
                                     name: "Err",
                                     description: "".into(),
+                                    version: None,
                                     aliases: vec![],
                                     shape: Shape::Empty {
                                         description: "unit".into(),
@@ -2129,6 +2171,7 @@ mod tests {
                     Variant {
                         name: "Err",
                         description: "".into(),
+                        version: None,
                         aliases: vec![],
                         shape: Shape::Empty {
                             description: "unit".into(),
@@ -2339,6 +2382,105 @@ mod tests {
                 description: "description".to_owned(),
                 version: Some("version".to_owned()),
                 variants: vec![],
+            })
+        );
+    }
+
+    #[test]
+    fn deserialize_enum_variant_versions() {
+        #[derive(Debug)]
+        struct Enum;
+
+        impl<'de> Deserialize<'de> for Enum {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                #[derive(Deserialize)]
+                #[serde(variant_identifier)]
+                #[serde(rename_all = "kebab-case")]
+                enum Variant {
+                    Foo,
+                    Bar,
+                }
+
+                struct EnumVisitor;
+
+                impl<'de> Visitor<'de> for EnumVisitor {
+                    type Value = Enum;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        match formatter.width() {
+                            Some(0) => {
+                                if formatter.fill() == 'v' {
+                                    formatter.write_str("foo version")
+                                } else {
+                                    formatter.write_str("foo description")
+                                }
+                            }
+                            Some(1) => {
+                                if formatter.fill() == 'v' {
+                                    formatter.write_str("bar version")
+                                } else {
+                                    formatter.write_str("bar description")
+                                }
+                            }
+                            _ => formatter.write_str("description"),
+                        }
+                    }
+
+                    fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>
+                    where
+                        A: de::EnumAccess<'de>,
+                    {
+                        data.variant::<Variant>()?.1.unit_variant().map(|_| Enum)
+                    }
+                }
+
+                deserializer.deserialize_enum("Enum", &["foo", "bar"], EnumVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::new();
+
+        // Trace the variants.
+        assert_ok_eq!(
+            assert_err!(Enum::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        assert_ok_eq!(
+            assert_err!(Enum::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        // Finish.
+        assert_ok_eq!(
+            assert_err!(Enum::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Enum {
+                name: "Enum",
+                description: "description".to_owned(),
+                version: None,
+                variants: vec![
+                    Variant {
+                        name: "foo",
+                        description: "foo description".to_owned(),
+                        version: Some("foo version".to_owned()),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new(),
+                            version: None,
+                        },
+                    },
+                    Variant {
+                        name: "bar",
+                        description: "bar description".to_owned(),
+                        version: Some("bar version".to_owned()),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new(),
+                            version: None,
+                        },
+                    },
+                ],
             })
         );
     }
@@ -2676,6 +2818,113 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_newtype_enum_variant_versions() {
+        #[derive(Debug, Deserialize)]
+        #[serde(rename_all = "kebab-case")]
+        enum Enum {
+            Foo,
+            Bar,
+        }
+
+        #[derive(Debug)]
+        struct Newtype;
+
+        impl<'de> Deserialize<'de> for Newtype {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                struct NewtypeVisitor;
+
+                impl<'de> Visitor<'de> for NewtypeVisitor {
+                    type Value = Newtype;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        match formatter.width() {
+                            Some(0) => {
+                                if formatter.fill() == 'v' {
+                                    formatter.write_str("foo version")
+                                } else {
+                                    formatter.write_str("foo description")
+                                }
+                            }
+                            Some(1) => {
+                                if formatter.fill() == 'v' {
+                                    formatter.write_str("bar version")
+                                } else {
+                                    formatter.write_str("bar description")
+                                }
+                            }
+                            _ => formatter.write_str("description"),
+                        }
+                    }
+
+                    fn visit_newtype_struct<D>(
+                        self,
+                        deserializer: D,
+                    ) -> Result<Self::Value, D::Error>
+                    where
+                        D: de::Deserializer<'de>,
+                    {
+                        Enum::deserialize(deserializer)?;
+                        Ok(Newtype)
+                    }
+                }
+
+                deserializer.deserialize_newtype_struct("Newtype", NewtypeVisitor)
+            }
+        }
+
+        let mut deserializer = Deserializer::new();
+
+        // Trace the newtype.
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        // Trace the variants.
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        // Finish.
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Enum {
+                name: "Newtype",
+                description: "description".to_owned(),
+                version: None,
+                variants: vec![
+                    Variant {
+                        name: "foo",
+                        description: "foo description".to_owned(),
+                        version: Some("foo version".to_owned()),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new(),
+                            version: None,
+                        },
+                    },
+                    Variant {
+                        name: "bar",
+                        description: "bar description".to_owned(),
+                        version: Some("bar version".to_owned()),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new(),
+                            version: None,
+                        },
+                    },
+                ],
+            })
+        );
+    }
+
+    #[test]
     fn deserialize_newtype_empty_internal_version() {
         #[derive(Debug)]
         struct Empty;
@@ -2919,6 +3168,113 @@ mod tests {
                 description: "tuple struct Newtype".to_owned(),
                 version: Some("version".to_owned()),
                 variants: vec![],
+            })
+        );
+    }
+
+    #[test]
+    fn deserialize_newtype_enum_variant_internal_versions() {
+        #[derive(Debug)]
+        struct Enum;
+
+        impl<'de> Deserialize<'de> for Enum {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                #[derive(Deserialize)]
+                #[serde(variant_identifier)]
+                #[serde(rename_all = "kebab-case")]
+                enum Variant {
+                    Foo,
+                    Bar,
+                }
+
+                struct EnumVisitor;
+
+                impl<'de> Visitor<'de> for EnumVisitor {
+                    type Value = Enum;
+
+                    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                        match formatter.width() {
+                            Some(0) => {
+                                if formatter.fill() == 'v' {
+                                    formatter.write_str("foo version")
+                                } else {
+                                    formatter.write_str("foo description")
+                                }
+                            }
+                            Some(1) => {
+                                if formatter.fill() == 'v' {
+                                    formatter.write_str("bar version")
+                                } else {
+                                    formatter.write_str("bar description")
+                                }
+                            }
+                            _ => formatter.write_str("description"),
+                        }
+                    }
+
+                    fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>
+                    where
+                        A: de::EnumAccess<'de>,
+                    {
+                        data.variant::<Variant>()?.1.unit_variant().map(|_| Enum)
+                    }
+                }
+
+                deserializer.deserialize_enum("Enum", &["foo", "bar"], EnumVisitor)
+            }
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct Newtype(Enum);
+
+        let mut deserializer = Deserializer::new();
+
+        // Trace the newtype.
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        // Trace the variants.
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Continue
+        );
+        // Finish.
+        assert_ok_eq!(
+            assert_err!(Newtype::deserialize(&mut deserializer)).0,
+            Status::Success(Shape::Enum {
+                name: "Newtype",
+                description: "tuple struct Newtype".to_owned(),
+                version: None,
+                variants: vec![
+                    Variant {
+                        name: "foo",
+                        description: "foo description".to_owned(),
+                        version: Some("foo version".to_owned()),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new(),
+                            version: None,
+                        },
+                    },
+                    Variant {
+                        name: "bar",
+                        description: "bar description".to_owned(),
+                        version: Some("bar version".to_owned()),
+                        aliases: vec![],
+                        shape: Shape::Empty {
+                            description: String::new(),
+                            version: None,
+                        },
+                    },
+                ],
             })
         );
     }
@@ -3495,6 +3851,7 @@ mod tests {
                     Variant {
                         name: "foo",
                         description: "foo description".into(),
+                        version: None,
                         aliases: vec![],
                         shape: Shape::Empty {
                             description: String::new(),
@@ -3504,6 +3861,7 @@ mod tests {
                     Variant {
                         name: "bar",
                         description: "bar description".into(),
+                        version: None,
                         aliases: vec![],
                         shape: Shape::Empty {
                             description: String::new(),
@@ -3575,6 +3933,7 @@ mod tests {
                     Variant {
                         name: "foo",
                         description: "foo description".into(),
+                        version: None,
                         aliases: vec!["f"],
                         shape: Shape::Empty {
                             description: String::new(),
@@ -3584,6 +3943,7 @@ mod tests {
                     Variant {
                         name: "bar",
                         description: "bar description".into(),
+                        version: None,
                         aliases: vec!["b"],
                         shape: Shape::Empty {
                             description: String::new(),

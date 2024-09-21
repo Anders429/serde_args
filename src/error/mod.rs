@@ -485,6 +485,7 @@ mod tests {
                                 Variant {
                                     name: "foo",
                                     description: "bar".into(),
+                                    version: None,
                                     aliases: vec!["f"],
                                     shape: Shape::Empty {
                                         description: "not shown".into(),
@@ -494,6 +495,7 @@ mod tests {
                                 Variant {
                                     name: "baz",
                                     description: "qux".into(),
+                                    version: None,
                                     aliases: vec![],
                                     shape: Shape::Primitive {
                                         name: "i32".into(),
@@ -522,6 +524,7 @@ mod tests {
                         shape: Shape::Variant {
                             name: "f".into(),
                             description: "bar".into(),
+                            version: None,
                             shape: Box::new(Shape::Primitive {
                                 name: "i32".into(),
                                 description: "i32 description".into(), 
@@ -531,6 +534,7 @@ mod tests {
                                 Variant {
                                     name: "foo",
                                     description: "bar".into(),
+                                    version: None,
                                     aliases: vec!["f"],
                                     shape: Shape::Empty {
                                         description: "not shown".into(),
@@ -540,6 +544,7 @@ mod tests {
                                 Variant {
                                     name: "baz",
                                     description: "qux".into(),
+                                    version: None,
                                     aliases: vec![],
                                     shape: Shape::Primitive {
                                         name: "i32".into(),
@@ -724,6 +729,7 @@ mod tests {
                                 Variant {
                                     name: "foo",
                                     description: "bar".into(),
+                                    version: None,
                                     aliases: vec!["f"],
                                     shape: Shape::Empty {
                                         description: "not shown".into(),
@@ -733,6 +739,7 @@ mod tests {
                                 Variant {
                                     name: "baz",
                                     description: "qux".into(),
+                                    version: None,
                                     aliases: vec![],
                                     shape: Shape::Primitive {
                                         name: "i32".into(),
@@ -761,6 +768,7 @@ mod tests {
                         shape: Shape::Variant {
                             name: "f".into(),
                             description: "bar".into(),
+                            version: None,
                             shape: Box::new(Shape::Primitive {
                                 name: "i32".into(),
                                 description: "i32 description".into(),
@@ -770,6 +778,7 @@ mod tests {
                                 Variant {
                                     name: "foo",
                                     description: "bar".into(),
+                                    version: None,
                                     aliases: vec!["f"],
                                     shape: Shape::Empty {
                                         description: "not shown".into(),
@@ -779,6 +788,7 @@ mod tests {
                                 Variant {
                                     name: "baz",
                                     description: "qux".into(),
+                                    version: None,
                                     aliases: vec![],
                                     shape: Shape::Primitive {
                                         name: "i32".into(),

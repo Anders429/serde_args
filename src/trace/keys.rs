@@ -98,7 +98,7 @@ pub(super) struct Variants {
     pub(super) version: Option<String>,
     pub(super) iter: slice::Iter<'static, &'static str>,
     pub(super) revisit: Option<&'static str>,
-    pub(super) variants: Vec<(KeyInfo, Vec<&'static str>, String)>,
+    pub(super) variants: Vec<(KeyInfo, Vec<&'static str>, String, Option<String>)>,
 }
 
 impl Variants {
@@ -136,11 +136,12 @@ impl From<Variants> for Shape {
             variants: variants
                 .variants
                 .into_iter()
-                .map(|(info, mut names, description)| {
+                .map(|(info, mut names, description, version)| {
                     let first = names.remove(0);
                     Variant {
                         name: first,
                         description,
+                        version,
                         aliases: names,
                         shape: info.shape,
                     }
@@ -452,7 +453,8 @@ mod tests {
                         },
                     },
                     vec!["bar"],
-                    String::new()
+                    String::new(),
+                    None,
                 ),],
             }),
             Shape::Enum {
@@ -462,6 +464,7 @@ mod tests {
                 variants: vec![Variant {
                     name: "bar",
                     description: String::new(),
+                    version: None,
                     aliases: vec![],
                     shape: Shape::Primitive {
                         name: "foo".to_owned(),
@@ -494,6 +497,7 @@ mod tests {
                         },
                         vec!["bar"],
                         String::new(),
+                        None,
                     ),
                     (
                         KeyInfo {
@@ -506,6 +510,7 @@ mod tests {
                         },
                         vec!["qux"],
                         String::new(),
+                        None,
                     ),
                 ],
             }),
@@ -517,6 +522,7 @@ mod tests {
                     Variant {
                         name: "bar",
                         description: String::new(),
+                        version: None,
                         aliases: vec![],
                         shape: Shape::Primitive {
                             name: "foo".to_owned(),
@@ -527,6 +533,7 @@ mod tests {
                     Variant {
                         name: "qux",
                         description: String::new(),
+                        version: None,
                         aliases: vec![],
                         shape: Shape::Primitive {
                             name: "baz".to_owned(),
@@ -559,6 +566,7 @@ mod tests {
                     },
                     vec!["bar", "baz", "qux"],
                     String::new(),
+                    None,
                 ),],
             }),
             Shape::Enum {
@@ -568,6 +576,7 @@ mod tests {
                 variants: vec![Variant {
                     name: "bar",
                     description: String::new(),
+                    version: None,
                     aliases: vec!["baz", "qux"],
                     shape: Shape::Primitive {
                         name: "foo".to_owned(),
@@ -809,6 +818,7 @@ mod tests {
                         },
                         vec!["bar"],
                         String::new(),
+                        None,
                     ),
                     (
                         KeyInfo {
@@ -821,6 +831,7 @@ mod tests {
                         },
                         vec!["qux"],
                         String::new(),
+                        None,
                     ),
                 ],
             })),
@@ -832,6 +843,7 @@ mod tests {
                     Variant {
                         name: "bar",
                         description: String::new(),
+                        version: None,
                         aliases: vec![],
                         shape: Shape::Primitive {
                             name: "foo".to_owned(),
@@ -842,6 +854,7 @@ mod tests {
                     Variant {
                         name: "qux",
                         description: String::new(),
+                        version: None,
                         aliases: vec![],
                         shape: Shape::Primitive {
                             name: "baz".to_owned(),

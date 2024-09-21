@@ -478,6 +478,7 @@ where
                             name: static_variant_name,
                             shape: Box::new(variant.shape),
                             description: variant.description,
+                            version: variant.version,
                             enum_name: name,
                             variants: variants.clone(),
                         };
@@ -966,6 +967,7 @@ where
                                         name: static_variant_name,
                                         shape: Box::new(variant.shape),
                                         description: variant.description,
+                                        version: variant.version,
                                         enum_name: name,
                                         variants: variants.clone(),
                                     };
@@ -1085,6 +1087,7 @@ where
                                         name: static_variant_name,
                                         shape: Box::new(variant.shape),
                                         description: variant.description,
+                                        version: variant.version,
                                         enum_name: name,
                                         variants: variants.clone(),
                                     };
@@ -2194,6 +2197,7 @@ mod tests {
                     variants: vec![Variant {
                         name: "foo",
                         description: String::new(),
+                        version: None,
                         aliases: vec![],
                         shape: Shape::Empty {
                             description: String::new(),
@@ -2222,6 +2226,7 @@ mod tests {
                     variants: vec![Variant {
                         name: "foo",
                         description: String::new(),
+                        version: None,
                         aliases: vec!["f"],
                         shape: Shape::Empty {
                             description: String::new(),
@@ -2250,6 +2255,7 @@ mod tests {
                     variants: vec![Variant {
                         name: "foo",
                         description: String::new(),
+                        version: None,
                         aliases: vec![],
                         shape: Shape::Empty {
                             description: String::new(),
@@ -2274,6 +2280,7 @@ mod tests {
                     variants: vec![Variant {
                         name: "foo",
                         description: String::new(),
+                        version: None,
                         aliases: vec![],
                         shape: Shape::Primitive {
                             name: "string".into(),
@@ -2303,6 +2310,7 @@ mod tests {
                     variants: vec![Variant {
                         name: "",
                         description: String::new(),
+                        version: None,
                         aliases: vec![],
                         shape: Shape::Empty {
                             description: String::new(),
@@ -3089,6 +3097,7 @@ mod tests {
                     variants: vec![Variant {
                         name: "foo",
                         description: String::new(),
+                        version: None,
                         aliases: vec![],
                         shape: Shape::Empty {
                             description: String::new(),
@@ -3116,6 +3125,7 @@ mod tests {
                         Variant {
                             name: "foo",
                             description: String::new(),
+                            version: None,
                             aliases: vec![],
                             shape: Shape::Empty {
                                 description: String::new(),
@@ -3125,6 +3135,7 @@ mod tests {
                         Variant {
                             name: "bar",
                             description: String::new(),
+                            version: None,
                             aliases: vec![],
                             shape: Shape::Empty {
                                 description: String::new(),
@@ -3152,6 +3163,7 @@ mod tests {
                     variants: vec![Variant {
                         name: "foo",
                         description: String::new(),
+                        version: None,
                         aliases: vec!["f"],
                         shape: Shape::Empty {
                             description: String::new(),
@@ -3178,6 +3190,7 @@ mod tests {
                     variants: vec![Variant {
                         name: "foo",
                         description: String::new(),
+                        version: None,
                         aliases: vec![],
                         shape: Shape::Primitive {
                             name: "string".into(),
@@ -3205,6 +3218,7 @@ mod tests {
                     variants: vec![Variant {
                         name: "foo",
                         description: String::new(),
+                        version: None,
                         aliases: vec![],
                         shape: Shape::Empty {
                             description: String::new(),
