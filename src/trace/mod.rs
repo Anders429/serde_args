@@ -314,7 +314,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                         description,
                         version,
                     } => {
-                        *description = container_description;
+                        if !container_description.is_empty() {
+                            *description = container_description;
+                        }
                         if container_version.is_some() {
                             *version = container_version;
                         }
@@ -330,7 +332,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
                         version,
                     } => {
                         *name = struct_name.into();
-                        *description = container_description;
+                        if !container_description.is_empty() {
+                            *description = container_description;
+                        }
                         if container_version.is_some() {
                             *version = container_version;
                         }
