@@ -384,7 +384,7 @@ pub(crate) fn phase_2(
             quote!(Some(#index) => {#(#documentation_exprs)*})
         });
 
-    let ident_string = get_serde_rename(&container.attrs()).unwrap_or_else(|| format!("{}", ident));
+    let ident_string = get_serde_rename(container.attrs()).unwrap_or_else(|| format!("{}", ident));
     quote! {
         #wrapper
         #from
