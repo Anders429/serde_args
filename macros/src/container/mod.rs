@@ -145,6 +145,7 @@ mod tests {
         Container,
         Descriptions,
     };
+    use crate::test::OuterAttributes;
     use claims::assert_ok;
     use proc_macro2::Span;
     use syn::{
@@ -578,6 +579,40 @@ mod tests {
             )))
             .identifier(),
             &Ident::new("Foo", Span::call_site()),
+        );
+    }
+
+    #[test]
+    fn struct_attrs() {
+        assert_eq!(
+            Container::Struct(assert_ok!(parse_str(
+                "
+                #[foo]
+                #[bar]
+                struct Foo {
+                    bar: usize,
+                    baz: String,
+                }"
+            )))
+            .attrs(),
+            &assert_ok!(parse_str::<OuterAttributes>("#[foo] #[bar]")).0,
+        );
+    }
+
+    #[test]
+    fn enum_attrs() {
+        assert_eq!(
+            Container::Enum(assert_ok!(parse_str(
+                "
+                #[foo]
+                #[bar]
+                enum Foo {
+                    Bar,
+                    Baz,
+                }"
+            )))
+            .attrs(),
+            &assert_ok!(parse_str::<OuterAttributes>("#[foo] #[bar]")).0,
         );
     }
 }
