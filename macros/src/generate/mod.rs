@@ -59,6 +59,45 @@ use syn::{
     Visibility,
 };
 
+fn get_serde_rename(attrs: &Vec<Attribute>) -> Option<String> {
+    for attribute in attrs {
+        if let Meta::List(list) = attribute.meta.clone() {
+            if list.path
+                == (Path {
+                    leading_colon: None,
+                    segments: iter::once(PathSegment {
+                        ident: Ident::new("serde", Span::call_site()),
+                        arguments: PathArguments::None,
+                    })
+                    .collect(),
+                })
+            {
+                let mut token_iter = list.tokens.into_iter();
+                if let Some(TokenTree::Ident(ident)) = token_iter.next() {
+                    if ident == Ident::new("rename", Span::call_site()) {
+                        if let Some(TokenTree::Punct(punctuation)) = token_iter.next() {
+                            if punctuation.as_char() == '='
+                                && punctuation.spacing() == Spacing::Alone
+                            {
+                                if let Some(TokenTree::Literal(literal)) = token_iter.next() {
+                                    return Some({
+                                        let mut base = format!("{}", literal);
+                                        // Strip out the beginning and ending quotation marks.
+                                        base.pop();
+                                        base.remove(0);
+                                        base
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
 fn push_serde_attribute(attrs: &mut Vec<Attribute>, meta_tokens: TokenStream) {
     let meta_group = Group::new(Delimiter::Parenthesis, meta_tokens);
     let meta = Meta::List(MetaList {
@@ -100,12 +139,16 @@ pub(crate) fn phase_1(mut container: Container, ident: &Ident) -> TokenStream {
     .collect();
     match &mut container {
         Container::Enum(item) => {
-            push_serde_attribute(&mut item.attrs, attribute_tokens);
+            if get_serde_rename(&item.attrs).is_none() {
+                push_serde_attribute(&mut item.attrs, attribute_tokens);
+            }
             item.vis = Visibility::Inherited;
             item.ident = Ident::new("Phase1", Span::call_site());
         }
         Container::Struct(item) => {
-            push_serde_attribute(&mut item.attrs, attribute_tokens);
+            if get_serde_rename(&item.attrs).is_none() {
+                push_serde_attribute(&mut item.attrs, attribute_tokens);
+            }
             item.vis = Visibility::Inherited;
             item.ident = Ident::new("Phase1", Span::call_site());
         }
@@ -341,7 +384,7 @@ pub(crate) fn phase_2(
             quote!(Some(#index) => {#(#documentation_exprs)*})
         });
 
-    let ident_string = format!("{}", ident);
+    let ident_string = get_serde_rename(&container.attrs()).unwrap_or_else(|| format!("{}", ident));
     quote! {
         #wrapper
         #from

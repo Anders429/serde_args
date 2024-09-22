@@ -13,6 +13,7 @@ use syn::{
         Parse,
         ParseStream,
     },
+    Attribute,
     Ident,
     Item,
     ItemEnum,
@@ -58,6 +59,13 @@ impl Container {
         match self {
             Container::Enum(item) => &item.ident,
             Container::Struct(item) => &item.ident,
+        }
+    }
+
+    pub(crate) fn attrs(&self) -> &Vec<Attribute> {
+        match self {
+            Container::Enum(item) => &item.attrs,
+            Container::Struct(item) => &item.attrs,
         }
     }
 }
