@@ -40,6 +40,18 @@ where
         },
         index: 0,
     }];
+    if shape.version().is_some() {
+        override_options.push(Field {
+            name: "version",
+            description: "Display version information.".into(),
+            aliases: vec![],
+            shape: Shape::Empty {
+                description: String::new(),
+                version: None,
+            },
+            index: 1,
+        });
+    }
     let parsed_context = parse_context(
         &mut parsed_args,
         shape,
@@ -69,12 +81,17 @@ where
 
     // Handle overriding options.
     if let Some((option_name, _option_context)) = options.into_iter().next() {
+        let mut expecting = vec!["help", "h"];
+        if shape.version().is_some() {
+            expecting.push("version");
+        }
         match option_name {
             "help" | "h" => return Err(Error::Help),
+            "version" if shape.version().is_some() => return Err(Error::Version),
             _ => {
                 return Err(Error::UnrecognizedOption {
                     name: option_name.to_owned(),
-                    expecting: vec!["help", "h"],
+                    expecting,
                 })
             }
         }
@@ -3230,6 +3247,65 @@ mod tests {
             Context {
                 segments: vec![Segment::Identifier("foo")],
             }
+        );
+    }
+
+    #[test]
+    fn parse_help() {
+        assert_err_eq!(
+            parse(
+                ["--help"],
+                &mut Shape::Empty {
+                    description: String::new(),
+                    version: None,
+                },
+            ),
+            Error::Help,
+        );
+    }
+
+    #[test]
+    fn parse_help_short() {
+        assert_err_eq!(
+            parse(
+                ["-h"],
+                &mut Shape::Empty {
+                    description: String::new(),
+                    version: None,
+                },
+            ),
+            Error::Help,
+        );
+    }
+
+    #[test]
+    fn parse_version() {
+        assert_err_eq!(
+            parse(
+                ["--version"],
+                &mut Shape::Empty {
+                    description: String::new(),
+                    version: Some("foo".into()),
+                },
+            ),
+            Error::Version,
+        );
+    }
+
+    #[test]
+    fn parse_version_not_available() {
+        assert_err_eq!(
+            parse(
+                ["--version"],
+                &mut Shape::Empty {
+                    description: String::new(),
+                    version: None,
+                },
+            ),
+            Error::UnrecognizedOption {
+                name: "version".into(),
+                expecting: vec!["help", "h"]
+            },
         );
     }
 }

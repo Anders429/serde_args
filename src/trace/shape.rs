@@ -172,6 +172,18 @@ impl Shape {
         }
     }
 
+    pub(crate) fn version(&self) -> Option<&str> {
+        match self {
+            Self::Empty { version, .. }
+            | Self::Primitive { version, .. }
+            | Self::Boolean { version, .. }
+            | Self::Struct { version, .. }
+            | Self::Enum { version, .. }
+            | Self::Variant { version, .. } => version.as_deref(),
+            Self::Optional(shape) => shape.version(),
+        }
+    }
+
     pub(crate) fn required_arguments(&self) -> Vec<(&str, &str)> {
         let mut result: Vec<(&str, &str)> = Vec::new();
 
@@ -356,6 +368,10 @@ mod tests {
         Field,
         Shape,
         Variant,
+    };
+    use claims::{
+        assert_none,
+        assert_some_eq,
     };
     use serde::de::IgnoredAny;
 
@@ -897,6 +913,183 @@ mod tests {
             .description(),
             "bar"
         );
+    }
+
+    #[test]
+    fn shape_empty_version() {
+        assert_some_eq!(
+            Shape::Empty {
+                description: String::new(),
+                version: Some("foo".into()),
+            }
+            .version(),
+            "foo"
+        );
+    }
+
+    #[test]
+    fn shape_empty_no_version() {
+        assert_none!(Shape::Empty {
+            description: String::new(),
+            version: None,
+        }
+        .version());
+    }
+
+    #[test]
+    fn shape_primitive_version() {
+        assert_some_eq!(
+            Shape::Primitive {
+                name: String::new(),
+                description: String::new(),
+                version: Some("foo".into()),
+            }
+            .version(),
+            "foo"
+        );
+    }
+
+    #[test]
+    fn shape_primitive_no_version() {
+        assert_none!(Shape::Primitive {
+            name: String::new(),
+            description: String::new(),
+            version: None,
+        }
+        .version());
+    }
+
+    #[test]
+    fn shape_boolean_version() {
+        assert_some_eq!(
+            Shape::Boolean {
+                name: String::new(),
+                description: String::new(),
+                version: Some("foo".into()),
+            }
+            .version(),
+            "foo"
+        );
+    }
+
+    #[test]
+    fn shape_boolean_no_version() {
+        assert_none!(Shape::Boolean {
+            name: String::new(),
+            description: String::new(),
+            version: None,
+        }
+        .version());
+    }
+
+    #[test]
+    fn shape_optional_version() {
+        assert_some_eq!(
+            Shape::Optional(Box::new(Shape::Empty {
+                description: String::new(),
+                version: Some("foo".into()),
+            }))
+            .version(),
+            "foo"
+        );
+    }
+
+    #[test]
+    fn shape_optional_no_version() {
+        assert_none!(Shape::Optional(Box::new(Shape::Empty {
+            description: String::new(),
+            version: None,
+        }))
+        .version());
+    }
+
+    #[test]
+    fn shape_struct_version() {
+        assert_some_eq!(
+            Shape::Struct {
+                name: "",
+                description: String::new(),
+                version: Some("foo".into()),
+                required: vec![],
+                optional: vec![],
+                booleans: vec![],
+            }
+            .version(),
+            "foo"
+        );
+    }
+
+    #[test]
+    fn shape_struct_no_version() {
+        assert_none!(Shape::Struct {
+            name: "",
+            description: String::new(),
+            version: None,
+            required: vec![],
+            optional: vec![],
+            booleans: vec![],
+        }
+        .version());
+    }
+
+    #[test]
+    fn shape_enum_version() {
+        assert_some_eq!(
+            Shape::Enum {
+                name: "",
+                description: String::new(),
+                version: Some("foo".into()),
+                variants: vec![],
+            }
+            .version(),
+            "foo"
+        );
+    }
+
+    #[test]
+    fn shape_enum_no_version() {
+        assert_none!(Shape::Enum {
+            name: "",
+            description: String::new(),
+            version: None,
+            variants: vec![],
+        }
+        .version());
+    }
+
+    #[test]
+    fn shape_variant_version() {
+        assert_some_eq!(
+            Shape::Variant {
+                name: "",
+                description: String::new(),
+                version: Some("foo".into()),
+                shape: Box::new(Shape::Empty {
+                    description: String::new(),
+                    version: None,
+                }),
+                enum_name: "",
+                variants: vec![],
+            }
+            .version(),
+            "foo"
+        );
+    }
+
+    #[test]
+    fn shape_variant_no_version() {
+        assert_none!(Shape::Variant {
+            name: "",
+            description: String::new(),
+            version: None,
+            shape: Box::new(Shape::Empty {
+                description: String::new(),
+                version: Some("foo".into()),
+            }),
+            enum_name: "",
+            variants: vec![],
+        }
+        .version());
     }
 
     #[test]

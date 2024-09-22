@@ -21,6 +21,7 @@ pub(crate) enum Error {
         expecting: Vec<&'static str>,
     },
     Help,
+    Version,
 }
 
 impl Display for Error {
@@ -109,6 +110,7 @@ impl Display for Error {
                 Ok(())
             }
             Self::Help => formatter.write_str("help requested"),
+            Self::Version => formatter.write_str("version requested"),
         }
     }
 }
@@ -303,5 +305,10 @@ mod tests {
     #[test]
     fn help_display() {
         assert_eq!(format!("{}", Error::Help), "help requested")
+    }
+
+    #[test]
+    fn version_display() {
+        assert_eq!(format!("{}", Error::Version), "version requested")
     }
 }

@@ -221,6 +221,8 @@ impl Display for Kind {
 
                         Ok(())
                     }
+                    UsageError::Parsing(parse::Error::Version) => formatter
+                        .write_str(shape.version().expect("no version information available")),
                     _ => {
                         write!(
                             formatter,
@@ -560,6 +562,44 @@ mod tests {
             ),
             "bar\n\nUSAGE: executable_name f <i32>\n\nRequired Arguments:\n  <i32>  i32 description\n\nOverride Options:\n  -h --help  Display this message."
         )
+    }
+
+    #[test]
+    fn display_usage_error_version() {
+        assert_eq!(
+            format!(
+                "{}",
+                Error {
+                    kind: Kind::Usage {
+                        error: UsageError::Parsing(parse::Error::Version),
+                        executable_path: "executable_name".into(),
+                        shape: Shape::Empty {
+                            description: String::new(),
+                            version: Some("foo".into()),
+                        },
+                    }
+                }
+            ),
+            "foo"
+        )
+    }
+
+    #[test]
+    #[should_panic(expected = "no version information available")]
+    fn display_usage_error_version_not_present() {
+        let _ = format!(
+            "{}",
+            Error {
+                kind: Kind::Usage {
+                    error: UsageError::Parsing(parse::Error::Version),
+                    executable_path: "executable_name".into(),
+                    shape: Shape::Empty {
+                        description: String::new(),
+                        version: None,
+                    },
+                }
+            }
+        );
     }
 
     #[test]
