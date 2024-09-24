@@ -217,8 +217,8 @@ mod tests {
             
             /// container documentation.
             #[derive(Deserialize)]
-            #[serde(from = \"__Foo::Phase2<Foo>\")]
-            #[serde(into = \"__Foo::Phase2<Foo>\")]
+            #[serde(from = \"__Foo::Phase2::<Foo>\")]
+            #[serde(into = \"__Foo::Phase2::<Foo>\")]
             struct Foo {
                 /// bar documentation.
                 bar: usize,
@@ -412,8 +412,8 @@ mod tests {
 
             /// container documentation.
             #[derive(Deserialize)]
-            #[serde(from = \"__Foo::Phase2<Foo>\")]
-            #[serde(into = \"__Foo::Phase2<Foo>\")]
+            #[serde(from = \"__Foo::Phase2::<Foo>\")]
+            #[serde(into = \"__Foo::Phase2::<Foo>\")]
             enum Foo {
                 /// bar documentation.
                 Bar,

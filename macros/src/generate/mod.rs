@@ -628,7 +628,7 @@ pub(crate) fn phase_3(mut container: Container, module: &Ident) -> TokenStream {
         TokenTree::Ident(Ident::new("from", Span::call_site())),
         TokenTree::Punct(Punct::new('=', Spacing::Alone)),
         TokenTree::Literal(Literal::string(&format!(
-            "{}::Phase2<{}>",
+            "{}::Phase2::<{}>",
             module,
             container.identifier()
         ))),
@@ -639,7 +639,7 @@ pub(crate) fn phase_3(mut container: Container, module: &Ident) -> TokenStream {
         TokenTree::Ident(Ident::new("into", Span::call_site())),
         TokenTree::Punct(Punct::new('=', Spacing::Alone)),
         TokenTree::Literal(Literal::string(&format!(
-            "{}::Phase2<{}>",
+            "{}::Phase2::<{}>",
             module,
             container.identifier()
         ))),
@@ -2248,8 +2248,8 @@ mod tests {
             assert_ok!(parse_str(
                 "
                 #[derive(Deserialize)]
-                #[serde(from = \"__Foo::Phase2<Foo>\")]
-                #[serde(into = \"__Foo::Phase2<Foo>\")]
+                #[serde(from = \"__Foo::Phase2::<Foo>\")]
+                #[serde(into = \"__Foo::Phase2::<Foo>\")]
                 struct Foo {
                     bar: usize,
                     baz: String,
@@ -2296,8 +2296,8 @@ mod tests {
             assert_ok!(parse_str(
                 "
                 #[derive(Deserialize)]
-                #[serde(from = \"__Foo::Phase2<Foo>\")]
-                #[serde(into = \"__Foo::Phase2<Foo>\")]
+                #[serde(from = \"__Foo::Phase2::<Foo>\")]
+                #[serde(into = \"__Foo::Phase2::<Foo>\")]
                 enum Foo {
                     Bar,
                     Baz,
@@ -2345,8 +2345,8 @@ mod tests {
             assert_ok!(parse_str(
                 "
                 #[derive(Deserialize)]
-                #[serde(from = \"__Foo::Phase2<Foo>\")]
-                #[serde(into = \"__Foo::Phase2<Foo>\")]
+                #[serde(from = \"__Foo::Phase2::<Foo>\")]
+                #[serde(into = \"__Foo::Phase2::<Foo>\")]
                 struct Foo {
                     bar: usize,
                     baz: String,
@@ -2394,8 +2394,8 @@ mod tests {
             assert_ok!(parse_str(
                 "
                 #[derive(Deserialize)]
-                #[serde(from = \"__Foo::Phase2<Foo>\")]
-                #[serde(into = \"__Foo::Phase2<Foo>\")]
+                #[serde(from = \"__Foo::Phase2::<Foo>\")]
+                #[serde(into = \"__Foo::Phase2::<Foo>\")]
                 enum Foo {
                     Bar,
                     Baz,
@@ -2443,8 +2443,8 @@ mod tests {
             assert_ok!(parse_str(
                 "
                 #[derive(Deserialize)]
-                #[serde(from = \"__Foo::Phase2<Foo>\")]
-                #[serde(into = \"__Foo::Phase2<Foo>\")]
+                #[serde(from = \"__Foo::Phase2::<Foo>\")]
+                #[serde(into = \"__Foo::Phase2::<Foo>\")]
                 struct Foo {
                     bar: usize,
                     baz: String,
@@ -2492,8 +2492,8 @@ mod tests {
             assert_ok!(parse_str(
                 "
                 #[derive(Deserialize)]
-                #[serde(from = \"__Foo::Phase2<Foo>\")]
-                #[serde(into = \"__Foo::Phase2<Foo>\")]
+                #[serde(from = \"__Foo::Phase2::<Foo>\")]
+                #[serde(into = \"__Foo::Phase2::<Foo>\")]
                 enum Foo {
                     Bar,
                     Baz,
