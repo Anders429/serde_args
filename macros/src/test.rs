@@ -7,6 +7,7 @@ use syn::{
         ParseStream,
     },
     Attribute,
+    Pat,
 };
 
 #[derive(Debug, Eq, PartialEq)]
@@ -18,8 +19,20 @@ impl Parse for OuterAttributes {
     }
 }
 
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) struct SinglePattern(pub(crate) Pat);
+
+impl Parse for SinglePattern {
+    fn parse(input: ParseStream) -> parse::Result<Self> {
+        Ok(Self(input.call(Pat::parse_single)?))
+    }
+}
+
 mod tests {
-    use super::OuterAttributes;
+    use super::{
+        OuterAttributes,
+        SinglePattern,
+    };
     use claims::assert_ok_eq;
     use proc_macro2::{
         Delimiter,
@@ -36,6 +49,8 @@ mod tests {
         Attribute,
         Ident,
         Meta,
+        Pat,
+        PatIdent,
         Path,
         PathArguments,
         PathSegment,
@@ -148,6 +163,20 @@ mod tests {
                     }
                 }
             ])
+        );
+    }
+
+    #[test]
+    fn parse_single_pattern() {
+        assert_ok_eq!(
+            parse_str::<SinglePattern>("Foo"),
+            SinglePattern(Pat::Ident(PatIdent {
+                attrs: vec![],
+                by_ref: None,
+                mutability: None,
+                ident: Ident::new("Foo", Span::call_site()),
+                subpat: None,
+            }))
         );
     }
 }

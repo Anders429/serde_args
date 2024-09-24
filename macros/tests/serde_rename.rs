@@ -25,7 +25,7 @@ struct Struct {
 }
 
 #[test]
-fn struct_serialize() {
+fn serialize() {
     let value = Struct {
         foo: 42,
         bar: "baz".into(),
@@ -51,7 +51,7 @@ fn struct_serialize() {
 }
 
 #[test]
-fn struct_deserialize() {
+fn deserialize() {
     let tokens = [
         Token::NewtypeStruct { name: "MyStruct" },
         Token::Struct {
@@ -75,7 +75,7 @@ fn struct_deserialize() {
 }
 
 #[test]
-fn struct_roundtrip() {
+fn roundtrip() {
     let value = Struct {
         foo: 42,
         bar: "baz".into(),

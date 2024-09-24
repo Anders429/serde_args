@@ -1,0 +1,13 @@
+error: expected one of: `for`, parentheses, `fn`, `unsafe`, `extern`, identifier, `::`, `<`, `dyn`, square brackets, `*`, `&`, `!`, `impl`, `_`, lifetime
+ --> tests/trybuild/serde_from_invalid.rs:4:1
+  |
+4 | #[help]
+  | ^^^^^^^
+  |
+  = note: this error originates in the attribute macro `help` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: failed to parse type: from = "="
+ --> tests/trybuild/serde_from_invalid.rs:6:16
+  |
+6 | #[serde(from = "=")]
+  |                ^^^
