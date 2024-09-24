@@ -134,7 +134,7 @@ pub(crate) fn from_newtype_to_container(
         }
         Container::Struct(item) => {
             // Prepare the fields.
-            let fields = collect_field_members(&item).map(|ident| quote!(#ident: from.0.#ident));
+            let fields = collect_field_members(item).map(|ident| quote!(#ident: from.0.#ident));
             quote! {
                 impl ::std::convert::From<#from> for #to {
                     fn from(from: #from) -> #to {
@@ -171,7 +171,7 @@ pub(crate) fn from_container_to_newtype(
         }
         Container::Struct(item) => {
             // Prepare the fields.
-            let fields = collect_field_members(&item).map(|ident| quote!(#ident: from.#ident));
+            let fields = collect_field_members(item).map(|ident| quote!(#ident: from.#ident));
             quote! {
                 impl ::std::convert::From<#from> for #to {
                     fn from(from: #from) -> #to {
@@ -211,7 +211,7 @@ pub(crate) fn from_foreign_to_container(
         Container::Struct(item) => {
             // Prepare the fields.
             let fields =
-                collect_field_members(&item).map(|ident| quote!(#ident: converted_from.0.#ident));
+                collect_field_members(item).map(|ident| quote!(#ident: converted_from.0.#ident));
             quote! {
                 impl ::std::convert::From<#from> for #to {
                     fn from(from: #from) -> #to {
