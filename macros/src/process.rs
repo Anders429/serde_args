@@ -9,8 +9,28 @@ use proc_macro2::{
 use quote::quote;
 use syn::{
     parse2 as parse,
+    Attribute,
     Ident,
+    Meta,
+    PathArguments,
 };
+
+fn has_automatically_derived(attrs: &Vec<Attribute>) -> bool {
+    for attribute in attrs {
+        if let Meta::Path(path) = &attribute.meta {
+            if path.leading_colon.is_none() && path.segments.len() <= 1 {
+                if let Some(segment) = path.segments.first() {
+                    if segment.ident == Ident::new("automatically_derived", Span::call_site())
+                        && segment.arguments == PathArguments::None
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    false
+}
 
 pub(super) fn process(item: TokenStream) -> TokenStream {
     // Parse the descriptions from the container.
@@ -18,6 +38,12 @@ pub(super) fn process(item: TokenStream) -> TokenStream {
         Ok(container) => container,
         Err(error) => return error.into_compile_error(),
     };
+
+    // If `#[automatically_derived]` is present, we do not generate anything.
+    if has_automatically_derived(container.attrs()) {
+        return quote!(#container);
+    }
+
     let descriptions = container.descriptions();
     let ident = container.identifier();
     let module = Ident::new(&format!("__{}__serde_args__help", ident), Span::call_site());
@@ -442,5 +468,73 @@ mod tests {
             }
             "
         )));
+    }
+
+    #[test]
+    fn process_struct_automatically_derived() {
+        let tokens = assert_ok!(TokenStream::from_str(
+            "
+            /// container documentation.
+            #[derive(Deserialize)]
+            #[automatically_derived]
+            struct Foo {
+                /// bar documentation.
+                bar: usize,
+                /// baz documentation.
+                baz: String,
+            }
+            "
+        ));
+
+        assert_eq!(
+            assert_ok!(parse::<File>(process(tokens))),
+            assert_ok!(parse_str(
+                "
+            /// container documentation.
+            #[derive(Deserialize)]
+            #[automatically_derived]
+            struct Foo {
+                /// bar documentation.
+                bar: usize,
+                /// baz documentation.
+                baz: String,
+            }
+            "
+            ))
+        );
+    }
+
+    #[test]
+    fn process_enum_automatically_derived() {
+        let tokens = assert_ok!(TokenStream::from_str(
+            "
+            /// container documentation.
+            #[derive(Deserialize)]
+            #[automatically_derived]
+            enum Foo {
+                /// bar documentation.
+                Bar,
+                /// baz documentation.
+                Baz,
+            }
+            "
+        ));
+
+        assert_eq!(
+            assert_ok!(parse::<File>(process(tokens))),
+            assert_ok!(parse_str(
+                "
+            /// container documentation.
+            #[derive(Deserialize)]
+            #[automatically_derived]
+            enum Foo {
+                /// bar documentation.
+                Bar,
+                /// baz documentation.
+                Baz,
+            }
+            "
+            ))
+        );
     }
 }
