@@ -75,6 +75,7 @@ mod tests {
                 /// container documentation.
                 #[derive(Deserialize)]
                 #[serde(rename = \"Foo\")]
+                #[automatically_derived]
                 struct Phase1 {
                     /// bar documentation.
                     bar: usize,
@@ -270,6 +271,7 @@ mod tests {
                 /// container documentation.
                 #[derive(Deserialize)]
                 #[serde(rename = \"Foo\")]
+                #[automatically_derived]
                 enum Phase1 {
                     /// bar documentation.
                     Bar,

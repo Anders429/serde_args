@@ -183,6 +183,26 @@ pub(crate) fn phase_1(mut container: Container, ident: &Ident) -> TokenStream {
             if get_serde_attribute(&item.attrs, "rename").is_none() {
                 push_serde_attribute(&mut item.attrs, attribute_tokens);
             }
+            // Include automatically_derived attribute.
+            let meta = Meta::Path(Path {
+                leading_colon: None,
+                segments: iter::once(PathSegment {
+                    ident: Ident::new("automatically_derived", Span::call_site()),
+                    arguments: PathArguments::None,
+                })
+                .collect(),
+            });
+            let mut tokens = TokenStream::new();
+            meta.to_tokens(&mut tokens);
+            let group = Group::new(Delimiter::Bracket, tokens);
+            item.attrs.push(Attribute {
+                pound_token: Token![#](Span::call_site()),
+                style: AttrStyle::Outer,
+                bracket_token: Bracket {
+                    span: group.delim_span(),
+                },
+                meta,
+            });
             item.vis = Visibility::Inherited;
             item.ident = Ident::new("Phase1", Span::call_site());
         }
@@ -190,6 +210,26 @@ pub(crate) fn phase_1(mut container: Container, ident: &Ident) -> TokenStream {
             if get_serde_attribute(&item.attrs, "rename").is_none() {
                 push_serde_attribute(&mut item.attrs, attribute_tokens);
             }
+            // Include automatically_derived attribute.
+            let meta = Meta::Path(Path {
+                leading_colon: None,
+                segments: iter::once(PathSegment {
+                    ident: Ident::new("automatically_derived", Span::call_site()),
+                    arguments: PathArguments::None,
+                })
+                .collect(),
+            });
+            let mut tokens = TokenStream::new();
+            meta.to_tokens(&mut tokens);
+            let group = Group::new(Delimiter::Bracket, tokens);
+            item.attrs.push(Attribute {
+                pound_token: Token![#](Span::call_site()),
+                style: AttrStyle::Outer,
+                bracket_token: Bracket {
+                    span: group.delim_span(),
+                },
+                meta,
+            });
             item.vis = Visibility::Inherited;
             item.ident = Ident::new("Phase1", Span::call_site());
         }
@@ -854,6 +894,7 @@ mod tests {
                 "
                 #[derive(Deserialize)]
                 #[serde(rename = \"Foo\")]
+                #[automatically_derived]
                 struct Phase1 {
                     bar: usize,
                     baz: String,
@@ -942,6 +983,7 @@ mod tests {
                 "
                 #[derive(Deserialize)]
                 #[serde(rename = \"Foo\")]
+                #[automatically_derived]
                 enum Phase1 {
                     Bar,
                     Baz,
@@ -1031,6 +1073,7 @@ mod tests {
                 "
                 #[derive(Deserialize)]
                 #[serde(rename = \"Bar\")]
+                #[automatically_derived]
                 struct Phase1 {
                     bar: usize,
                     baz: String,
@@ -1120,6 +1163,7 @@ mod tests {
                 "
                 #[derive(Deserialize)]
                 #[serde(rename = \"Bar\")]
+                #[automatically_derived]
                 enum Phase1 {
                     Bar,
                     Baz,
@@ -1210,6 +1254,7 @@ mod tests {
                 #[derive(Deserialize)]
                 #[serde(from = \"Bar\")]
                 #[serde(rename = \"Foo\")]
+                #[automatically_derived]
                 struct Phase1 {
                     bar: usize,
                     baz: String,
@@ -1310,6 +1355,7 @@ mod tests {
                 #[derive(Deserialize)]
                 #[serde(from = \"Bar\")]
                 #[serde(rename = \"Foo\")]
+                #[automatically_derived]
                 enum Phase1 {
                     Bar,
                     Baz,
@@ -1410,6 +1456,7 @@ mod tests {
                 #[derive(Deserialize)]
                 #[serde(into = \"Bar\")]
                 #[serde(rename = \"Foo\")]
+                #[automatically_derived]
                 struct Phase1 {
                     bar: usize,
                     baz: String,
@@ -1506,6 +1553,7 @@ mod tests {
                 #[derive(Deserialize)]
                 #[serde(into = \"Bar\")]
                 #[serde(rename = \"Foo\")]
+                #[automatically_derived]
                 enum Phase1 {
                     Bar,
                     Baz,
@@ -1604,6 +1652,7 @@ mod tests {
                 #[serde(from = \"Bar\")]
                 #[serde(into = \"Baz\")]
                 #[serde(rename = \"Foo\")]
+                #[automatically_derived]
                 struct Phase1 {
                     bar: usize,
                     baz: String,
@@ -1712,6 +1761,7 @@ mod tests {
                 #[serde(from = \"Bar\")]
                 #[serde(into = \"Baz\")]
                 #[serde(rename = \"Foo\")]
+                #[automatically_derived]
                 enum Phase1 {
                     Bar,
                     Baz,
