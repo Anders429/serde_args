@@ -20,7 +20,7 @@ pub(super) fn process(item: TokenStream) -> TokenStream {
     };
     let descriptions = container.descriptions();
     let ident = container.identifier();
-    let module = Ident::new(&format!("__{}", ident), Span::call_site());
+    let module = Ident::new(&format!("__{}__serde_args__help", ident), Span::call_site());
 
     // Extract the container.
     let phase_1 = generate::phase_1(container.clone(), ident);
@@ -69,7 +69,7 @@ mod tests {
 
         assert_eq!(assert_ok!(parse::<File>(process(tokens))), assert_ok!(parse_str(
             "
-            mod __Foo {
+            mod __Foo__serde_args__help {
                 use super::*;
 
                 /// container documentation.
@@ -217,8 +217,8 @@ mod tests {
             
             /// container documentation.
             #[derive(Deserialize)]
-            #[serde(from = \"__Foo::Phase2::<Foo>\")]
-            #[serde(into = \"__Foo::Phase2::<Foo>\")]
+            #[serde(from = \"__Foo__serde_args__help::Phase2::<Foo>\")]
+            #[serde(into = \"__Foo__serde_args__help::Phase2::<Foo>\")]
             struct Foo {
                 /// bar documentation.
                 bar: usize,
@@ -226,8 +226,8 @@ mod tests {
                 baz: String,
             }
 
-            impl ::std::convert::From<__Foo::Phase2::<Foo>> for Foo {
-                fn from(from: __Foo::Phase2::<Foo>) -> Foo {
+            impl ::std::convert::From<__Foo__serde_args__help::Phase2::<Foo>> for Foo {
+                fn from(from: __Foo__serde_args__help::Phase2::<Foo>) -> Foo {
                     Foo {
                         bar: from.0.bar,
                         baz: from.0.baz
@@ -235,9 +235,9 @@ mod tests {
                 }
             }
 
-            impl ::std::convert::From<Foo> for __Foo::Phase2::<Foo> {
-                    fn from(from: Foo) -> __Foo::Phase2::<Foo> {
-                        __Foo::Phase2::<Foo>(Foo {
+            impl ::std::convert::From<Foo> for __Foo__serde_args__help::Phase2::<Foo> {
+                    fn from(from: Foo) -> __Foo__serde_args__help::Phase2::<Foo> {
+                        __Foo__serde_args__help::Phase2::<Foo>(Foo {
                             bar: from.bar,
                             baz: from.baz
                         })
@@ -264,7 +264,7 @@ mod tests {
 
         assert_eq!(assert_ok!(parse::<File>(process(tokens))), assert_ok!(parse_str(
             "
-            mod __Foo {
+            mod __Foo__serde_args__help {
                 use super::*;
 
                 /// container documentation.
@@ -412,8 +412,8 @@ mod tests {
 
             /// container documentation.
             #[derive(Deserialize)]
-            #[serde(from = \"__Foo::Phase2::<Foo>\")]
-            #[serde(into = \"__Foo::Phase2::<Foo>\")]
+            #[serde(from = \"__Foo__serde_args__help::Phase2::<Foo>\")]
+            #[serde(into = \"__Foo__serde_args__help::Phase2::<Foo>\")]
             enum Foo {
                 /// bar documentation.
                 Bar,
@@ -421,8 +421,8 @@ mod tests {
                 Baz,
             }
 
-            impl ::std::convert::From<__Foo::Phase2::<Foo>> for Foo {
-                fn from(from: __Foo::Phase2::<Foo>) -> Foo {
+            impl ::std::convert::From<__Foo__serde_args__help::Phase2::<Foo>> for Foo {
+                fn from(from: __Foo__serde_args__help::Phase2::<Foo>) -> Foo {
                     match from.0 {
                         Foo::Bar => Foo::Bar,
                         Foo::Baz => Foo::Baz,
@@ -430,11 +430,11 @@ mod tests {
                 }
             }
 
-            impl ::std::convert::From<Foo> for __Foo::Phase2::<Foo> {
-                fn from(from: Foo) -> __Foo::Phase2::<Foo> {
+            impl ::std::convert::From<Foo> for __Foo__serde_args__help::Phase2::<Foo> {
+                fn from(from: Foo) -> __Foo__serde_args__help::Phase2::<Foo> {
                     match from {
-                        Foo::Bar => __Foo::Phase2::<Foo>(Foo::Bar),
-                        Foo::Baz => __Foo::Phase2::<Foo>(Foo::Baz),
+                        Foo::Bar => __Foo__serde_args__help::Phase2::<Foo>(Foo::Bar),
+                        Foo::Baz => __Foo__serde_args__help::Phase2::<Foo>(Foo::Baz),
                     }
                 }
             }
