@@ -176,7 +176,7 @@ macro_rules! deserialize_as_primitive {
     }
 }
 
-impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer {
+impl<'de> de::Deserializer<'de> for &mut Deserializer {
     type Error = Trace;
 
     // ---------------
