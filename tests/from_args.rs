@@ -117,6 +117,17 @@ macro_rules! assert_run_err {
     };
 }
 
+macro_rules! assert_run_err_literal {
+    ($command:expr, $expected:literal) => {
+        let error = assert_err!($command.run());
+        if let Error::Stdout(stdout) = error {
+            assert_eq!(stdout, $expected);
+        } else {
+            panic!("command failed to execute: {}", error);
+        }
+    };
+}
+
 #[test]
 fn empty() {
     assert_run_ok!(Command::new("tests/from_args/empty"));
@@ -461,5 +472,37 @@ fn enum_help_color() {
     assert_run_err!(
         Command::new("tests/from_args/enum_help_color").args(["--help"]),
         "This is a description of my program.\n\n\x1b[97mUSAGE\x1b[0m: \x1b[96m{name}\x1b[0m \x1b[36m<Command>\x1b[0m\n\n\x1b[97mRequired Arguments:\x1b[0m\n  \x1b[96m<Command>\x1b[0m  This is a description of my program.\n\n\x1b[97mOverride Options:\x1b[0m\n  \x1b[96m-h --help\x1b[0m  Display this message.\n\n\x1b[97mCommand Variants:\x1b[0m\n  \x1b[96mfoo \x1b[0m\x1b[36m\x1b[0m                      Don't provide any arguments to this command.\n  \x1b[96mbar \x1b[0m\x1b[36m<u8>\x1b[0m                  Provide one argument to this command.\n  \x1b[96mbaz \x1b[0m\x1b[36m[--<a string>]\x1b[0m        You can do zero or one arguments for this command.\n  \x1b[96mqux \x1b[0m\x1b[36m[options] <required>\x1b[0m  This command takes a required argument and an optional flag.\n"
+    );
+}
+
+#[test]
+fn struct_version() {
+    assert_run_err_literal!(
+        Command::new("tests/from_args/struct_version").args(["--version"]),
+        "0.0.0\n"
+    );
+}
+
+#[test]
+fn enum_version() {
+    assert_run_err_literal!(
+        Command::new("tests/from_args/enum_version").args(["--version"]),
+        "0.0.0\n"
+    );
+}
+
+#[test]
+fn struct_version_help() {
+    assert_run_err_literal!(
+        Command::new("tests/from_args/struct_version_help").args(["--version"]),
+        "0.0.0\n"
+    );
+}
+
+#[test]
+fn enum_version_help() {
+    assert_run_err_literal!(
+        Command::new("tests/from_args/enum_version_help").args(["--version"]),
+        "0.0.0\n"
     );
 }

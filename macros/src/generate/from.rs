@@ -196,7 +196,7 @@ pub(crate) fn from_foreign_to_container(
         Container::Enum(item) => {
             // Prepare the variants.
             let variants = collect_variant_patterns(item)
-                .map(|pattern| quote!(#intermediate_b::#pattern => #to::#pattern,));
+                .map(|pattern| quote!(#intermediate_a::#pattern => #to::#pattern,));
             quote! {
                 impl ::std::convert::From<#from> for #to {
                     fn from(from: #from) -> #to {
@@ -785,10 +785,10 @@ mod tests {
                 fn from(from: Bar) -> Qux {
                     let converted_from = Baz::from(Foo::from(from));
                     match converted_from.0 {
-                        Baz::Unit => Qux::Unit,
-                        Baz::Newtype(__0) => Qux::Newtype(__0),
-                        Baz::Tuple(__0, __1, __2) => Qux::Tuple(__0, __1, __2),
-                        Baz::Struct {a, b} => Qux::Struct {a, b},
+                        Foo::Unit => Qux::Unit,
+                        Foo::Newtype(__0) => Qux::Newtype(__0),
+                        Foo::Tuple(__0, __1, __2) => Qux::Tuple(__0, __1, __2),
+                        Foo::Struct {a, b} => Qux::Struct {a, b},
                     }
                 }
             }"

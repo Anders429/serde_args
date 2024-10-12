@@ -1,4 +1,5 @@
 use crate::{
+    attributes::has_automatically_derived,
     generate,
     Container,
 };
@@ -9,28 +10,8 @@ use proc_macro2::{
 use quote::quote;
 use syn::{
     parse2 as parse,
-    Attribute,
     Ident,
-    Meta,
-    PathArguments,
 };
-
-fn has_automatically_derived(attrs: &Vec<Attribute>) -> bool {
-    for attribute in attrs {
-        if let Meta::Path(path) = &attribute.meta {
-            if path.leading_colon.is_none() && path.segments.len() <= 1 {
-                if let Some(segment) = path.segments.first() {
-                    if segment.ident == Ident::new("automatically_derived", Span::call_site())
-                        && segment.arguments == PathArguments::None
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-    false
-}
 
 pub(super) fn process(item: TokenStream) -> TokenStream {
     // Parse the descriptions from the container.
