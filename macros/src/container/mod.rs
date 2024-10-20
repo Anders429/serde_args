@@ -5,7 +5,11 @@ pub(crate) use descriptions::{
     Documentation,
 };
 
-use proc_macro2::TokenStream;
+use core::iter;
+use proc_macro2::{
+    Span,
+    TokenStream,
+};
 use quote::ToTokens;
 use syn::{
     parse,
@@ -13,11 +17,22 @@ use syn::{
         Parse,
         ParseStream,
     },
+    punctuated::Punctuated,
+    AngleBracketedGenericArguments,
     Attribute,
+    GenericArgument,
+    GenericParam,
+    Generics,
     Ident,
     Item,
     ItemEnum,
     ItemStruct,
+    Lifetime,
+    LifetimeParam,
+    PathArguments,
+    Token,
+    Type,
+    TypePath,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -67,6 +82,57 @@ impl Container {
             Container::Enum(item) => &item.attrs,
             Container::Struct(item) => &item.attrs,
         }
+    }
+
+    pub(crate) fn generics(&self) -> &Generics {
+        match self {
+            Container::Enum(item) => &item.generics,
+            Container::Struct(item) => &item.generics,
+        }
+    }
+
+    pub(crate) fn generics_with_lifetime(&self) -> Generics {
+        Generics {
+            lt_token: Some(Token!(<)(Span::call_site())),
+            params: iter::once(GenericParam::Lifetime(LifetimeParam {
+                attrs: vec![],
+                lifetime: Lifetime {
+                    apostrophe: Span::call_site(),
+                    ident: Ident::new("de", Span::call_site()),
+                },
+                colon_token: None,
+                bounds: Punctuated::new(),
+            }))
+            .chain(self.generics().params.clone())
+            .collect(),
+            gt_token: Some(Token!(>)(Span::call_site())),
+            where_clause: self.generics().where_clause.clone(),
+        }
+    }
+
+    pub(crate) fn args(&self) -> PathArguments {
+        PathArguments::AngleBracketed(AngleBracketedGenericArguments {
+            colon2_token: Some(Token!(::)(Span::call_site())),
+            lt_token: Token!(<)(Span::call_site()),
+            args: self
+                .generics()
+                .params
+                .iter()
+                .map(|param| match param {
+                    GenericParam::Lifetime(lifetime) => {
+                        GenericArgument::Lifetime(lifetime.lifetime.clone())
+                    }
+                    GenericParam::Type(r#type) => GenericArgument::Type(Type::Path(TypePath {
+                        qself: None,
+                        path: r#type.ident.clone().into(),
+                    })),
+                    GenericParam::Const(_) => {
+                        panic!("`serde_args` does not support const generics yet")
+                    }
+                })
+                .collect(),
+            gt_token: Token!(>)(Span::call_site()),
+        })
     }
 }
 
@@ -151,6 +217,7 @@ mod tests {
     use syn::{
         parse_str,
         Ident,
+        PathArguments,
     };
 
     #[test]
@@ -613,6 +680,186 @@ mod tests {
             )))
             .attrs(),
             &assert_ok!(parse_str::<OuterAttributes>("#[foo] #[bar]")).0,
+        );
+    }
+
+    #[test]
+    fn struct_generics_empty() {
+        assert_eq!(
+            Container::Struct(assert_ok!(parse_str(
+                "
+                struct Foo {
+                    bar: usize,
+                    baz: String,
+                }"
+            )))
+            .generics(),
+            &assert_ok!(parse_str("")),
+        );
+    }
+
+    #[test]
+    fn enum_generics_empty() {
+        assert_eq!(
+            Container::Enum(assert_ok!(parse_str(
+                "
+                enum Foo {
+                    Bar,
+                    Baz,
+                }"
+            )))
+            .generics(),
+            &assert_ok!(parse_str("")),
+        );
+    }
+
+    #[test]
+    fn struct_generics() {
+        assert_eq!(
+            Container::Struct(assert_ok!(parse_str(
+                "
+                struct Foo<T1, T2> {
+                    bar: T1,
+                    baz: T2,
+                }"
+            )))
+            .generics(),
+            &assert_ok!(parse_str("<T1, T2>")),
+        );
+    }
+
+    #[test]
+    fn enum_generics() {
+        assert_eq!(
+            Container::Enum(assert_ok!(parse_str(
+                "
+                enum Foo<T1, T2> {
+                    Bar(T1),
+                    Baz(T2),
+                }"
+            )))
+            .generics(),
+            &assert_ok!(parse_str("<T1, T2>")),
+        );
+    }
+
+    #[test]
+    fn struct_generics_with_lifetime_empty() {
+        assert_eq!(
+            Container::Struct(assert_ok!(parse_str(
+                "
+                struct Foo {
+                    bar: usize,
+                    baz: String,
+                }"
+            )))
+            .generics_with_lifetime(),
+            assert_ok!(parse_str("<'de>")),
+        );
+    }
+
+    #[test]
+    fn enum_generics_with_lifetime_empty() {
+        assert_eq!(
+            Container::Enum(assert_ok!(parse_str(
+                "
+                enum Foo {
+                    Bar,
+                    Baz,
+                }"
+            )))
+            .generics_with_lifetime(),
+            assert_ok!(parse_str("<'de>")),
+        );
+    }
+
+    #[test]
+    fn struct_generics_with_lifetime() {
+        assert_eq!(
+            Container::Struct(assert_ok!(parse_str(
+                "
+                struct Foo<T1, T2> {
+                    bar: T1,
+                    baz: T2,
+                }"
+            )))
+            .generics_with_lifetime(),
+            assert_ok!(parse_str("<'de, T1, T2>")),
+        );
+    }
+
+    #[test]
+    fn enum_generics_with_lifetime() {
+        assert_eq!(
+            Container::Enum(assert_ok!(parse_str(
+                "
+                enum Foo<T1, T2> {
+                    Bar(T1),
+                    Baz(T2),
+                }"
+            )))
+            .generics_with_lifetime(),
+            assert_ok!(parse_str("<'de, T1, T2>")),
+        );
+    }
+
+    #[test]
+    fn struct_args_empty() {
+        assert_eq!(
+            Container::Struct(assert_ok!(parse_str(
+                "
+                struct Foo {
+                    bar: usize,
+                    baz: String,
+                }"
+            )))
+            .args(),
+            PathArguments::AngleBracketed(assert_ok!(parse_str("::<>"))),
+        );
+    }
+
+    #[test]
+    fn enum_args_empty() {
+        assert_eq!(
+            Container::Enum(assert_ok!(parse_str(
+                "
+                enum Foo {
+                    Bar,
+                    Baz,
+                }"
+            )))
+            .args(),
+            PathArguments::AngleBracketed(assert_ok!(parse_str("::<>"))),
+        );
+    }
+
+    #[test]
+    fn struct_args() {
+        assert_eq!(
+            Container::Struct(assert_ok!(parse_str(
+                "
+                struct Foo<T1, T2> {
+                    bar: T1,
+                    baz: T2,
+                }"
+            )))
+            .args(),
+            PathArguments::AngleBracketed(assert_ok!(parse_str("::<T1, T2>"))),
+        );
+    }
+
+    #[test]
+    fn enum_args() {
+        assert_eq!(
+            Container::Enum(assert_ok!(parse_str(
+                "
+                enum Foo<T1, T2> {
+                    Bar(T1),
+                    Baz(T2),
+                }"
+            )))
+            .args(),
+            PathArguments::AngleBracketed(assert_ok!(parse_str("::<T1, T2>"))),
         );
     }
 }

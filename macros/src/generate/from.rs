@@ -14,6 +14,7 @@ use syn::{
     },
     FieldPat,
     Fields,
+    Generics,
     Ident,
     ItemEnum,
     ItemStruct,
@@ -115,6 +116,7 @@ pub(crate) fn from_newtype_to_container(
     container: &Container,
     from: &Type,
     to: &Type,
+    generics: &Generics,
 ) -> TokenStream {
     let ident = container.identifier();
     match container {
@@ -123,7 +125,7 @@ pub(crate) fn from_newtype_to_container(
             let variants = collect_variant_patterns(item)
                 .map(|pattern| quote! {#ident::#pattern => #to::#pattern,});
             quote! {
-                impl ::std::convert::From<#from> for #to {
+                impl #generics ::std::convert::From<#from> for #to {
                     fn from(from: #from) -> #to {
                         match from.0 {
                             #(#variants)*
@@ -136,7 +138,7 @@ pub(crate) fn from_newtype_to_container(
             // Prepare the fields.
             let fields = collect_field_members(item).map(|ident| quote!(#ident: from.0.#ident));
             quote! {
-                impl ::std::convert::From<#from> for #to {
+                impl #generics ::std::convert::From<#from> for #to {
                     fn from(from: #from) -> #to {
                         #to {
                             #(#fields),*
@@ -152,15 +154,17 @@ pub(crate) fn from_container_to_newtype(
     container: &Container,
     from: &Type,
     to: &Type,
+    generics: &Generics,
 ) -> TokenStream {
     let ident = container.identifier();
+    let args = container.args();
     match container {
         Container::Enum(item) => {
             // Prepare the variants.
             let variants = collect_variant_patterns(item)
-                .map(|pattern| quote!(#from::#pattern => #to(#ident::#pattern),));
+                .map(|pattern| quote!(#from::#pattern => #to(#ident #args::#pattern),));
             quote! {
-                impl ::std::convert::From<#from> for #to {
+                impl #generics ::std::convert::From<#from> for #to {
                     fn from(from: #from) -> #to {
                         match from {
                             #(#variants)*
@@ -173,9 +177,9 @@ pub(crate) fn from_container_to_newtype(
             // Prepare the fields.
             let fields = collect_field_members(item).map(|ident| quote!(#ident: from.#ident));
             quote! {
-                impl ::std::convert::From<#from> for #to {
+                impl #generics ::std::convert::From<#from> for #to {
                     fn from(from: #from) -> #to {
-                        #to(#ident {
+                        #to(#ident #args {
                             #(#fields),*
                         })
                     }
@@ -191,6 +195,7 @@ pub(crate) fn from_foreign_to_container(
     intermediate_a: &Type,
     intermediate_b: &Type,
     to: &Type,
+    generics: &Generics,
 ) -> TokenStream {
     match container {
         Container::Enum(item) => {
@@ -198,7 +203,7 @@ pub(crate) fn from_foreign_to_container(
             let variants = collect_variant_patterns(item)
                 .map(|pattern| quote!(#intermediate_a::#pattern => #to::#pattern,));
             quote! {
-                impl ::std::convert::From<#from> for #to {
+                impl #generics ::std::convert::From<#from> for #to {
                     fn from(from: #from) -> #to {
                         let converted_from = #intermediate_b::from(#intermediate_a::from(from));
                         match converted_from.0 {
@@ -213,7 +218,7 @@ pub(crate) fn from_foreign_to_container(
             let fields =
                 collect_field_members(item).map(|ident| quote!(#ident: converted_from.0.#ident));
             quote! {
-                impl ::std::convert::From<#from> for #to {
+                impl #generics ::std::convert::From<#from> for #to {
                     fn from(from: #from) -> #to {
                         let converted_from = #intermediate_b::from(#intermediate_a::from(from));
                         #to {
@@ -231,9 +236,10 @@ pub(crate) fn from_container_to_foreign(
     intermediate_a: &Type,
     intermediate_b: &Type,
     to: &Type,
+    generics: &Generics,
 ) -> TokenStream {
     quote! {
-        impl ::std::convert::From<#from> for #to {
+        impl #generics ::std::convert::From<#from> for #to {
             fn from(from: #from) -> #to {
                 #to::from(#intermediate_b::from(#intermediate_a::from(from)))
             }
@@ -255,11 +261,28 @@ mod tests {
         assert_ok,
         assert_ok_eq,
     };
+    use proc_macro2::Span;
+    use std::iter;
     use syn::{
         parse2 as parse,
         parse_str,
+        punctuated::Punctuated,
         File,
+        GenericParam,
+        Generics,
+        Ident,
+        Token,
+        TypeParam,
     };
+
+    fn empty_generics() -> Generics {
+        Generics {
+            lt_token: Some(Token!(<)(Span::call_site())),
+            params: Punctuated::new(),
+            gt_token: Some(Token!(>)(Span::call_site())),
+            where_clause: None,
+        }
+    }
 
     #[test]
     fn collect_variant_patterns_empty() {
@@ -367,7 +390,8 @@ mod tests {
             parse::<File>(from_newtype_to_container(
                 &assert_ok!(parse_str("enum Foo {}")),
                 &assert_ok!(parse_str("Bar<Foo>")),
-                &assert_ok!(parse_str("Baz"))
+                &assert_ok!(parse_str("Baz")),
+                &empty_generics(),
             )),
             assert_ok!(parse_str(
                 "
@@ -394,7 +418,8 @@ mod tests {
                     }"
                 )),
                 &assert_ok!(parse_str("A<Foo>")),
-                &assert_ok!(parse_str("B"))
+                &assert_ok!(parse_str("B")),
+                &empty_generics(),
             )),
             assert_ok!(parse_str(
                 "
@@ -429,7 +454,8 @@ mod tests {
                     }"
                 )),
                 &assert_ok!(parse_str("A<Foo>")),
-                &assert_ok!(parse_str("B"))
+                &assert_ok!(parse_str("B")),
+                &empty_generics(),
             )),
             assert_ok!(parse_str(
                 "
@@ -452,7 +478,8 @@ mod tests {
             parse::<File>(from_newtype_to_container(
                 &assert_ok!(parse_str("struct Foo {}")),
                 &assert_ok!(parse_str("Bar<Foo>")),
-                &assert_ok!(parse_str("Baz"))
+                &assert_ok!(parse_str("Baz")),
+                &empty_generics(),
             )),
             assert_ok!(parse_str(
                 "
@@ -476,7 +503,8 @@ mod tests {
                     }"
                 )),
                 &assert_ok!(parse_str("Bar<Foo>")),
-                &assert_ok!(parse_str("Baz"))
+                &assert_ok!(parse_str("Baz")),
+                &empty_generics(),
             )),
             assert_ok!(parse_str(
                 "
@@ -507,7 +535,8 @@ mod tests {
                     }"
                 )),
                 &assert_ok!(parse_str("Bar<Foo>")),
-                &assert_ok!(parse_str("Baz"))
+                &assert_ok!(parse_str("Baz")),
+                &empty_generics(),
             )),
             assert_ok!(parse_str(
                 "
@@ -524,12 +553,55 @@ mod tests {
     }
 
     #[test]
+    fn from_newtype_to_container_struct_generics() {
+        assert_ok_eq!(
+            parse::<File>(from_newtype_to_container(
+                &assert_ok!(parse_str(
+                    "
+                    struct Foo<T> {
+                        bar: T,
+                        baz: String,
+                    }"
+                )),
+                &assert_ok!(parse_str("Bar<Foo::<T>>")),
+                &assert_ok!(parse_str("Baz::<T>")),
+                &Generics {
+                    lt_token: Some(Token!(<)(Span::call_site())),
+                    params: iter::once(GenericParam::Type(TypeParam {
+                        attrs: vec![],
+                        ident: Ident::new("T", Span::call_site()),
+                        colon_token: None,
+                        bounds: Punctuated::new(),
+                        eq_token: None,
+                        default: None,
+                    }))
+                    .collect(),
+                    gt_token: Some(Token!(>)(Span::call_site())),
+                    where_clause: None,
+                },
+            )),
+            assert_ok!(parse_str(
+                "
+            impl<T> ::std::convert::From<Bar<Foo::<T>>> for Baz::<T> {
+                fn from(from: Bar<Foo::<T>>) -> Baz::<T> {
+                    Baz::<T> {
+                        bar: from.0.bar,
+                        baz: from.0.baz
+                    }
+                }
+            }"
+            ))
+        );
+    }
+
+    #[test]
     fn from_container_to_newtype_enum_no_variants() {
         assert_ok_eq!(
             parse::<File>(from_container_to_newtype(
                 &assert_ok!(parse_str("enum Foo {}")),
                 &assert_ok!(parse_str("Baz")),
                 &assert_ok!(parse_str("Bar<Foo>")),
+                &empty_generics(),
             )),
             assert_ok!(parse_str(
                 "
@@ -556,16 +628,17 @@ mod tests {
                     }"
                 )),
                 &assert_ok!(parse_str("A")),
-                &assert_ok!(parse_str("B::<Foo>"))
+                &assert_ok!(parse_str("B::<Foo>")),
+                &empty_generics(),
             )),
             assert_ok!(parse_str(
                 "
             impl ::std::convert::From<A> for B::<Foo> {
                 fn from(from: A) -> B::<Foo> {
                     match from {
-                        A::Bar => B::<Foo>(Foo::Bar),
-                        A::Baz(__0) => B::<Foo>(Foo::Baz(__0)),
-                        A::Qux {quux} => B::<Foo>(Foo::Qux {quux}),
+                        A::Bar => B::<Foo>(Foo::<>::Bar),
+                        A::Baz(__0) => B::<Foo>(Foo::<>::Baz(__0)),
+                        A::Qux {quux} => B::<Foo>(Foo::<>::Qux {quux}),
                     }
                 }
             }"
@@ -591,16 +664,17 @@ mod tests {
                     }"
                 )),
                 &assert_ok!(parse_str("A")),
-                &assert_ok!(parse_str("B::<Foo>"))
+                &assert_ok!(parse_str("B::<Foo>")),
+                &empty_generics(),
             )),
             assert_ok!(parse_str(
                 "
             impl ::std::convert::From<A> for B::<Foo> {
                 fn from(from: A) -> B::<Foo> {
                     match from {
-                        A::Bar => B::<Foo>(Foo::Bar),
-                        A::Baz(__0) => B::<Foo>(Foo::Baz(__0)),
-                        A::Qux {quux} => B::<Foo>(Foo::Qux {quux}),
+                        A::Bar => B::<Foo>(Foo::<>::Bar),
+                        A::Baz(__0) => B::<Foo>(Foo::<>::Baz(__0)),
+                        A::Qux {quux} => B::<Foo>(Foo::<>::Qux {quux}),
                     }
                 }
             }"
@@ -614,13 +688,14 @@ mod tests {
             parse::<File>(from_container_to_newtype(
                 &assert_ok!(parse_str("struct Foo {}")),
                 &assert_ok!(parse_str("Bar")),
-                &assert_ok!(parse_str("Baz::<Foo>"))
+                &assert_ok!(parse_str("Baz::<Foo>")),
+                &empty_generics(),
             )),
             assert_ok!(parse_str(
                 "
             impl ::std::convert::From<Bar> for Baz::<Foo> {
                 fn from(from: Bar) -> Baz::<Foo> {
-                    Baz::<Foo>(Foo {})
+                    Baz::<Foo>(Foo::<> {})
                 }
             }"
             ))
@@ -638,13 +713,14 @@ mod tests {
                     }"
                 )),
                 &assert_ok!(parse_str("Bar")),
-                &assert_ok!(parse_str("Baz::<Foo>"))
+                &assert_ok!(parse_str("Baz::<Foo>")),
+                &empty_generics(),
             )),
             assert_ok!(parse_str(
                 "
             impl ::std::convert::From<Bar> for Baz::<Foo> {
                 fn from(from: Bar) -> Baz::<Foo> {
-                    Baz::<Foo>(Foo {
+                    Baz::<Foo>(Foo::<> {
                         bar: from.bar,
                         baz: from.baz
                     })
@@ -669,13 +745,14 @@ mod tests {
                     }"
                 )),
                 &assert_ok!(parse_str("Bar")),
-                &assert_ok!(parse_str("Baz::<Foo>"))
+                &assert_ok!(parse_str("Baz::<Foo>")),
+                &empty_generics(),
             )),
             assert_ok!(parse_str(
                 "
             impl ::std::convert::From<Bar> for Baz::<Foo> {
                 fn from(from: Bar) -> Baz::<Foo> {
-                    Baz::<Foo>(Foo {
+                    Baz::<Foo>(Foo::<> {
                         bar: from.bar,
                         baz: from.baz
                     })
@@ -694,6 +771,7 @@ mod tests {
                 &assert_ok!(parse_str("Foo")),
                 &assert_ok!(parse_str("Baz")),
                 &assert_ok!(parse_str("Qux")),
+                &empty_generics(),
             )),
             assert_ok!(parse_str(
                 "
@@ -721,6 +799,7 @@ mod tests {
                 &assert_ok!(parse_str("Baz")),
                 &assert_ok!(parse_str("Foo")),
                 &assert_ok!(parse_str("Qux")),
+                &empty_generics(),
             )),
             assert_ok!(parse_str(
                 "
@@ -746,6 +825,7 @@ mod tests {
                 &assert_ok!(parse_str("Foo")),
                 &assert_ok!(parse_str("Baz")),
                 &assert_ok!(parse_str("Qux")),
+                &empty_generics(),
             )),
             assert_ok!(parse_str(
                 "
@@ -778,6 +858,7 @@ mod tests {
                 &assert_ok!(parse_str("Foo")),
                 &assert_ok!(parse_str("Baz")),
                 &assert_ok!(parse_str("Qux")),
+                &empty_generics(),
             )),
             assert_ok!(parse_str(
                 "
@@ -804,6 +885,7 @@ mod tests {
                 &assert_ok!(parse_str("Bar")),
                 &assert_ok!(parse_str("Baz")),
                 &assert_ok!(parse_str("Qux")),
+                &empty_generics(),
             )),
             assert_ok!(parse_str(
                 "

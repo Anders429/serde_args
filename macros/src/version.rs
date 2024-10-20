@@ -91,18 +91,18 @@ mod tests {
                     baz: String,
                 }
 
-                struct DeserializeShim;
+                struct DeserializeShim<T>(::std::marker::PhantomData<T>);
 
-                impl<'de> ::serde::de::DeserializeSeed<'de> for DeserializeShim where Phase1: ::serde::de::Deserialize<'de> {
-                    type Value = Phase1;
+                impl<'de, T> ::serde::de::DeserializeSeed<'de> for DeserializeShim<T> where T: ::serde::de::Deserialize<'de> {
+                    type Value = T;
 
                     fn deserialize<D>(self, deserializer: D) -> ::std::result::Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
-                        <Phase1 as ::serde::de::Deserialize<'de>>::deserialize(deserializer)
+                        <T as ::serde::de::Deserialize<'de>>::deserialize(deserializer)
                     }
                 }
 
-                impl<'de> ::serde::de::DeserializeSeed<'de> for &DeserializeShim {
-                    type Value = Phase1;
+                impl<'de, T> ::serde::de::DeserializeSeed<'de> for &DeserializeShim<T> {
+                    type Value = T;
 
                     fn deserialize<D>(self, _deserializer: D) -> ::std::result::Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
                         ::std::unimplemented!(\"`Deserialize` is not implemented for this type\")
@@ -155,18 +155,18 @@ mod tests {
 
                 pub struct Phase2<T>(pub T);
                     
-                impl ::std::convert::From<Phase1> for Phase2::<Foo> {
-                    fn from(from: Phase1) -> Phase2::<Foo> {
-                        Phase2::<Foo>(Foo {
+                impl ::std::convert::From<Phase1::<>> for Phase2::<Foo::<>> {
+                    fn from(from: Phase1::<>) -> Phase2::<Foo::<>> {
+                        Phase2::<Foo::<>>(Foo::<> {
                             bar: from.bar,
                             baz: from.baz
                         })
                     }
                 }
 
-                impl ::std::convert::From<Phase2::<Foo>> for Phase1 {
-                    fn from(from: Phase2::<Foo>) -> Phase1 {
-                        Phase1 {
+                impl ::std::convert::From<Phase2::<Foo::<>>> for Phase1::<> {
+                    fn from(from: Phase2::<Foo::<>>) -> Phase1::<> {
+                        Phase1::<> {
                             bar: from.0.bar,
                             baz: from.0.baz
                         }
@@ -175,7 +175,7 @@ mod tests {
                     
                 impl<'de> ::serde::de::Deserialize<'de> for Phase2<Foo> {
                     fn deserialize<D>(deserializer: D) -> ::std::result::Result<Phase2<Foo>, D::Error> where D: ::serde::de::Deserializer<'de> {
-                        struct Phase2Visitor;
+                        struct Phase2Visitor(::std::marker::PhantomData<Foo>);
 
                         impl<'de> ::serde::de::Visitor<'de> for Phase2Visitor {
                             type Value = Phase2<Foo>;
@@ -190,19 +190,19 @@ mod tests {
 
                             fn visit_newtype_struct<D>(self, deserializer: D) -> ::std::result::Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
                                 use ::serde::de::DeserializeSeed;
-                                DeserializeShim.deserialize(deserializer).map(Into::into)
+                                DeserializeShim::<Phase1>(::std::marker::PhantomData).deserialize(deserializer).map(Into::into)
                             }
                         }
 
-                        deserializer.deserialize_newtype_struct(\"Foo\", Phase2Visitor)
+                        deserializer.deserialize_newtype_struct(\"Foo\", Phase2Visitor(::std::marker::PhantomData))
                     }
                 }
 
                 impl ::serde::ser::Serialize for Phase2<Foo> {
                     fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
-                        struct Newtype<'a>(&'a SerializeShim<Phase1>);
+                        struct Newtype<'de>(&'de SerializeShim<Phase1>);
 
-                        impl ::serde::ser::Serialize for Newtype<'_> {
+                        impl<'de> ::serde::ser::Serialize for Newtype<'de> {
                             fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
                                 self.0.serialize(serializer)
                             }
@@ -219,8 +219,8 @@ mod tests {
             
             /// container documentation.
             #[derive(Deserialize)]
-            #[serde(from = \"__Foo__serde_args__version::Phase2::<Foo>\")]
-            #[serde(into = \"__Foo__serde_args__version::Phase2::<Foo>\")]
+            #[serde(from = \"__Foo__serde_args__version::Phase2::<Foo :: < >>\")]
+            #[serde(into = \"__Foo__serde_args__version::Phase2::<Foo :: < >>\")]
             struct Foo {
                 /// bar documentation.
                 bar: usize,
@@ -228,23 +228,23 @@ mod tests {
                 baz: String,
             }
 
-            impl ::std::convert::From<__Foo__serde_args__version::Phase2::<Foo>> for Foo {
-                fn from(from: __Foo__serde_args__version::Phase2::<Foo>) -> Foo {
-                    Foo {
+            impl ::std::convert::From<__Foo__serde_args__version::Phase2::<Foo::<>>> for Foo::<> {
+                fn from(from: __Foo__serde_args__version::Phase2::<Foo::<>>) -> Foo::<> {
+                    Foo::<> {
                         bar: from.0.bar,
                         baz: from.0.baz
                     }
                 }
             }
 
-            impl ::std::convert::From<Foo> for __Foo__serde_args__version::Phase2::<Foo> {
-                    fn from(from: Foo) -> __Foo__serde_args__version::Phase2::<Foo> {
-                        __Foo__serde_args__version::Phase2::<Foo>(Foo {
-                            bar: from.bar,
-                            baz: from.baz
-                        })
-                    }
+            impl ::std::convert::From<Foo::<>> for __Foo__serde_args__version::Phase2::<Foo::<>> {
+                fn from(from: Foo::<>) -> __Foo__serde_args__version::Phase2::<Foo::<>> {
+                    __Foo__serde_args__version::Phase2::<Foo::<>>(Foo::<> {
+                        bar: from.bar,
+                        baz: from.baz
+                    })
                 }
+            }
             "
         )));
     }
@@ -280,18 +280,18 @@ mod tests {
                     Baz,
                 }
 
-                struct DeserializeShim;
+                struct DeserializeShim<T>(::std::marker::PhantomData<T>);
 
-                impl<'de> ::serde::de::DeserializeSeed<'de> for DeserializeShim where Phase1: ::serde::de::Deserialize<'de> {
-                    type Value = Phase1;
+                impl<'de, T> ::serde::de::DeserializeSeed<'de> for DeserializeShim<T> where T: ::serde::de::Deserialize<'de> {
+                    type Value = T;
 
                     fn deserialize<D>(self, deserializer: D) -> ::std::result::Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
-                        <Phase1 as ::serde::de::Deserialize<'de>>::deserialize(deserializer)
+                        <T as ::serde::de::Deserialize<'de>>::deserialize(deserializer)
                     }
                 }
 
-                impl<'de> ::serde::de::DeserializeSeed<'de> for &DeserializeShim {
-                    type Value = Phase1;
+                impl<'de, T> ::serde::de::DeserializeSeed<'de> for &DeserializeShim<T> {
+                    type Value = T;
 
                     fn deserialize<D>(self, _deserializer: D) -> ::std::result::Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
                         ::std::unimplemented!(\"`Deserialize` is not implemented for this type\")
@@ -344,27 +344,27 @@ mod tests {
 
                 pub struct Phase2<T>(pub T);
                     
-                impl ::std::convert::From<Phase1> for Phase2::<Foo> {
-                    fn from(from: Phase1) -> Phase2::<Foo> {
+                impl ::std::convert::From<Phase1::<>> for Phase2::<Foo::<>> {
+                    fn from(from: Phase1::<>) -> Phase2::<Foo::<>> {
                         match from {
-                            Phase1::Bar => Phase2::<Foo>(Foo::Bar),
-                            Phase1::Baz => Phase2::<Foo>(Foo::Baz),
+                            Phase1::<>::Bar => Phase2::<Foo::<>>(Foo::<>::Bar),
+                            Phase1::<>::Baz => Phase2::<Foo::<>>(Foo::<>::Baz),
                         }
                     }
                 }
 
-                impl ::std::convert::From<Phase2::<Foo>> for Phase1 {
-                    fn from(from: Phase2::<Foo>) -> Phase1 {
+                impl ::std::convert::From<Phase2::<Foo::<>>> for Phase1::<> {
+                    fn from(from: Phase2::<Foo::<>>) -> Phase1::<> {
                         match from.0 {
-                            Foo::Bar => Phase1::Bar,
-                            Foo::Baz => Phase1::Baz,
+                            Foo::Bar => Phase1::<>::Bar,
+                            Foo::Baz => Phase1::<>::Baz,
                         }
                     }
                 }
                     
                 impl<'de> ::serde::de::Deserialize<'de> for Phase2<Foo> {
                     fn deserialize<D>(deserializer: D) -> ::std::result::Result<Phase2<Foo>, D::Error> where D: ::serde::de::Deserializer<'de> {
-                        struct Phase2Visitor;
+                        struct Phase2Visitor(::std::marker::PhantomData<Foo>);
 
                         impl<'de> ::serde::de::Visitor<'de> for Phase2Visitor {
                             type Value = Phase2<Foo>;
@@ -379,19 +379,19 @@ mod tests {
 
                             fn visit_newtype_struct<D>(self, deserializer: D) -> ::std::result::Result<Self::Value, D::Error> where D: ::serde::de::Deserializer<'de> {
                                 use ::serde::de::DeserializeSeed;
-                                DeserializeShim.deserialize(deserializer).map(Into::into)
+                                DeserializeShim::<Phase1>(::std::marker::PhantomData).deserialize(deserializer).map(Into::into)
                             }
                         }
 
-                        deserializer.deserialize_newtype_struct(\"Foo\", Phase2Visitor)
+                        deserializer.deserialize_newtype_struct(\"Foo\", Phase2Visitor(::std::marker::PhantomData))
                     }
                 }
 
                 impl ::serde::ser::Serialize for Phase2<Foo> {
                     fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
-                        struct Newtype<'a>(&'a SerializeShim<Phase1>);
+                        struct Newtype<'de>(&'de SerializeShim<Phase1>);
 
-                        impl ::serde::ser::Serialize for Newtype<'_> {
+                        impl<'de> ::serde::ser::Serialize for Newtype<'de> {
                             fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error> where S: ::serde::ser::Serializer {
                                 self.0.serialize(serializer)
                             }
@@ -408,8 +408,8 @@ mod tests {
 
             /// container documentation.
             #[derive(Deserialize)]
-            #[serde(from = \"__Foo__serde_args__version::Phase2::<Foo>\")]
-            #[serde(into = \"__Foo__serde_args__version::Phase2::<Foo>\")]
+            #[serde(from = \"__Foo__serde_args__version::Phase2::<Foo :: < >>\")]
+            #[serde(into = \"__Foo__serde_args__version::Phase2::<Foo :: < >>\")]
             enum Foo {
                 /// bar documentation.
                 Bar,
@@ -417,20 +417,20 @@ mod tests {
                 Baz,
             }
 
-            impl ::std::convert::From<__Foo__serde_args__version::Phase2::<Foo>> for Foo {
-                fn from(from: __Foo__serde_args__version::Phase2::<Foo>) -> Foo {
+            impl ::std::convert::From<__Foo__serde_args__version::Phase2::<Foo::<>>> for Foo::<> {
+                fn from(from: __Foo__serde_args__version::Phase2::<Foo::<>>) -> Foo::<> {
                     match from.0 {
-                        Foo::Bar => Foo::Bar,
-                        Foo::Baz => Foo::Baz,
+                        Foo::Bar => Foo::<>::Bar,
+                        Foo::Baz => Foo::<>::Baz,
                     }
                 }
             }
 
-            impl ::std::convert::From<Foo> for __Foo__serde_args__version::Phase2::<Foo> {
-                fn from(from: Foo) -> __Foo__serde_args__version::Phase2::<Foo> {
+            impl ::std::convert::From<Foo::<>> for __Foo__serde_args__version::Phase2::<Foo::<>> {
+                fn from(from: Foo::<>) -> __Foo__serde_args__version::Phase2::<Foo::<>> {
                     match from {
-                        Foo::Bar => __Foo__serde_args__version::Phase2::<Foo>(Foo::Bar),
-                        Foo::Baz => __Foo__serde_args__version::Phase2::<Foo>(Foo::Baz),
+                        Foo::<>::Bar => __Foo__serde_args__version::Phase2::<Foo::<>>(Foo::<>::Bar),
+                        Foo::<>::Baz => __Foo__serde_args__version::Phase2::<Foo::<>>(Foo::<>::Baz),
                     }
                 }
             }
