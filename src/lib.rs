@@ -6,10 +6,7 @@ mod trace;
 
 pub use error::Error;
 #[cfg(feature = "macros")]
-pub use serde_args_macros::{
-    help,
-    version,
-};
+pub use serde_args_macros::generate;
 
 use de::Deserializer;
 use parse::parse;

@@ -1,5 +1,5 @@
-//! Testing serialization and deserialization behavior when using the `#[version]` attribute when
-//! the `serde` traits are imported with different local names.
+//! Testing serialization and deserialization behavior when using the `#[generate(version)]`
+//! attribute when the `serde` traits are imported with different local names.
 
 use claims::{
     assert_ok,
@@ -9,14 +9,14 @@ use serde::{
     Deserialize as MyDeserialize,
     Serialize as MySerialize,
 };
-use serde_args_macros::version;
+use serde_args_macros::generate;
 use serde_assert::{
     Deserializer,
     Serializer,
     Token,
 };
 
-#[version]
+#[generate(version)]
 #[derive(Clone, Debug, MyDeserialize, Eq, PartialEq, MySerialize)]
 struct Struct {
     foo: u32,
@@ -86,7 +86,7 @@ fn struct_roundtrip() {
     assert_ok_eq!(Struct::deserialize(&mut deserializer), value);
 }
 
-#[version]
+#[generate(version)]
 #[derive(Clone, Debug, MyDeserialize, Eq, PartialEq, MySerialize)]
 enum Enum {
     Unit,

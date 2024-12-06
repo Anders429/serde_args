@@ -2,13 +2,13 @@
 
 use claims::assert_ok_eq;
 use serde::Serialize;
-use serde_args_macros::version;
+use serde_args_macros::generate;
 use serde_assert::{
     Serializer,
     Token,
 };
 
-#[version]
+#[generate(version)]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 struct Struct {
     foo: u32,
@@ -41,7 +41,7 @@ fn r#struct() {
     );
 }
 
-#[version]
+#[generate(version)]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 enum Enum {
     Unit,

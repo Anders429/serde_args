@@ -1,8 +1,8 @@
 error: cannot find attribute `serde` in this scope
  --> tests/trybuild/no_deserialize.rs:3:1
   |
-3 | #[help]
-  | ^^^^^^^
+3 | #[generate(doc_help)]
+  | ^^^^^^^^^^^^^^^^^^^^^
   |
   = note: `serde` is in scope, but it is a crate, not an attribute
-  = note: this error originates in the attribute macro `help` (in Nightly builds, run with -Z macro-backtrace for more info)
+  = note: this error originates in the attribute macro `generate` (in Nightly builds, run with -Z macro-backtrace for more info)

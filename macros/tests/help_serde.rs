@@ -1,4 +1,5 @@
-//! Testing serialization and deserialization behavior when using the `#[help]` attribute.
+//! Testing serialization and deserialization behavior when using the `#[generate(doc_help)]`
+//! attribute.
 
 use claims::{
     assert_ok,
@@ -8,14 +9,14 @@ use serde::{
     Deserialize,
     Serialize,
 };
-use serde_args_macros::help;
+use serde_args_macros::generate;
 use serde_assert::{
     Deserializer,
     Serializer,
     Token,
 };
 
-#[help]
+#[generate(doc_help)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 struct Struct {
     foo: u32,
@@ -85,7 +86,7 @@ fn struct_roundtrip() {
     assert_ok_eq!(Struct::deserialize(&mut deserializer), value);
 }
 
-#[help]
+#[generate(doc_help)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 enum Enum {
     Unit,

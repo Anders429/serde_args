@@ -1,19 +1,15 @@
-//! Testing serialization and deserialization behavior when using  both the `#[version]` and
-//! `#[help]` attributes in combination with the `#[serde(from)] attribute.
+//! Testing serialization and deserialization behavior when using the
+//! `#[generate(doc_help, version)]` attribute in combination with the `#[serde(from)] attribute.
 
 use claims::assert_ok_eq;
 use serde::Deserialize;
-use serde_args_macros::{
-    help,
-    version,
-};
+use serde_args_macros::generate;
 use serde_assert::{
     Deserializer,
     Token,
 };
 
-#[help]
-#[version]
+#[generate(doc_help, version)]
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 #[serde(from = "FromStruct")]
 struct Struct {
@@ -39,7 +35,6 @@ impl From<FromStruct> for Struct {
 #[test]
 fn deserialize() {
     let tokens = [
-        Token::NewtypeStruct { name: "Struct" },
         Token::NewtypeStruct { name: "Struct" },
         Token::Struct {
             name: "FromStruct",

@@ -1,4 +1,4 @@
-error: cannot use `serde_args::help` macro on extern crate
+error: cannot use `serde_args::generate` macro on extern crate
  --> tests/trybuild/extern_crate.rs:4:1
   |
 4 | extern crate core;

@@ -1,7 +1,7 @@
 use serde::Deserialize;
-use serde_args_macros::help;
+use serde_args_macros::generate;
 
-#[help]
+#[generate(doc_help)]
 #[derive(Deserialize)]
 #[serde(from = "=")]
 struct Foo {

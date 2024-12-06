@@ -1,15 +1,15 @@
-//! Testing serialization and deserialization behavior when using the `#[help]` attribute in
-//! combination with the `#[serde(from)] attribute.
+//! Testing serialization and deserialization behavior when using the `#[generate(doc_help)]`
+//! attribute in combination with the `#[serde(from)] attribute.
 
 use claims::assert_ok_eq;
 use serde::Deserialize;
-use serde_args_macros::help;
+use serde_args_macros::generate;
 use serde_assert::{
     Deserializer,
     Token,
 };
 
-#[help]
+#[generate(doc_help)]
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 #[serde(from = "FromStruct")]
 struct Struct {

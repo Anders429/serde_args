@@ -1,4 +1,4 @@
-error: cannot use `serde_args::help` macro on union
+error: cannot use `serde_args::generate` macro on union
  --> tests/trybuild/union.rs:4:1
   |
 4 | / union Foo {

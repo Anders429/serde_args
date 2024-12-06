@@ -1,5 +1,5 @@
-//! Testing serialization and deserialization behavior when using  both the `#[version]` and
-//! `#[help]` attributes.
+//! Testing serialization and deserialization behavior when using the
+//! `#[generate(doc_help, version)]` attribute.
 
 use claims::{
     assert_ok,
@@ -9,18 +9,14 @@ use serde::{
     Deserialize,
     Serialize,
 };
-use serde_args_macros::{
-    help,
-    version,
-};
+use serde_args_macros::generate;
 use serde_assert::{
     Deserializer,
     Serializer,
     Token,
 };
 
-#[help]
-#[version]
+#[generate(doc_help, version)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 struct Struct {
     foo: u32,
@@ -40,7 +36,6 @@ fn struct_serialize() {
         value.serialize(&serializer),
         [
             Token::NewtypeStruct { name: "Struct" },
-            Token::NewtypeStruct { name: "Struct" },
             Token::Struct {
                 name: "Struct",
                 len: 2,
@@ -57,7 +52,6 @@ fn struct_serialize() {
 #[test]
 fn struct_deserialize() {
     let tokens = [
-        Token::NewtypeStruct { name: "Struct" },
         Token::NewtypeStruct { name: "Struct" },
         Token::Struct {
             name: "Struct",
@@ -92,8 +86,7 @@ fn struct_roundtrip() {
     assert_ok_eq!(Struct::deserialize(&mut deserializer), value);
 }
 
-#[help]
-#[version]
+#[generate(doc_help, version)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 enum Enum {
     Unit,
@@ -111,7 +104,6 @@ fn enum_unit_serialize() {
         value.serialize(&serializer),
         [
             Token::NewtypeStruct { name: "Enum" },
-            Token::NewtypeStruct { name: "Enum" },
             Token::UnitVariant {
                 name: "Enum",
                 variant_index: 0,
@@ -124,7 +116,6 @@ fn enum_unit_serialize() {
 #[test]
 fn enum_unit_deserialize() {
     let tokens = [
-        Token::NewtypeStruct { name: "Enum" },
         Token::NewtypeStruct { name: "Enum" },
         Token::UnitVariant {
             name: "Enum",
@@ -156,7 +147,6 @@ fn enum_newtype_serialize() {
         value.serialize(&serializer),
         [
             Token::NewtypeStruct { name: "Enum" },
-            Token::NewtypeStruct { name: "Enum" },
             Token::NewtypeVariant {
                 name: "Enum",
                 variant_index: 1,
@@ -170,7 +160,6 @@ fn enum_newtype_serialize() {
 #[test]
 fn enum_newtype_deserialize() {
     let tokens = [
-        Token::NewtypeStruct { name: "Enum" },
         Token::NewtypeStruct { name: "Enum" },
         Token::NewtypeVariant {
             name: "Enum",
@@ -206,7 +195,6 @@ fn enum_struct_serialize() {
         value.serialize(&serializer),
         [
             Token::NewtypeStruct { name: "Enum" },
-            Token::NewtypeStruct { name: "Enum" },
             Token::StructVariant {
                 name: "Enum",
                 variant_index: 2,
@@ -225,7 +213,6 @@ fn enum_struct_serialize() {
 #[test]
 fn enum_struct_deserialize() {
     let tokens = [
-        Token::NewtypeStruct { name: "Enum" },
         Token::NewtypeStruct { name: "Enum" },
         Token::StructVariant {
             name: "Enum",

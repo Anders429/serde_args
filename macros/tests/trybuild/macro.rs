@@ -1,6 +1,6 @@
-use serde_args_macros::help;
+use serde_args_macros::generate;
 
-#[help]
+#[generate]
 macro_rules! foo {}
 
 fn main() {}

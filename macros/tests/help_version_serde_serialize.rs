@@ -2,17 +2,13 @@
 
 use claims::assert_ok_eq;
 use serde::Serialize;
-use serde_args_macros::{
-    help,
-    version,
-};
+use serde_args_macros::generate;
 use serde_assert::{
     Serializer,
     Token,
 };
 
-#[help]
-#[version]
+#[generate(doc_help, version)]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 struct Struct {
     foo: u32,
@@ -32,7 +28,6 @@ fn r#struct() {
         value.serialize(&serializer),
         [
             Token::NewtypeStruct { name: "Struct" },
-            Token::NewtypeStruct { name: "Struct" },
             Token::Struct {
                 name: "Struct",
                 len: 2,
@@ -46,8 +41,7 @@ fn r#struct() {
     );
 }
 
-#[help]
-#[version]
+#[generate(doc_help, version)]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 enum Enum {
     Unit,
@@ -64,7 +58,6 @@ fn enum_unit() {
     assert_ok_eq!(
         value.serialize(&serializer),
         [
-            Token::NewtypeStruct { name: "Enum" },
             Token::NewtypeStruct { name: "Enum" },
             Token::UnitVariant {
                 name: "Enum",
@@ -84,7 +77,6 @@ fn enum_newtype() {
     assert_ok_eq!(
         value.serialize(&serializer),
         [
-            Token::NewtypeStruct { name: "Enum" },
             Token::NewtypeStruct { name: "Enum" },
             Token::NewtypeVariant {
                 name: "Enum",
@@ -108,7 +100,6 @@ fn enum_struct() {
     assert_ok_eq!(
         value.serialize(&serializer),
         [
-            Token::NewtypeStruct { name: "Enum" },
             Token::NewtypeStruct { name: "Enum" },
             Token::StructVariant {
                 name: "Enum",

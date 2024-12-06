@@ -8,10 +8,7 @@ use serde::{
     Deserialize,
     Serialize,
 };
-use serde_args_macros::{
-    help,
-    version,
-};
+use serde_args_macros::generate;
 use serde_assert::{
     Deserializer,
     Serializer,
@@ -22,8 +19,7 @@ use serde_with::{
     DisplayFromStr,
 };
 
-#[help]
-#[version]
+#[generate(doc_help, version)]
 #[serde_as]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 struct Foo {
@@ -41,7 +37,6 @@ fn serialize() {
         value.serialize(&serializer),
         [
             Token::NewtypeStruct { name: "Foo" },
-            Token::NewtypeStruct { name: "Foo" },
             Token::Struct {
                 name: "Foo",
                 len: 1,
@@ -56,7 +51,6 @@ fn serialize() {
 #[test]
 fn deserialize() {
     let tokens = [
-        Token::NewtypeStruct { name: "Foo" },
         Token::NewtypeStruct { name: "Foo" },
         Token::Struct {
             name: "Foo",

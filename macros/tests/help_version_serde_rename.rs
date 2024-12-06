@@ -1,5 +1,5 @@
-//! Testing serialization and deserialization behavior when using  both the `#[version]` and
-//! `#[help]` attributes in combination with the `#[serde(rename)] attribute.
+//! Testing serialization and deserialization behavior when using the
+//! `#[generate(doc_help, version)]` attribute in combination with the `#[serde(rename)] attribute.
 
 use claims::{
     assert_ok,
@@ -9,18 +9,14 @@ use serde::{
     Deserialize,
     Serialize,
 };
-use serde_args_macros::{
-    help,
-    version,
-};
+use serde_args_macros::generate;
 use serde_assert::{
     Deserializer,
     Serializer,
     Token,
 };
 
-#[help]
-#[version]
+#[generate(doc_help, version)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename = "MyStruct")]
 struct Struct {
@@ -41,7 +37,6 @@ fn serialize() {
         value.serialize(&serializer),
         [
             Token::NewtypeStruct { name: "MyStruct" },
-            Token::NewtypeStruct { name: "MyStruct" },
             Token::Struct {
                 name: "MyStruct",
                 len: 2,
@@ -58,7 +53,6 @@ fn serialize() {
 #[test]
 fn deserialize() {
     let tokens = [
-        Token::NewtypeStruct { name: "MyStruct" },
         Token::NewtypeStruct { name: "MyStruct" },
         Token::Struct {
             name: "MyStruct",

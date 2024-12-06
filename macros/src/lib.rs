@@ -10,11 +10,6 @@ use container::Container;
 use proc_macro::TokenStream;
 
 #[proc_macro_attribute]
-pub fn help(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    help::process(item.into()).into()
-}
-
-#[proc_macro_attribute]
-pub fn version(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    version::process(item.into()).into()
+pub fn generate(attr: TokenStream, item: TokenStream) -> TokenStream {
+    generate::process(attr.into(), item.into()).into()
 }

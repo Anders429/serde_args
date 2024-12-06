@@ -1,9 +1,9 @@
 error[E0277]: the trait bound `Foo: From<Qux>` is not satisfied
  --> tests/trybuild/no_from_impl.rs:4:1
   |
-4 | #[help]
-  | ^^^^^^^ the trait `From<Qux>` is not implemented for `Foo`
+4 | #[generate(doc_help)]
+  | ^^^^^^^^^^^^^^^^^^^^^ the trait `From<Qux>` is not implemented for `Foo`
   |
   = help: the trait `From<Phase2<Foo>>` is implemented for `Foo`
   = help: for that trait implementation, expected `Phase2<Foo>`, found `Qux`
-  = note: this error originates in the attribute macro `help` (in Nightly builds, run with -Z macro-backtrace for more info)
+  = note: this error originates in the attribute macro `generate` (in Nightly builds, run with -Z macro-backtrace for more info)

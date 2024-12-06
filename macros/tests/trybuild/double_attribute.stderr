@@ -1,0 +1,61 @@
+error[E0428]: the name `__Struct__serde_args__generate` is defined multiple times
+ --> tests/trybuild/double_attribute.rs:5:1
+  |
+4 | #[generate(version)]
+  | -------------------- previous definition of the module `__Struct__serde_args__generate` here
+5 | #[generate(version)]
+  | ^^^^^^^^^^^^^^^^^^^^ `__Struct__serde_args__generate` redefined here
+  |
+  = note: `__Struct__serde_args__generate` must be defined only once in the type namespace of this module
+  = note: this error originates in the attribute macro `generate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0119]: conflicting implementations of trait `From<__Struct__serde_args__generate::Phase2<Struct>>` for type `Struct`
+ --> tests/trybuild/double_attribute.rs:5:1
+  |
+4 | #[generate(version)]
+  | -------------------- first implementation here
+5 | #[generate(version)]
+  | ^^^^^^^^^^^^^^^^^^^^ conflicting implementation for `Struct`
+  |
+  = note: this error originates in the attribute macro `generate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0119]: conflicting implementations of trait `From<Struct>` for type `__Struct__serde_args__generate::Phase2<Struct>`
+ --> tests/trybuild/double_attribute.rs:5:1
+  |
+4 | #[generate(version)]
+  | -------------------- first implementation here
+5 | #[generate(version)]
+  | ^^^^^^^^^^^^^^^^^^^^ conflicting implementation for `__Struct__serde_args__generate::Phase2<Struct>`
+  |
+  = note: this error originates in the attribute macro `generate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `__Phase1__serde_args__generate::Phase2<__Struct__serde_args__generate::Phase1>: _::_serde::Deserialize<'_>` is not satisfied
+ --> tests/trybuild/double_attribute.rs:5:1
+  |
+5 | #[generate(version)]
+  | ^^^^^^^^^^^^^^^^^^^^ the trait `_::_serde::Deserialize<'_>` is not implemented for `__Phase1__serde_args__generate::Phase2<__Struct__serde_args__generate::Phase1>`
+  |
+  = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `__Phase1__serde_args__generate::Phase2<__Struct__serde_args__generate::Phase1>` type
+  = note: for types from other crates check whether the crate offers a `serde` feature flag
+  = help: the trait `_::_serde::Deserialize<'_>` is implemented for `__Phase1__serde_args__generate::Phase2<__Phase1__serde_args__generate::Phase1>`
+  = help: for that trait implementation, expected `__Phase1__serde_args__generate::Phase1`, found `__Struct__serde_args__generate::Phase1`
+  = note: this error originates in the attribute macro `generate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `__Struct__serde_args__generate::Phase2<Struct>: From<Struct>` is not satisfied
+ --> tests/trybuild/double_attribute.rs:5:1
+  |
+5 | #[generate(version)]
+  | ^^^^^^^^^^^^^^^^^^^^ the trait `From<Struct>` is not implemented for `__Struct__serde_args__generate::Phase2<Struct>`
+  |
+  = help: the trait `From<__Struct__serde_args__generate::Phase1>` is implemented for `__Struct__serde_args__generate::Phase2<Struct>`
+  = help: for that trait implementation, expected `__Struct__serde_args__generate::Phase1`, found `Struct`
+  = note: this error originates in the attribute macro `generate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `Struct: From<__Struct__serde_args__generate::Phase2<Struct>>` is not satisfied
+ --> tests/trybuild/double_attribute.rs:5:1
+  |
+5 | #[generate(version)]
+  | ^^^^^^^^^^^^^^^^^^^^ the trait `From<__Struct__serde_args__generate::Phase2<Struct>>` is not implemented for `Struct`
+  |
+  = help: the trait `From<__Struct__serde_args__generate::Phase2<Struct>>` is implemented for `Struct`
+  = note: this error originates in the attribute macro `generate` (in Nightly builds, run with -Z macro-backtrace for more info)

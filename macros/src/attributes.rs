@@ -137,23 +137,6 @@ pub(crate) fn remove_serde_attribute(attrs: &mut Vec<Attribute>, name: &str) {
     }
 }
 
-pub(crate) fn has_automatically_derived(attrs: &Vec<Attribute>) -> bool {
-    for attribute in attrs {
-        if let Meta::Path(path) = &attribute.meta {
-            if path.leading_colon.is_none() && path.segments.len() <= 1 {
-                if let Some(segment) = path.segments.first() {
-                    if segment.ident == Ident::new("automatically_derived", Span::call_site())
-                        && segment.arguments == PathArguments::None
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-    false
-}
-
 #[cfg(test)]
 mod tests {
     use super::push_serde_attribute;

@@ -2,13 +2,13 @@
 
 use claims::assert_ok_eq;
 use serde::Deserialize;
-use serde_args_macros::help;
+use serde_args_macros::generate;
 use serde_assert::{
     Deserializer,
     Token,
 };
 
-#[help]
+#[generate(doc_help)]
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 struct Struct {
     foo: u32,
@@ -39,7 +39,7 @@ fn r#struct() {
     );
 }
 
-#[help]
+#[generate(doc_help)]
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 enum Enum {
     Unit,

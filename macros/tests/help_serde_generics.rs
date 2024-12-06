@@ -1,5 +1,5 @@
-//! Testing serialization and deserialization behavior when using the `#[help]` attribute with a
-//! container that has generics.
+//! Testing serialization and deserialization behavior when using the `#[generate(doc_help)]`
+//! attribute with a container that has generics.
 
 use claims::{
     assert_ok,
@@ -9,14 +9,14 @@ use serde::{
     Deserialize,
     Serialize,
 };
-use serde_args_macros::help;
+use serde_args_macros::generate;
 use serde_assert::{
     Deserializer,
     Serializer,
     Token,
 };
 
-#[help]
+#[generate(doc_help)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(bound(serialize = "T: Clone + Serialize"))]
 struct Struct<T> {
@@ -87,7 +87,7 @@ fn struct_roundtrip() {
     assert_ok_eq!(Struct::deserialize(&mut deserializer), value);
 }
 
-#[help]
+#[generate(doc_help)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(bound(serialize = "T: Clone + Serialize"))]
 enum Enum<T> {

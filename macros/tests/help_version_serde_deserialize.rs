@@ -2,17 +2,13 @@
 
 use claims::assert_ok_eq;
 use serde::Deserialize;
-use serde_args_macros::{
-    help,
-    version,
-};
+use serde_args_macros::generate;
 use serde_assert::{
     Deserializer,
     Token,
 };
 
-#[help]
-#[version]
+#[generate(doc_help, version)]
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 struct Struct {
     foo: u32,
@@ -22,7 +18,6 @@ struct Struct {
 #[test]
 fn r#struct() {
     let tokens = [
-        Token::NewtypeStruct { name: "Struct" },
         Token::NewtypeStruct { name: "Struct" },
         Token::Struct {
             name: "Struct",
@@ -44,8 +39,7 @@ fn r#struct() {
     );
 }
 
-#[help]
-#[version]
+#[generate(doc_help, version)]
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 enum Enum {
     Unit,
@@ -56,7 +50,6 @@ enum Enum {
 #[test]
 fn enum_unit() {
     let tokens = [
-        Token::NewtypeStruct { name: "Enum" },
         Token::NewtypeStruct { name: "Enum" },
         Token::UnitVariant {
             name: "Enum",
@@ -72,7 +65,6 @@ fn enum_unit() {
 fn enum_newtype() {
     let tokens = [
         Token::NewtypeStruct { name: "Enum" },
-        Token::NewtypeStruct { name: "Enum" },
         Token::NewtypeVariant {
             name: "Enum",
             variant_index: 1,
@@ -87,7 +79,6 @@ fn enum_newtype() {
 #[test]
 fn enum_struct() {
     let tokens = [
-        Token::NewtypeStruct { name: "Enum" },
         Token::NewtypeStruct { name: "Enum" },
         Token::StructVariant {
             name: "Enum",

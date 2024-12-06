@@ -1,4 +1,4 @@
-error: cannot use `serde_args::help` macro on use declaration
+error: cannot use `serde_args::generate` macro on use declaration
  --> tests/trybuild/use.rs:4:1
   |
 4 | use std::vec;

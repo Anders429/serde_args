@@ -145,51 +145,51 @@ impl Parse for Container {
             // Disallowed item types.
             item @ Item::Const(_) => Err(syn::Error::new_spanned(
                 item,
-                "cannot use `serde_args::help` macro on const",
+                "cannot use `serde_args::generate` macro on const",
             )),
             item @ Item::ExternCrate(_) => Err(syn::Error::new_spanned(
                 item,
-                "cannot use `serde_args::help` macro on extern crate",
+                "cannot use `serde_args::generate` macro on extern crate",
             )),
             item @ Item::Fn(_) => Err(syn::Error::new_spanned(
                 item,
-                "cannot use `serde_args::help` macro on function",
+                "cannot use `serde_args::generate` macro on function",
             )),
             item @ Item::ForeignMod(_) | item @ Item::Mod(_) => Err(syn::Error::new_spanned(
                 item,
-                "cannot use `serde_args::help` macro on module",
+                "cannot use `serde_args::generate` macro on module",
             )),
             item @ Item::Impl(_) => Err(syn::Error::new_spanned(
                 item,
-                "cannot use `serde_args::help` macro on impl block",
+                "cannot use `serde_args::generate` macro on impl block",
             )),
             item @ Item::Macro(_) => Err(syn::Error::new_spanned(
                 item,
-                "cannot use `serde_args::help` macro on macro",
+                "cannot use `serde_args::generate` macro on macro",
             )),
             item @ Item::Static(_) => Err(syn::Error::new_spanned(
                 item,
-                "cannot use `serde_args::help` macro on static",
+                "cannot use `serde_args::generate` macro on static",
             )),
             item @ Item::Trait(_) | item @ Item::TraitAlias(_) => Err(syn::Error::new_spanned(
                 item,
-                "cannot use `serde_args::help` macro on trait",
+                "cannot use `serde_args::generate` macro on trait",
             )),
             item @ Item::Type(_) => Err(syn::Error::new_spanned(
                 item,
-                "cannot use `serde_args::help` macro on type alias",
+                "cannot use `serde_args::generate` macro on type alias",
             )),
             item @ Item::Union(_) => Err(syn::Error::new_spanned(
                 item,
-                "cannot use `serde_args::help` macro on union",
+                "cannot use `serde_args::generate` macro on union",
             )),
             item @ Item::Use(_) => Err(syn::Error::new_spanned(
                 item,
-                "cannot use `serde_args::help` macro on use declaration",
+                "cannot use `serde_args::generate` macro on use declaration",
             )),
             item => Err(syn::Error::new_spanned(
                 item,
-                "cannot use `serde_args::help` macro on unknown stream of tokens",
+                "cannot use `serde_args::generate` macro on unknown stream of tokens",
             )),
         }
     }

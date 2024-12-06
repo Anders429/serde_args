@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use std::process::exit;
 
-#[serde_args::version]
+#[serde_args::generate(version)]
 #[derive(Deserialize)]
 #[serde(rename_all = "lowercase")]
 enum Command {

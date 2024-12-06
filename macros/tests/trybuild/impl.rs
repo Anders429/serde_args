@@ -1,8 +1,8 @@
-use serde_args_macros::help;
+use serde_args_macros::generate;
 
 struct Foo;
 
-#[help]
+#[generate]
 impl Foo {}
 
 fn main() {}

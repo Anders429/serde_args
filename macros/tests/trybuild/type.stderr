@@ -1,4 +1,4 @@
-error: cannot use `serde_args::help` macro on type alias
+error: cannot use `serde_args::generate` macro on type alias
  --> tests/trybuild/type.rs:4:1
   |
 4 | type Foo = usize;

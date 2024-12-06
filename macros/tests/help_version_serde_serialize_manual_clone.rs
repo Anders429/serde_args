@@ -1,4 +1,4 @@
-//! Tests for types implementing `Serialize` with a manual `Clone` implementation (as opposed to a
+//! Tests for types implementing `Serialize` with a manual `Clone` implementation (as opposed to
 //! derived one).
 
 use claims::assert_ok_eq;
@@ -9,7 +9,7 @@ use serde_assert::{
     Token,
 };
 
-#[generate(doc_help)]
+#[generate(doc_help, version)]
 #[derive(Debug, Eq, PartialEq, Serialize)]
 struct Struct {
     foo: u32,
@@ -51,7 +51,7 @@ fn r#struct() {
     );
 }
 
-#[generate(doc_help)]
+#[generate(doc_help, version)]
 #[derive(Debug, Eq, PartialEq, Serialize)]
 enum Enum {
     Unit,

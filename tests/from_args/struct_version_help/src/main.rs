@@ -2,8 +2,7 @@ use serde::Deserialize;
 use std::process::exit;
 
 /// This is a description of my program.
-#[serde_args::help]
-#[serde_args::version]
+#[serde_args::generate(doc_help, version)]
 #[derive(Deserialize)]
 struct Args {
     /// Not just any string, but your favorite string.

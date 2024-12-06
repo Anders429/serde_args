@@ -1,4 +1,4 @@
-error: cannot use `serde_args::help` macro on function
+error: cannot use `serde_args::generate` macro on function
  --> tests/trybuild/fn.rs:4:1
   |
 4 | fn foo() {}

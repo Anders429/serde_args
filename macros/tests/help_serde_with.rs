@@ -8,7 +8,7 @@ use serde::{
     Deserialize,
     Serialize,
 };
-use serde_args_macros::help;
+use serde_args_macros::generate;
 use serde_assert::{
     Deserializer,
     Serializer,
@@ -19,7 +19,7 @@ use serde_with::{
     DisplayFromStr,
 };
 
-#[help]
+#[generate(doc_help)]
 #[serde_as]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 struct Foo {

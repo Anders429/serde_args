@@ -1,5 +1,5 @@
-//! Testing serialization and deserialization behavior when using the `#[version]` attribute in
-//! combination with the `#[serde(rename)] attribute.
+//! Testing serialization and deserialization behavior when using the `#[generate(version)]`
+//! attribute in combination with the `#[serde(rename)] attribute.
 
 use claims::{
     assert_ok,
@@ -9,14 +9,14 @@ use serde::{
     Deserialize,
     Serialize,
 };
-use serde_args_macros::version;
+use serde_args_macros::generate;
 use serde_assert::{
     Deserializer,
     Serializer,
     Token,
 };
 
-#[version]
+#[generate(version)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename = "MyStruct")]
 struct Struct {
