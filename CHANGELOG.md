@@ -4,5 +4,4 @@
 ### Added
 - `from_args()` function to deserialize command line arguments into a type implementing `serde::de::Deserialize`.
 - `from_args_seed()` function to deserialize command line arguments into a type implementing `serde::de::DeserializeSeed + Copy`.
-- `#[help]` attribute for generating help text using a struct or enum's documentation.
-- `#[version]` attribute for including version information in a struct or enum.
+- `#[generate]` attribute, with two possible parameters, `doc_item` and `version`, generating help text from documentation and version information respectively.
