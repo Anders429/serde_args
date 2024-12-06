@@ -33,11 +33,12 @@ error[E0277]: the trait bound `__Phase1__serde_args__generate::Phase2<__Struct__
  --> tests/trybuild/double_attribute.rs:5:1
   |
 5 | #[generate(version)]
-  | ^^^^^^^^^^^^^^^^^^^^ the trait `_::_serde::Deserialize<'_>` is not implemented for `__Phase1__serde_args__generate::Phase2<__Struct__serde_args__generate::Phase1>`
+  | ^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
   |
   = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `__Phase1__serde_args__generate::Phase2<__Struct__serde_args__generate::Phase1>` type
   = note: for types from other crates check whether the crate offers a `serde` feature flag
-  = help: the trait `_::_serde::Deserialize<'_>` is implemented for `__Phase1__serde_args__generate::Phase2<__Phase1__serde_args__generate::Phase1>`
+  = help: the trait `_::_serde::Deserialize<'_>` is not implemented for `__Phase1__serde_args__generate::Phase2<__Struct__serde_args__generate::Phase1>`
+          but it is implemented for `__Phase1__serde_args__generate::Phase2<__Phase1__serde_args__generate::Phase1>`
   = help: for that trait implementation, expected `__Phase1__serde_args__generate::Phase1`, found `__Struct__serde_args__generate::Phase1`
   = note: this error originates in the attribute macro `generate` (in Nightly builds, run with -Z macro-backtrace for more info)
 
@@ -47,7 +48,8 @@ error[E0277]: the trait bound `__Struct__serde_args__generate::Phase2<Struct>: F
 5 | #[generate(version)]
   | ^^^^^^^^^^^^^^^^^^^^ the trait `From<Struct>` is not implemented for `__Struct__serde_args__generate::Phase2<Struct>`
   |
-  = help: the trait `From<__Struct__serde_args__generate::Phase1>` is implemented for `__Struct__serde_args__generate::Phase2<Struct>`
+  = help: the trait `From<Struct>` is not implemented for `__Struct__serde_args__generate::Phase2<Struct>`
+          but trait `From<__Struct__serde_args__generate::Phase1>` is implemented for it
   = help: for that trait implementation, expected `__Struct__serde_args__generate::Phase1`, found `Struct`
   = note: this error originates in the attribute macro `generate` (in Nightly builds, run with -Z macro-backtrace for more info)
 

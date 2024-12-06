@@ -4,6 +4,7 @@ error[E0277]: the trait bound `Qux: From<Foo>` is not satisfied
 4 | #[generate(doc_help)]
   | ^^^^^^^^^^^^^^^^^^^^^ the trait `From<Foo>` is not implemented for `Qux`
   |
-  = help: the trait `From<Phase1>` is implemented for `Qux`
+  = help: the trait `From<Foo>` is not implemented for `Qux`
+          but trait `From<Phase1>` is implemented for it
   = help: for that trait implementation, expected `Phase1`, found `Foo`
   = note: this error originates in the attribute macro `generate` (in Nightly builds, run with -Z macro-backtrace for more info)
