@@ -3954,4 +3954,22 @@ mod tests {
             }
         );
     }
+
+    #[test]
+    #[should_panic(expected = "tracing unexpectedly succeeded in deserializing")]
+    fn trace_type_that_does_not_call_deserializer() {
+        struct Foo;
+
+        impl<'de> Deserialize<'de> for Foo {
+            fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                // Notice that the deserializer is unused here.
+                Ok(Foo)
+            }
+        }
+
+        let _ = trace(PhantomData::<Foo>);
+    }
 }
