@@ -1,0 +1,9 @@
+[package]
+name = "boolean"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+serde = "1.0.203"
+serde_args = {path = "../../.."}
