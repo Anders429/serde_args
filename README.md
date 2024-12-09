@@ -14,7 +14,7 @@ This library allows parsing command line arguments into types implementing [`Des
 - Integration with `serde_derive`, including attributes like `serde(alias)`.
 
 ## Usage
-Basic usage of `serde_args` simply involves calling the [`from_args()`](https://docs.rs/serde_args/latest/serde_args/fn.from_args.html) function using a type implemented `Deserialize`. The type you provide defines your program's argument format. On success, the type is returned; on failure, a printable [`Error`](https://docs.rs/serde_args/latest/serde_args/enum.Error.html) is returned.
+Basic usage of `serde_args` simply involves calling the [`from_args()`](https://docs.rs/serde_args/latest/serde_args/fn.from_args.html) function using a type implemented `Deserialize`. The type you provide defines your program's argument format. On success, the type is returned; on failure, a printable [`Error`](https://docs.rs/serde_args/latest/serde_args/struct.Error.html) is returned.
 
 Here is a simple example, created using `serde`'s [`#[derive(Deserialize)]`](https://docs.rs/serde/latest/serde/derive.Deserialize.html) macro:
 
