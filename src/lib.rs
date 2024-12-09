@@ -263,6 +263,52 @@ use std::{
 };
 use trace::trace;
 
+/// Deserialize from [`env::args()`] using a seed.
+///
+/// This function parses the command line arguments using the provided seed. On success a value of
+/// type `D::Value` is returned; on failure an [`Error`] is returned instead.
+///
+/// Note that the type `D` must also implement [`Copy`]. This is because the deserialization
+/// process requires visiting a type multiple times. If your seed type does not implement `Copy`,
+/// you will not be able to use this function.
+///
+/// # Example
+///
+/// This example reads an integer from the command line and adding it to the seed value. The
+/// program returns early if an error is encountered.
+///
+/// ``` rust
+/// use serde::de::{
+///     Deserialize,
+///     DeserializeSeed,
+///     Deserializer,
+/// };
+///
+/// #[derive(Clone, Copy)]
+/// struct Seed(u32);
+///
+/// impl<'de> DeserializeSeed<'de> for Seed {
+///     type Value = u32;
+///
+///     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+///     where
+///         D: Deserializer<'de>,
+///     {
+///         u32::deserialize(deserializer).map(|value| value + self.0)
+///     }
+/// }
+///
+/// fn main() {
+///     let value = match serde_args::from_args_seed(Seed(42)) {
+///         Ok(value) => value,
+///         Err(error) => {
+///             println!("{error}");
+///             return;
+///         }
+///     };
+///     // Execute your program with `value`...
+/// }
+/// ```
 pub fn from_args_seed<'de, D>(seed: D) -> Result<D::Value, Error>
 where
     D: Copy + DeserializeSeed<'de>,
@@ -289,6 +335,29 @@ where
         .map_err(|error| Error::from_deserializing_error(error, executable_path, shape))
 }
 
+/// Deserialize from [`env::args()`].
+///
+/// This functions parses the command line arguments into the provided type. On success a value of
+/// type `D` is returned; on failure an [`Error`] is returned instead.
+///
+/// # Example
+///
+/// This example reads a string from the command line, returning early if an error is encountered.
+///
+/// ``` rust
+/// fn main() {
+///     let value: String = match serde_args::from_args() {
+///         Ok(value) => value,
+///         Err(error) => {
+///             println!("{error}");
+///             return;
+///         }
+///     };
+///     // Execute your program with `value`...
+/// }
+/// ```
+///
+/// [`env::args()`]: std::env::args()
 pub fn from_args<'de, D>() -> Result<D, Error>
 where
     D: Deserialize<'de>,
