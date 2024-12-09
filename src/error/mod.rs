@@ -244,6 +244,44 @@ impl Display for Kind {
     }
 }
 
+/// An error encountered during deserialization.
+///
+/// An error can be a problem with the type being deserialized into (sometimes referred to as a
+/// "development error"), a problem with the user input, or a specific overridden option requested
+/// by the user (such as help or version information).
+///
+/// Error provides a human-readable message through its [`Display`] implementation. Common practice
+/// is to print the error out and exit the program.
+///
+/// ``` rust
+/// # mod hidden {
+/// use std::process::exit;
+/// # }
+/// # fn exit(_: usize) -> () {}
+///
+/// if let Err(error) = serde_args::from_args::<usize>() {
+///     println!("{error}");
+///     exit(1);
+/// }
+/// ```
+///
+/// # Formatting
+///
+/// `Error` allows formatting using ANSI color sequences. This will print help messages and error
+/// messages with color formatting applied to it in terminals that support ANSI escape sequences.
+/// This formatting can be requested using the "alternate" formatting flag `#`.
+///
+/// ``` rust
+/// # mod hidden {
+/// use std::process::exit;
+/// # }
+/// # fn exit(_: usize) -> () {}
+///
+/// if let Err(error) = serde_args::from_args::<usize>() {
+///     println!("{error:#}");
+///     exit(1);
+/// }
+/// ```
 #[derive(Debug)]
 pub struct Error {
     kind: Kind,
