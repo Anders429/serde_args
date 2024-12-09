@@ -26,7 +26,9 @@
 //! by implementing the trait by hand. For example, a simple program could be defined as:
 //!
 //! ``` rust
+//! # mod hidden {
 //! use serde::Deserialize;
+//! # }
 //! # use serde_derive::Deserialize;
 //! use std::path::PathBuf;
 //!
@@ -53,7 +55,9 @@
 //! Command-based interfaces can be defined using `enums`:
 //!
 //! ``` rust
+//! # mod hidden {
 //! use serde::Deserialize;
+//! # }
 //! # use serde_derive::Deserialize;
 //! use std::path::PathBuf;
 //!
@@ -146,7 +150,9 @@
 //! or enum's doc comment using `#[generate]` with `doc_help` as a parameter:
 //!
 //! ``` rust
+//! # mod hidden {
 //! use serde::Deserialize;
+//! # }
 //! # use serde_derive::Deserialize;
 //! use std::path::PathBuf;
 //!
@@ -179,7 +185,9 @@
 //! `#[generate]` with `version` as a parameter:
 //!
 //! ```rust
+//! # mod hidden {
 //! use serde::Deserialize;
+//! # }
 //! # use serde_derive::Deserialize;
 //!
 //! #[derive(Deserialize)]
