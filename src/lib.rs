@@ -214,28 +214,30 @@
 //!
 //! - [`#[serde(flatten)]`](https://serde.rs/field-attrs.html#flatten)
 //! - [`#[serde(tag = "type")]`](https://serde.rs/container-attrs.html#tag) - Doesn't work for
-//! enums, but it will work for structs.
+//!   enums, but it will work for structs.
 //! - [`#[serde(tag = "t", content = "c")]`](https://serde.rs/container-attrs.html#tag--content)
 //! - [`#[serde(untagged)]`](https://serde.rs/container-attrs.html#untagged) - Not allowed on enums
-//! or on variants.
+//!   or on variants.
 //! - [`#[serde(other)]`](https://serde.rs/variant-attrs.html#other)
 //!
 //! Aside from the above list, all other attributes are supported. Some attributes are especially
 //! useful for defining command line interfaces, including:
 //!
 //! - [`#[serde(alias)]`](https://serde.rs/field-attrs.html#alias) - Useful for defining multiple
-//! names for optional fields or command variants.
+//!   names for optional fields or command variants.
 //! - [`#[serde(expecting)]`](https://serde.rs/container-attrs.html#expecting) - Can be used to
-//! define a description for your program. Whatever is provided here will be output at the top of
-//! the generated help message.
+//!   define a description for your program. Whatever is provided here will be output at the top of
+//!   the generated help message.
 //!   - Note that many users will want to use [`#[serde_args::generate(doc_help)]`](generate) to
 //!     automatically populate this message from the container's doc comment instead.
 //! - [`#[serde(rename_all)]`](https://serde.rs/container-attrs.html#rename_all) - Useful for
-//! renaming all field names or enum variants to kebab-case, which is common for command-line
-//! tools.
+//!   renaming all field names or enum variants to kebab-case, which is common for command-line
+//!   tools.
 //!
 //! [`Deserializer`]: serde::Deserializer
 //! [`Display`]: std::fmt::Display
+
+#![allow(clippy::needless_doctest_main)]
 
 pub mod specification;
 
