@@ -1,3 +1,13 @@
+//! Macros for the [`serde_args`](https://docs.rs/serde_args/latest/serde_args) crate.
+//!
+//! Due to its nature as a command line argument parsing format, `serde_args` allows some extra
+//! information to be provided to the deserializer. In order to make this process easier, a `serde`
+//! add-on macro is provided in the form of [`macro@generate`]. This attribute modifies the
+//! [`Deserialize`] implementation provided by serde's derive macro to include additional
+//! information relevant for `serde_args`.
+//!
+//! [`Deserialize`]: https://docs.rs/serde/latest/serde/derive.Deserialize.html
+
 mod attributes;
 mod container;
 mod generate;
