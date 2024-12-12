@@ -245,6 +245,7 @@
 //! [`Deserializer`]: serde::Deserializer
 //! [`Display`]: std::fmt::Display
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(clippy::needless_doctest_main)]
 
 pub mod specification;
@@ -257,6 +258,7 @@ mod trace;
 
 pub use error::Error;
 #[cfg(feature = "macros")]
+#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 pub use serde_args_macros::generate;
 
 use de::Deserializer;
