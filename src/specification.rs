@@ -50,6 +50,9 @@
 //!
 //! # Structs
 //!
+//! Structs act as the main compound data structure to be used when multiple positional data types
+//! are desired.
+//!
 //! ## Normal Structs
 //!
 //! Structs have three different types of fields: boolean fields, optional fields, and required
