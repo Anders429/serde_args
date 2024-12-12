@@ -82,7 +82,7 @@
 //!
 //! ## Unit Structs
 //!
-//! See (Units)[#units].
+//! See [Units](#units).
 //!
 //! ## Newtype Structs
 //!
@@ -105,16 +105,16 @@
 //!
 //! ## Unit Variants
 //!
-//! See (Units)[#units].
+//! See [Units](#units).
 //!
 //! ## Struct Variants
 //!
-//! The next values will be parsed as the provided struct. See (Structs)[#structs] for more
+//! The next values will be parsed as the provided struct. See [Structs](#structs) for more
 //! details.
 //!
 //! ## Newtype Variants
 //!
-//! The next values will be parsed as the contained value. See (Newtype Structs)[#newtype-structs]
+//! The next values will be parsed as the contained value. See [Newtype Structs](#newtype-structs)
 //! for more details.
 //!
 //! ## Tuple Variants
