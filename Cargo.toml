@@ -16,8 +16,8 @@ categories = ["command-line-interface"]
 keywords = ["cli", "argument", "parser", "arg", "command"]
 
 [dependencies]
-serde = {version = "1.0.203"}
-serde_args_macros = {path = "macros", optional = true}
+serde = "1.0.203"
+serde_args_macros = {version = "0.1.0", path = "macros", optional = true}
 
 [dev-dependencies]
 claims = "0.8.0"
