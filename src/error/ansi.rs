@@ -1,3 +1,12 @@
+use super::width::Width;
+use std::{
+    fmt,
+    fmt::{
+        Display,
+        Formatter,
+    },
+};
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum Color {
     None,
@@ -8,6 +17,13 @@ pub(super) enum Color {
 }
 
 impl Color {
+    pub(super) fn apply(self, string: String) -> Colored {
+        Colored {
+            color: self,
+            string,
+        }
+    }
+
     pub(super) fn prefix(self) -> &'static str {
         match self {
             Self::None => "",
@@ -70,12 +86,104 @@ impl Ansi {
     }
 }
 
+#[derive(Clone, Debug)]
+pub(super) struct Colored {
+    color: Color,
+    string: String,
+}
+
+impl Colored {
+    pub(super) fn width(&self) -> usize {
+        self.string.width()
+    }
+}
+
+impl Display for Colored {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        formatter.write_str(self.color.prefix())?;
+        formatter.write_str(&self.string)?;
+        formatter.write_str(self.color.suffix())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(super) enum Styled {
+    None(String),
+    Colored(Colored),
+}
+
+impl Styled {
+    fn width(&self) -> usize {
+        match self {
+            Self::None(string) => string.width(),
+            Self::Colored(colored) => colored.width(),
+        }
+    }
+}
+
+impl From<String> for Styled {
+    fn from(string: String) -> Self {
+        Self::None(string)
+    }
+}
+
+impl From<Colored> for Styled {
+    fn from(colored: Colored) -> Self {
+        Self::Colored(colored)
+    }
+}
+
+impl Display for Styled {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::None(string) => formatter.write_str(string),
+            Self::Colored(colored) => write!(formatter, "{}", colored),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(super) struct StyledList {
+    elements: Vec<Styled>,
+}
+
+impl Width for StyledList {
+    fn width(&self) -> usize {
+        self.elements.iter().map(|element| element.width()).sum()
+    }
+}
+
+impl FromIterator<Styled> for StyledList {
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = Styled>,
+    {
+        Self {
+            elements: iter.into_iter().collect(),
+        }
+    }
+}
+
+impl Display for StyledList {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        for element in &self.elements {
+            write!(formatter, "{}", element)?;
+        }
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
         Ansi,
         Color,
+        Styled,
+        StyledList,
+        Width,
     };
+    use std::iter;
 
     #[test]
     fn color_none_prefix() {
@@ -175,5 +283,96 @@ mod tests {
     #[test]
     fn ansi_disabled_bright_white() {
         assert_eq!(Ansi::Disabled.bright_white(), Color::None);
+    }
+
+    #[test]
+    fn colored_display() {
+        assert_eq!(
+            format!("{}", Color::Cyan.apply("foo".to_owned())),
+            "\x1b[36mfoo\x1b[0m"
+        );
+    }
+
+    #[test]
+    fn colored_none_display() {
+        assert_eq!(format!("{}", Color::None.apply("foo".to_owned())), "foo");
+    }
+
+    #[test]
+    fn colored_width() {
+        assert_eq!(Color::Cyan.apply("foo".to_owned()).width(), 3);
+    }
+
+    #[test]
+    fn styled_colored_display() {
+        assert_eq!(
+            format!("{}", Styled::from(Color::Cyan.apply("foo".to_owned()))),
+            "\x1b[36mfoo\x1b[0m"
+        );
+    }
+
+    #[test]
+    fn styled_colored_none_display() {
+        assert_eq!(
+            format!("{}", Styled::from(Color::None.apply("foo".to_owned()))),
+            "foo"
+        );
+    }
+
+    #[test]
+    fn styled_none_display() {
+        assert_eq!(format!("{}", Styled::from("foo".to_owned())), "foo");
+    }
+
+    #[test]
+    fn styled_colored_width() {
+        assert_eq!(Styled::from(Color::Cyan.apply("foo".to_owned())).width(), 3);
+    }
+
+    #[test]
+    fn styled_none_width() {
+        assert_eq!(Styled::from("foo".to_owned()).width(), 3);
+    }
+
+    #[test]
+    fn styled_list_empty_display() {
+        assert_eq!(format!("{}", iter::empty().collect::<StyledList>()), "");
+    }
+
+    #[test]
+    fn styled_list_nonempty_display() {
+        assert_eq!(
+            format!(
+                "{}",
+                [
+                    Color::Cyan.apply("foo".to_owned()).into(),
+                    "bar".to_owned().into(),
+                    Color::None.apply("baz".to_owned()).into()
+                ]
+                .into_iter()
+                .collect::<StyledList>()
+            ),
+            "\x1b[36mfoo\x1b[0mbarbaz"
+        );
+    }
+
+    #[test]
+    fn styled_list_empty_width() {
+        assert_eq!(iter::empty().collect::<StyledList>().width(), 0);
+    }
+
+    #[test]
+    fn styled_list_nonempty_width() {
+        assert_eq!(
+            [
+                Color::Cyan.apply("foo".to_owned()).into(),
+                "bar".to_owned().into(),
+                Color::None.apply("baz".to_owned()).into()
+            ]
+            .into_iter()
+            .collect::<StyledList>()
+            .width(),
+            9
+        );
     }
 }

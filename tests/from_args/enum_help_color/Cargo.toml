@@ -6,4 +6,4 @@ publish = false
 
 [dependencies]
 serde_args = {path = "../../.."}
-serde = {version = "1.0.203", features = ["derive"]}
+serde = {version = "1.0.214", features = ["derive"]}

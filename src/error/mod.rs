@@ -1,4 +1,6 @@
 mod ansi;
+mod intersperse;
+mod width;
 
 use super::{
     de,
@@ -6,7 +8,11 @@ use super::{
     trace,
     trace::Shape,
 };
-use ansi::Ansi;
+use ansi::{
+    Ansi,
+    StyledList,
+};
+use intersperse::Intersperse;
 use std::{
     ffi::OsString,
     fmt,
@@ -15,6 +21,11 @@ use std::{
         Formatter,
     },
     iter,
+};
+use unicode_width::UnicodeWidthStr;
+use width::{
+    Width,
+    WidthFormatted,
 };
 
 #[derive(Debug)]
@@ -50,8 +61,10 @@ impl Display for Kind {
         let ansi = Ansi::from_alternate(formatter.alternate());
         let bright_white_start = ansi.bright_white().prefix();
         let bright_white_end = ansi.bright_white().suffix();
+        let cyan = ansi.cyan();
         let cyan_start = ansi.cyan().prefix();
         let cyan_end = ansi.cyan().suffix();
+        let bright_cyan = ansi.bright_cyan();
         let bright_cyan_start = ansi.bright_cyan().prefix();
         let bright_cyan_end = ansi.bright_cyan().suffix();
         let bright_red_start = ansi.bright_red().prefix();
@@ -92,14 +105,14 @@ impl Display for Kind {
                         // Get longest argument name.
                         let longest_argument = required_arguments
                             .iter()
-                            .map(|(name, _)| name.chars().count())
+                            .map(|(name, _)| name.width())
                             .max()
                             .unwrap_or(0);
                         for (name, description) in required_arguments {
                             write!(
                                 formatter,
                                 "\n  {bright_cyan_start}{:longest_argument$}{bright_cyan_end}  {description}",
-                                format!("<{}>", name),
+                                WidthFormatted(format!("<{}>", name)),
                                 longest_argument = longest_argument + 2,
                             )?;
                         }
@@ -122,56 +135,53 @@ impl Display for Kind {
                                 }
 
                                 let long_options = group.iter().map(|field| {
-                                    let mut combined = iter::once(field.name)
-                                        .chain(field.aliases.iter().copied())
-                                        .filter(|name| name.chars().count() != 1)
-                                        .map(|name| {
-                                            format!("{bright_cyan_start}--{name}{bright_cyan_end}")
-                                        })
-                                        .fold(String::new(), |combined, option| {
-                                            combined + &option + " "
-                                        });
-                                    combined.push_str(&format!(
-                                        "{cyan_start}{}{cyan_end}",
-                                        field.shape
-                                    ));
-                                    combined
+                                    Intersperse::new(
+                                        iter::once(field.name)
+                                            .chain(field.aliases.iter().copied())
+                                            .filter(|name| name.chars().count() != 1)
+                                            .map(|name| {
+                                                bright_cyan.apply(format!("--{}", name)).into()
+                                            })
+                                            .chain(iter::once(
+                                                cyan.apply(format!("{}", field.shape)).into(),
+                                            )),
+                                        " ".to_owned().into(),
+                                    )
+                                    .collect::<StyledList>()
                                 });
                                 let short_options = group.iter().map(|field| {
-                                    iter::once(field.name)
-                                        .chain(field.aliases.iter().copied())
-                                        .filter(|name| name.chars().count() == 1)
-                                        .map(|name| {
-                                            format!("{bright_cyan_start}-{name}{bright_cyan_end}")
-                                        })
-                                        .fold(String::new(), |combined, option| {
-                                            combined + &option + " "
-                                        })
-                                        .trim_end()
-                                        .to_owned()
+                                    Intersperse::new(
+                                        iter::once(field.name)
+                                            .chain(field.aliases.iter().copied())
+                                            .filter(|name| name.chars().count() == 1)
+                                            .map(|name| {
+                                                bright_cyan.apply(format!("-{}", name)).into()
+                                            }),
+                                        " ".to_owned().into(),
+                                    )
+                                    .collect::<StyledList>()
                                 });
 
-                                // Get longest option name.
                                 let longest_long_options = long_options
                                     .clone()
-                                    .map(|name| name.chars().count())
+                                    .map(|styled| styled.width())
                                     .max()
                                     .unwrap_or(0);
-                                // Get longest short option name.
                                 let longest_short_options = short_options
                                     .clone()
-                                    .map(|name| name.chars().count())
+                                    .map(|styled| styled.width())
                                     .max()
                                     .unwrap_or(0);
+
                                 for ((field, long_options), short_options) in
                                     group.iter().zip(long_options).zip(short_options)
                                 {
                                     write!(
                                         formatter,
                                         "\n  {:longest_short_options$}{}{:longest_long_options$}{}{}",
-                                        short_options,
+                                        WidthFormatted(short_options),
                                         if longest_short_options == 0 {""} else {" "},
-                                        long_options,
+                                        WidthFormatted(long_options),
                                         if longest_long_options == 0 {" "} else {"  "},
                                         field.description,
                                     )?;
@@ -208,7 +218,7 @@ impl Display for Kind {
                             // Get longest variant name.
                             let longest_variant_names = variant_names
                                 .clone()
-                                .map(|name| name.chars().count())
+                                .map(|name| name.width())
                                 .max()
                                 .unwrap_or(0);
 
@@ -219,7 +229,8 @@ impl Display for Kind {
                             for (variant, name) in group.iter().zip(variant_names) {
                                 write!(
                                     formatter,
-                                    "\n  {name:longest_variant_names$}  {}",
+                                    "\n  {:longest_variant_names$}  {}",
+                                    WidthFormatted(name),
                                     variant.description
                                 )?;
                             }
