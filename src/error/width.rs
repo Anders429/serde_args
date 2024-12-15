@@ -12,7 +12,7 @@ pub(super) trait Width {
     fn width(&self) -> usize;
 }
 
-impl<'a> Width for String {
+impl Width for String {
     fn width(&self) -> usize {
         UnicodeWidthStr::width(self.as_str())
     }
@@ -35,8 +35,7 @@ where
         write!(formatter, "{}", self.0)?;
         if let Some(remaining_width) = formatter
             .width()
-            .map(|width| width.checked_sub(self.0.width()))
-            .flatten()
+            .and_then(|width| width.checked_sub(self.0.width()))
         {
             for _ in 0..remaining_width {
                 formatter.write_char(' ')?;
