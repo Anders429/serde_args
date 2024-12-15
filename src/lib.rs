@@ -157,8 +157,8 @@
 //! use std::path::PathBuf;
 //!
 //! /// An example program.
-//! #[derive(Deserialize)]
 //! #[serde_args::generate(doc_help)]
+//! #[derive(Deserialize)]
 //! struct Args {
 //!     /// The path to operate on.
 //!     path: PathBuf,
@@ -190,8 +190,8 @@
 //! # }
 //! # use serde_derive::Deserialize;
 //!
-//! #[derive(Deserialize)]
 //! #[serde_args::generate(version)]
+//! #[derive(Deserialize)]
 //! struct Args {
 //!     foo: String,
 //!     bar: bool,

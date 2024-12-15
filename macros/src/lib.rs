@@ -27,6 +27,8 @@ use proc_macro::TokenStream;
 /// information specific to `serde_args`. Specifically, it can generate help messages from doc
 /// comments and version information from the crate's metadata.
 ///
+/// Note that `#[serde_args::generate]` must be placed **above** `#[derive(Deserialize)]`
+///
 /// `serde_args::generate` can take any of the following parameters:
 ///
 /// - `doc_help`
@@ -43,8 +45,8 @@ use proc_macro::TokenStream;
 /// # }
 ///
 /// /// An example program.
-/// #[derive(Deserialize)]
 /// #[serde_args::generate(doc_help)]
+/// #[derive(Deserialize)]
 /// struct Args {
 ///     /// The file to be operated on.
 ///     file: PathBuf,
@@ -67,8 +69,8 @@ use proc_macro::TokenStream;
 /// use serde::Deserialize;
 /// use std::path::PathBuf;
 ///
-/// #[derive(Deserialize)]
 /// #[serde_args_macros::generate(version)]
+/// #[derive(Deserialize)]
 /// struct Args {
 ///     file: PathBuf,
 ///     #[serde(alias = "f")]
