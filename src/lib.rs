@@ -41,7 +41,7 @@
 //! }
 //!
 //! fn main() {
-//!     let args: Args = match serde_args::from_args() {
+//!     let args: Args = match serde_args::from_env() {
 //!         Ok(args) => args,
 //!         Err(error) => {
 //!             println!("{error}");
@@ -79,7 +79,7 @@
 //! }
 //!
 //! fn main() {
-//!     let command: Command = match serde_args::from_args() {
+//!     let command: Command = match serde_args::from_env() {
 //!         Ok(command) => command,
 //!         Err(error) => {
 //!             println!("{error}");
@@ -95,7 +95,7 @@
 //!
 //! ``` rust
 //! fn main() {
-//!     let value: String = match serde_args::from_args() {
+//!     let value: String = match serde_args::from_env() {
 //!         Ok(value) => value,
 //!         Err(error) => {
 //!             println!("{error}");
@@ -106,12 +106,12 @@
 //! }
 //! ```
 //!
-//! Note that the only way to deserialize using this crate is through [`from_args()`] and
-//! [`from_args_seed()`]. No public [`Deserializer`] is provided.
+//! Note that the only way to deserialize using this crate is through [`from_env()`] and
+//! [`from_env_seed()`]. No public [`Deserializer`] is provided.
 //!
 //! # Error Formatting
 //!
-//! On failure, [`from_args()`] will return an [`Error`]. This will occur when the provided type is
+//! On failure, [`from_env()`] will return an [`Error`]. This will occur when the provided type is
 //! incompatible with this crate (see [Supported `serde` Attributes](#supported-serde-attributes)
 //! for common reasons why types are not compatible), when the user has input command line
 //! arguments that cannot be parsed into the provided type, or when the user requests the generated
@@ -123,7 +123,7 @@
 //! error that occurred like so:
 //!
 //! ```rust
-//! if let Err(error) = serde_args::from_args::<usize>() {
+//! if let Err(error) = serde_args::from_env::<usize>() {
 //!     println!("{error}");
 //! }
 //! ```
@@ -132,7 +132,7 @@
 //! printing with the `#` flag:
 //!
 //! ```rust
-//! if let Err(error) = serde_args::from_args::<usize>() {
+//! if let Err(error) = serde_args::from_env::<usize>() {
 //!     println!("{error:#}");
 //! }
 //! ```
@@ -168,7 +168,7 @@
 //! }
 //!
 //! fn main() {
-//!     let args: Args = match serde_args::from_args() {
+//!     let args: Args = match serde_args::from_env() {
 //!         Ok(args) => args,
 //!         Err(error) => {
 //!             println!("{error}");
@@ -198,7 +198,7 @@
 //! }
 //!
 //! fn main() {
-//!     let args: Args = match serde_args::from_args() {
+//!     let args: Args = match serde_args::from_env() {
 //!         Ok(args) => args,
 //!         Err(error) => {
 //!             println!("{error}");
@@ -311,7 +311,7 @@ use trace::trace;
 /// }
 ///
 /// fn main() {
-///     let value = match serde_args::from_args_seed(Seed(42)) {
+///     let value = match serde_args::from_env_seed(Seed(42)) {
 ///         Ok(value) => value,
 ///         Err(error) => {
 ///             println!("{error}");
@@ -321,7 +321,7 @@ use trace::trace;
 ///     // Execute your program with `value`...
 /// }
 /// ```
-pub fn from_args_seed<'de, D>(seed: D) -> Result<D::Value, Error>
+pub fn from_env_seed<'de, D>(seed: D) -> Result<D::Value, Error>
 where
     D: Copy + DeserializeSeed<'de>,
 {
@@ -358,7 +358,7 @@ where
 ///
 /// ``` rust
 /// fn main() {
-///     let value: String = match serde_args::from_args() {
+///     let value: String = match serde_args::from_env() {
 ///         Ok(value) => value,
 ///         Err(error) => {
 ///             println!("{error}");
@@ -370,9 +370,9 @@ where
 /// ```
 ///
 /// [`env::args()`]: std::env::args()
-pub fn from_args<'de, D>() -> Result<D, Error>
+pub fn from_env<'de, D>() -> Result<D, Error>
 where
     D: Deserialize<'de>,
 {
-    from_args_seed(PhantomData::<D>)
+    from_env_seed(PhantomData::<D>)
 }

@@ -270,7 +270,7 @@ impl Display for Kind {
 /// # }
 /// # fn exit(_: usize) -> () {}
 ///
-/// if let Err(error) = serde_args::from_args::<usize>() {
+/// if let Err(error) = serde_args::from_env::<usize>() {
 ///     println!("{error}");
 ///     exit(1);
 /// }
@@ -288,7 +288,7 @@ impl Display for Kind {
 /// # }
 /// # fn exit(_: usize) -> () {}
 ///
-/// if let Err(error) = serde_args::from_args::<usize>() {
+/// if let Err(error) = serde_args::from_env::<usize>() {
 ///     println!("{error:#}");
 ///     exit(1);
 /// }
