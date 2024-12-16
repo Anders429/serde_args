@@ -3,6 +3,7 @@
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/Anders429/serde_args/test.yml?branch=master)](https://github.com/Anders429/serde_args/actions/workflows/test.yml)
 [![crates.io](https://img.shields.io/crates/v/serde_args)](https://crates.io/crates/serde_args)
 [![docs.rs](https://docs.rs/serde_args/badge.svg)](https://docs.rs/serde_args)
+[![License](https://img.shields.io/crates/l/serde_args)](#license)
 
 Command line argument parsing with [`serde`](https://github.com/serde-rs/serde).
 
@@ -64,3 +65,18 @@ Running the program with example arguments of `README.md -f` will show the parse
 ```
 Args { path: "README.md", force: true }
 ```
+
+## License
+This project is licensed under either of
+
+* Apache License, Version 2.0
+([LICENSE-APACHE](https://github.com/Anders429/serde_args/blob/HEAD/LICENSE-APACHE) or
+http://www.apache.org/licenses/LICENSE-2.0)
+* MIT license
+([LICENSE-MIT](https://github.com/Anders429/serde_args/blob/HEAD/LICENSE-MIT) or
+http://opensource.org/licenses/MIT)
+
+at your option.
+
+### Contribution
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.

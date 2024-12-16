@@ -3,6 +3,7 @@ name = "serde_args_macros"
 version = "0.1.0"
 authors = ["Anders Evensen"]
 edition = "2021"
+license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/Anders429/serde_args"
 description = "Macros for the serde_args crate."
