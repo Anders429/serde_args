@@ -14,6 +14,59 @@ pub(super) struct KeyInfo {
     pub(super) shape: Shape,
 }
 
+impl KeyInfo {
+    /// Comparison to be used only for variant key info.
+    ///
+    /// This specifically ignores the `name` field on structs. This is because the name will always
+    /// be the variant name, which is guaranteed to never be equal.
+    pub(super) fn variant_equality(&self, other: &Self) -> bool {
+        match (&self.shape, &other.shape) {
+            (
+                Shape::Struct {
+                    name: _,
+                    description: self_description,
+                    version: self_version,
+                    required: self_required,
+                    optional: self_optional,
+                    booleans: self_booleans,
+                },
+                Shape::Struct {
+                    name: _,
+                    description: other_description,
+                    version: other_version,
+                    required: other_required,
+                    optional: other_optional,
+                    booleans: other_booleans,
+                },
+            ) => {
+                // Compare without name field.
+                Self {
+                    discriminant: self.discriminant,
+                    shape: Shape::Struct {
+                        name: "",
+                        description: self_description.clone(),
+                        version: self_version.clone(),
+                        required: self_required.clone(),
+                        optional: self_optional.clone(),
+                        booleans: self_booleans.clone(),
+                    },
+                } == Self {
+                    discriminant: other.discriminant,
+                    shape: Shape::Struct {
+                        name: "",
+                        description: other_description.clone(),
+                        version: other_version.clone(),
+                        required: other_required.clone(),
+                        optional: other_optional.clone(),
+                        booleans: other_booleans.clone(),
+                    },
+                }
+            }
+            _ => self == other,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub(super) struct Fields {
     pub(super) name: &'static str,
@@ -230,6 +283,98 @@ mod tests {
         assert_matches,
         assert_ok_eq,
     };
+
+    #[test]
+    fn key_info_variant_equality_not_structs_equal() {
+        assert!(KeyInfo {
+            discriminant: 1,
+            shape: Shape::Primitive {
+                description: String::new(),
+                name: "baz".to_owned(),
+                version: None,
+            },
+        }
+        .variant_equality(&KeyInfo {
+            discriminant: 1,
+            shape: Shape::Primitive {
+                description: String::new(),
+                name: "baz".to_owned(),
+                version: None,
+            },
+        }));
+    }
+
+    #[test]
+    fn key_info_variant_equality_not_structs_not_equal() {
+        assert!(!KeyInfo {
+            discriminant: 1,
+            shape: Shape::Primitive {
+                description: String::new(),
+                name: "baz".to_owned(),
+                version: None,
+            },
+        }
+        .variant_equality(&KeyInfo {
+            discriminant: 1,
+            shape: Shape::Primitive {
+                description: String::new(),
+                name: "qux".to_owned(),
+                version: None,
+            },
+        }));
+    }
+
+    #[test]
+    fn key_info_variant_equality_structs_equal() {
+        assert!(KeyInfo {
+            discriminant: 1,
+            shape: Shape::Struct {
+                name: "foo",
+                description: String::new(),
+                version: None,
+                required: vec![],
+                optional: vec![],
+                booleans: vec![],
+            },
+        }
+        .variant_equality(&KeyInfo {
+            discriminant: 1,
+            shape: Shape::Struct {
+                name: "bar",
+                description: String::new(),
+                version: None,
+                required: vec![],
+                optional: vec![],
+                booleans: vec![],
+            },
+        }));
+    }
+
+    #[test]
+    fn key_info_variant_equality_structs_not_equal() {
+        assert!(!KeyInfo {
+            discriminant: 1,
+            shape: Shape::Struct {
+                name: "foo",
+                description: String::new(),
+                version: None,
+                required: vec![],
+                optional: vec![],
+                booleans: vec![],
+            },
+        }
+        .variant_equality(&KeyInfo {
+            discriminant: 2,
+            shape: Shape::Struct {
+                name: "bar",
+                description: String::new(),
+                version: None,
+                required: vec![],
+                optional: vec![],
+                booleans: vec![],
+            },
+        }));
+    }
 
     #[test]
     fn shape_from_fields_empty() {

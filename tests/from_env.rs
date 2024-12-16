@@ -380,3 +380,11 @@ fn enum_version_help() {
         "0.0.0\n"
     );
 }
+
+#[test]
+fn enum_alias() {
+    assert_run_err!(
+        Command::new("tests/from_env/enum_alias"),
+        "enum Command\n\nUSAGE: {name} <Command>\n\nRequired Arguments:\n  <Command>  enum Command\n\nOverride Options:\n  -h --help  Display this message.\n\nCommand Variants:\n  f foo                       \n  bar <u8>                    \n  b baz [--<a string>]        \n  q qux [options] <required>  \n"
+    );
+}

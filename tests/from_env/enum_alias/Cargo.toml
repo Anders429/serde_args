@@ -1,0 +1,9 @@
+[package]
+name = "enum_alias"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+serde_args = {path = "../../.."}
+serde = {version = "1.0.216", features = ["derive"]}

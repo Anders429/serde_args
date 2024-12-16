@@ -672,7 +672,7 @@ impl<'de> de::Deserializer<'de> for &mut Deserializer {
                                 for (info, names, _description, _version) in
                                     variants.variants.iter_mut()
                                 {
-                                    if *info == key_info {
+                                    if info.variant_equality(&key_info) {
                                         found = true;
                                         names.push(variant);
                                         break;
@@ -3950,6 +3950,102 @@ mod tests {
                             version: None,
                         },
                     },
+                ],
+            }
+        );
+    }
+
+    #[test]
+    fn trace_enum_aliases() {
+        #[allow(dead_code)]
+        #[derive(Deserialize)]
+        #[serde(rename_all = "lowercase")]
+        enum Enum {
+            #[serde(alias = "f")]
+            Foo,
+            Bar(u8),
+            #[serde(alias = "b")]
+            Baz(Option<String>),
+            #[serde(alias = "q")]
+            Qux {
+                required: String,
+                optional: Option<String>,
+            },
+        }
+
+        assert_ok_eq!(
+            trace(PhantomData::<Enum>),
+            Shape::Enum {
+                name: "Enum",
+                description: "enum Enum".into(),
+                version: None,
+                variants: vec![
+                    Variant {
+                        name: "f",
+                        description: "".into(),
+                        version: None,
+                        aliases: vec!["foo"],
+                        shape: Shape::Empty {
+                            description: String::new(),
+                            version: None,
+                        },
+                    },
+                    Variant {
+                        name: "bar",
+                        description: "".into(),
+                        version: None,
+                        aliases: vec![],
+                        shape: Shape::Primitive {
+                            name: "u8".to_owned(),
+                            description: "u8".to_owned(),
+                            version: None,
+                        },
+                    },
+                    Variant {
+                        name: "b",
+                        description: "".into(),
+                        version: None,
+                        aliases: vec!["baz"],
+                        shape: Shape::Optional(Box::new(Shape::Primitive {
+                            name: "a string".to_owned(),
+                            description: "a string".to_owned(),
+                            version: None,
+                        })),
+                    },
+                    Variant {
+                        name: "q",
+                        description: "".into(),
+                        version: None,
+                        aliases: vec!["qux"],
+                        shape: Shape::Struct {
+                            name: "q",
+                            description: "struct variant Enum::Qux".to_owned(),
+                            version: None,
+                            required: vec![Field {
+                                name: "required",
+                                description: String::new(),
+                                aliases: vec![],
+                                shape: Shape::Primitive {
+                                    name: "a string".to_owned(),
+                                    description: "a string".to_owned(),
+                                    version: None,
+                                },
+                                index: 0,
+                            }],
+                            optional: vec![Field {
+                                name: "optional",
+                                description: String::new(),
+                                aliases: vec![],
+                                shape: Shape::Primitive {
+                                    name: "a string".to_owned(),
+                                    description: "a string".to_owned(),
+                                    version: None,
+                                },
+                                index: 1,
+                            }],
+                            booleans: vec![],
+                        }
+                    }
                 ],
             }
         );
