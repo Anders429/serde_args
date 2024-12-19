@@ -565,7 +565,6 @@ impl<'de> de::Deserializer<'de> for FieldDeserializer {
     forward_to_deserializer! {
         deserialize_any()
         deserialize_ignored_any()
-        deserialize_bool()
         deserialize_i8()
         deserialize_i16()
         deserialize_i32()
@@ -585,6 +584,7 @@ impl<'de> de::Deserializer<'de> for FieldDeserializer {
         deserialize_byte_buf()
         deserialize_unit()
         deserialize_unit_struct(name: &'static str)
+        deserialize_option()
         deserialize_newtype_struct(name: &'static str)
         deserialize_seq()
         deserialize_tuple(len: usize)
@@ -593,16 +593,16 @@ impl<'de> de::Deserializer<'de> for FieldDeserializer {
         deserialize_struct(name: &'static str, fields: &'static [&'static str])
         deserialize_enum(name: &'static str, variants: &'static [&'static str])
         deserialize_identifier()
-
     }
 
-    fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_bool<V>(mut self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        // The presence of an optional field indicates that it has a `Some` value.
-        visitor.visit_some(Deserializer {
-            context: self.context,
+        visitor.visit_bool(match self.context.next() {
+            Some(Segment::Context(_)) => true,
+            Some(_) => unreachable!(),
+            None => false,
         })
     }
 }
@@ -1859,7 +1859,12 @@ mod tests {
 
         let deserializer = Deserializer::new(Context {
             segments: vec![Segment::Context(Context {
-                segments: vec![Segment::Identifier("foo"), Segment::Value("42".into())],
+                segments: vec![
+                    Segment::Identifier("foo"),
+                    Segment::Context(Context {
+                        segments: vec![Segment::Value("42".into())],
+                    }),
+                ],
             })],
         });
 
@@ -1873,7 +1878,11 @@ mod tests {
             foo: Option<usize>,
         }
 
-        let deserializer = Deserializer::new(Context { segments: vec![] });
+        let deserializer = Deserializer::new(Context {
+            segments: vec![Segment::Context(Context {
+                segments: vec![Segment::Identifier("foo")],
+            })],
+        });
 
         assert_ok_eq!(Struct::deserialize(deserializer), Struct { foo: None });
     }
@@ -1887,7 +1896,10 @@ mod tests {
 
         let deserializer = Deserializer::new(Context {
             segments: vec![Segment::Context(Context {
-                segments: vec![Segment::Identifier("foo"), Segment::Value("true".into())],
+                segments: vec![
+                    Segment::Identifier("foo"),
+                    Segment::Context(Context { segments: vec![] }),
+                ],
             })],
         });
 
@@ -1903,7 +1915,7 @@ mod tests {
 
         let deserializer = Deserializer::new(Context {
             segments: vec![Segment::Context(Context {
-                segments: vec![Segment::Identifier("foo"), Segment::Value("false".into())],
+                segments: vec![Segment::Identifier("foo")],
             })],
         });
 
@@ -1922,10 +1934,18 @@ mod tests {
         let deserializer = Deserializer::new(Context {
             segments: vec![
                 Segment::Context(Context {
-                    segments: vec![Segment::Identifier("baz"), Segment::Value("1".into())],
+                    segments: vec![
+                        Segment::Identifier("baz"),
+                        Segment::Context(Context {
+                            segments: vec![Segment::Value("1".into())],
+                        }),
+                    ],
                 }),
                 Segment::Context(Context {
                     segments: vec![Segment::Identifier("foo"), Segment::Value("2".into())],
+                }),
+                Segment::Context(Context {
+                    segments: vec![Segment::Identifier("bar")],
                 }),
             ],
         });
@@ -2013,10 +2033,18 @@ mod tests {
             segments: vec![
                 Segment::Identifier("Struct"),
                 Segment::Context(Context {
-                    segments: vec![Segment::Identifier("baz"), Segment::Value("1".into())],
+                    segments: vec![
+                        Segment::Identifier("baz"),
+                        Segment::Context(Context {
+                            segments: vec![Segment::Value("1".into())],
+                        }),
+                    ],
                 }),
                 Segment::Context(Context {
                     segments: vec![Segment::Identifier("foo"), Segment::Value("2".into())],
+                }),
+                Segment::Context(Context {
+                    segments: vec![Segment::Identifier("bar")],
                 }),
             ],
         });
@@ -2058,7 +2086,9 @@ mod tests {
     fn field_deserializer_option() {
         let deserializer = FieldDeserializer {
             context: Context {
-                segments: vec![Segment::Value("42".into())],
+                segments: vec![Segment::Context(Context {
+                    segments: vec![Segment::Value("42".into())],
+                })],
             }
             .into_iter(),
         };

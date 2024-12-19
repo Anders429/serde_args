@@ -325,10 +325,10 @@ where
                         }));
                     end_of_options = parsed_context.closing_end_of_options;
                     let parsed_options = parsed_context.options;
-                    for (optional_name, mut optional_context) in parsed_options {
+                    for (optional_name, optional_context) in parsed_options {
                         let mut found = false;
                         // Find whether the optional name is in this struct.
-                        for optional_field in optional.iter() {
+                        for optional_field in (&mut *optional).into_iter().chain(&mut *booleans) {
                             if optional_name == optional_field.name
                                 || optional_field.aliases.contains(&optional_name)
                             {
@@ -337,20 +337,6 @@ where
                                     .segments
                                     .push(Segment::Context(optional_context.clone()));
                                 break;
-                            }
-                        }
-                        if !found {
-                            for boolean_field in booleans.iter() {
-                                if optional_name == boolean_field.name
-                                    || boolean_field.aliases.contains(&optional_name)
-                                {
-                                    found = true;
-                                    optional_context
-                                        .segments
-                                        .push(Segment::Value(b"true".into()));
-                                    context.segments.push(Segment::Context(optional_context));
-                                    break;
-                                }
                             }
                         }
                         if !found {
@@ -384,10 +370,10 @@ where
                     context,
                 );
                 context = parsed_context.context?;
-                for (optional_name, mut optional_context) in parsed_context.options {
+                for (optional_name, optional_context) in parsed_context.options {
                     let mut found = false;
                     // Find whether the optional name is in this struct.
-                    for optional_field in &mut *optional {
+                    for optional_field in (&mut *optional).into_iter().chain(&mut *booleans) {
                         if optional_name == optional_field.name
                             || optional_field.aliases.contains(&optional_name)
                         {
@@ -396,20 +382,6 @@ where
                                 .segments
                                 .push(Segment::Context(optional_context.clone()));
                             break;
-                        }
-                    }
-                    if !found {
-                        for boolean_field in booleans.iter() {
-                            if optional_name == boolean_field.name
-                                || boolean_field.aliases.contains(&optional_name)
-                            {
-                                found = true;
-                                optional_context
-                                    .segments
-                                    .push(Segment::Value(b"true".into()));
-                                context.segments.push(Segment::Context(optional_context));
-                                break;
-                            }
                         }
                     }
                     if !found {
@@ -426,7 +398,7 @@ where
                     }
                 }
             }
-            // Fill in any missing boolean fields with false.
+            // Fill in any missing optional and boolean fields.
             let cloned_segments = context.segments.clone();
             let found_fields: Vec<_> = cloned_segments
                 .iter()
@@ -442,11 +414,11 @@ where
                     }
                 })
                 .collect();
-            for boolean_field in booleans {
+            for optional_field in optional.into_iter().chain(booleans) {
                 // Check whether the field name or any aliases have been found.
                 let mut found = false;
                 for field_name in
-                    iter::once(&boolean_field.name).chain(boolean_field.aliases.iter())
+                    iter::once(&optional_field.name).chain(optional_field.aliases.iter())
                 {
                     if found_fields.contains(&field_name) {
                         found = true;
@@ -455,10 +427,7 @@ where
                 }
                 if !found {
                     context.segments.push(Segment::Context(Context {
-                        segments: vec![
-                            Segment::Identifier(boolean_field.name),
-                            Segment::Value(b"false".into()),
-                        ],
+                        segments: vec![Segment::Identifier(optional_field.name)],
                     }));
                 }
             }
@@ -616,7 +585,6 @@ where
                                         })
                                         .collect(),
                                 }))?;
-                            let mut optional_context = Context { segments: vec![] };
                             let mut found = false;
                             let mut index = 0;
                             while index < options.len() {
@@ -627,18 +595,22 @@ where
                                 {
                                     let mut optional_field = options.remove(index);
                                     found = true;
-                                    optional_context
-                                        .segments
-                                        .push(Segment::Identifier(static_field_name));
                                     let parsed_context = parse_context(
                                         args,
                                         &mut optional_field.shape,
                                         options,
-                                        optional_context,
+                                        Context { segments: vec![] },
                                     );
                                     parsed_options.extend(parsed_context.options);
-                                    parsed_options
-                                        .push((static_field_name, parsed_context.context?));
+                                    parsed_options.push((
+                                        static_field_name,
+                                        Context {
+                                            segments: vec![
+                                                Segment::Identifier(static_field_name),
+                                                Segment::Context(parsed_context.context?),
+                                            ],
+                                        },
+                                    ));
                                     if parsed_context.closing_end_of_options {
                                         closing_end_of_options = true;
                                     }
@@ -695,7 +667,6 @@ where
                                     })
                                     .collect(),
                             }))?;
-                        let mut optional_context = Context { segments: vec![] };
                         let mut found = false;
                         let mut index = 0;
                         while index < options.len() {
@@ -706,17 +677,22 @@ where
                             {
                                 let mut optional_field = options.remove(index);
                                 found = true;
-                                optional_context
-                                    .segments
-                                    .push(Segment::Identifier(static_field_name));
                                 let parsed_context = parse_context(
                                     args,
                                     &mut optional_field.shape,
                                     options,
-                                    optional_context,
+                                    Context { segments: vec![] },
                                 );
                                 parsed_options.extend(parsed_context.options);
-                                parsed_options.push((static_field_name, parsed_context.context?));
+                                parsed_options.push((
+                                    static_field_name,
+                                    Context {
+                                        segments: vec![
+                                            Segment::Identifier(static_field_name),
+                                            Segment::Context(parsed_context.context?),
+                                        ],
+                                    },
+                                ));
                                 if parsed_context.closing_end_of_options {
                                     closing_end_of_options = true;
                                 }
@@ -817,26 +793,16 @@ where
                         );
                         end_of_options = parsed_context.closing_end_of_options;
                         let found_parsed_options = parsed_context.options;
-                        'outer: for (optional_name, mut optional_context) in found_parsed_options {
+                        'outer: for (optional_name, optional_context) in found_parsed_options {
                             // Find whether the optional name is in this struct.
-                            for optional_field in &mut *optional {
+                            for optional_field in (&mut *optional).into_iter().chain(&mut *booleans)
+                            {
                                 if optional_name == optional_field.name
                                     || optional_field.aliases.contains(&optional_name)
                                 {
                                     context
                                         .segments
                                         .push(Segment::Context(optional_context.clone()));
-                                    continue 'outer;
-                                }
-                            }
-                            for boolean_field in &mut *booleans {
-                                if optional_name == boolean_field.name
-                                    || boolean_field.aliases.contains(&optional_name)
-                                {
-                                    optional_context
-                                        .segments
-                                        .push(Segment::Value(b"true".into()));
-                                    context.segments.push(Segment::Context(optional_context));
                                     continue 'outer;
                                 }
                             }
@@ -888,9 +854,9 @@ where
                         context,
                     );
                     context = parsed_context.context?;
-                    'outer: for (optional_name, mut optional_context) in parsed_context.options {
+                    'outer: for (optional_name, optional_context) in parsed_context.options {
                         // Find whether the optional name is in this struct.
-                        for optional_field in &mut *optional {
+                        for optional_field in (&mut *optional).into_iter().chain(&mut *booleans) {
                             if optional_name == optional_field.name
                                 || optional_field.aliases.contains(&optional_name)
                             {
@@ -900,24 +866,13 @@ where
                                 continue 'outer;
                             }
                         }
-                        for boolean_field in &mut *booleans {
-                            if optional_name == boolean_field.name
-                                || boolean_field.aliases.contains(&optional_name)
-                            {
-                                optional_context
-                                    .segments
-                                    .push(Segment::Value(b"true".into()));
-                                context.segments.push(Segment::Context(optional_context));
-                                continue 'outer;
-                            }
-                        }
                         parsed_options.push((optional_name, optional_context));
                     }
                     if parsed_context.closing_end_of_options {
                         closing_end_of_options = true;
                     }
                 }
-                // Fill in any missing boolean fields with false.
+                // Fill in any missing optional and boolean fields.
                 let cloned_segments = context.segments.clone();
                 let found_fields: Vec<_> = cloned_segments
                     .iter()
@@ -934,11 +889,11 @@ where
                         }
                     })
                     .collect();
-                for boolean_field in booleans {
+                for optional_field in optional.into_iter().chain(booleans) {
                     // Check whether the field name or any aliases have been found.
                     let mut found = false;
                     for field_name in
-                        iter::once(&boolean_field.name).chain(boolean_field.aliases.iter())
+                        iter::once(&optional_field.name).chain(optional_field.aliases.iter())
                     {
                         if found_fields.contains(&field_name) {
                             found = true;
@@ -947,10 +902,7 @@ where
                     }
                     if !found {
                         context.segments.push(Segment::Context(Context {
-                            segments: vec![
-                                Segment::Identifier(boolean_field.name),
-                                Segment::Value(b"false".into()),
-                            ],
+                            segments: vec![Segment::Identifier(optional_field.name)],
                         }));
                     }
                 }
@@ -1034,7 +986,6 @@ where
                                         })
                                         .collect(),
                                 }))?;
-                            let mut optional_context = Context { segments: vec![] };
                             let mut found = false;
                             let mut index = 0;
                             while index < options.len() {
@@ -1045,18 +996,22 @@ where
                                 {
                                     let mut optional_field = options.remove(index);
                                     found = true;
-                                    optional_context
-                                        .segments
-                                        .push(Segment::Identifier(static_field_name));
                                     let parsed_context = parse_context(
                                         args,
                                         &mut optional_field.shape,
                                         options,
-                                        optional_context,
+                                        Context { segments: vec![] },
                                     );
                                     parsed_options.extend(parsed_context.options);
-                                    parsed_options
-                                        .push((static_field_name, parsed_context.context?));
+                                    parsed_options.push((
+                                        static_field_name,
+                                        Context {
+                                            segments: vec![
+                                                Segment::Identifier(static_field_name),
+                                                Segment::Context(parsed_context.context?),
+                                            ],
+                                        },
+                                    ));
                                     if parsed_context.closing_end_of_options {
                                         closing_end_of_options = true;
                                     }
@@ -1209,7 +1164,6 @@ where
                                         })
                                         .collect(),
                                 }))?;
-                            let mut optional_context = Context { segments: vec![] };
                             let mut found = false;
                             let mut index = 0;
                             while index < options.len() {
@@ -1220,18 +1174,22 @@ where
                                 {
                                     let mut optional_field = options.remove(index);
                                     found = true;
-                                    optional_context
-                                        .segments
-                                        .push(Segment::Identifier(static_field_name));
                                     let parsed_context = parse_context(
                                         args,
                                         &mut optional_field.shape,
                                         options,
-                                        optional_context,
+                                        Context { segments: vec![] },
                                     );
                                     parsed_options.extend(parsed_context.options);
-                                    parsed_options
-                                        .push((static_field_name, parsed_context.context?));
+                                    parsed_options.push((
+                                        static_field_name,
+                                        Context {
+                                            segments: vec![
+                                                Segment::Identifier(static_field_name),
+                                                Segment::Context(parsed_context.context?),
+                                            ],
+                                        },
+                                    ));
                                     if parsed_context.closing_end_of_options {
                                         closing_end_of_options = true;
                                     }
@@ -2036,7 +1994,9 @@ mod tests {
                         Segment::Context(Context {
                             segments: vec![
                                 Segment::Identifier("baz"),
-                                Segment::Value("quux".into())
+                                Segment::Context(Context {
+                                    segments: vec![Segment::Value("quux".into())]
+                                })
                             ]
                         })
                     ],
@@ -2138,9 +2098,19 @@ mod tests {
             ),
             Context {
                 segments: vec![Segment::Context(Context {
-                    segments: vec![Segment::Context(Context {
-                        segments: vec![Segment::Identifier("baz"), Segment::Value("quux".into())]
-                    })],
+                    segments: vec![
+                        Segment::Context(Context {
+                            segments: vec![
+                                Segment::Identifier("baz"),
+                                Segment::Context(Context {
+                                    segments: vec![Segment::Value("quux".into())]
+                                })
+                            ]
+                        }),
+                        Segment::Context(Context {
+                            segments: vec![Segment::Identifier("bar")]
+                        })
+                    ],
                 })]
             }
         );
@@ -2187,14 +2157,11 @@ mod tests {
                         Segment::Context(Context {
                             segments: vec![
                                 Segment::Identifier("baz"),
-                                Segment::Value("true".into())
+                                Segment::Context(Context { segments: vec![] }),
                             ]
                         }),
                         Segment::Context(Context {
-                            segments: vec![
-                                Segment::Identifier("bar"),
-                                Segment::Value("false".into())
-                            ]
+                            segments: vec![Segment::Identifier("bar"),]
                         })
                     ],
                 })]
@@ -2468,7 +2435,11 @@ mod tests {
                     booleans: vec![],
                 }
             ),
-            Context { segments: vec![] }
+            Context {
+                segments: vec![Segment::Context(Context {
+                    segments: vec![Segment::Identifier("bar")],
+                })]
+            }
         );
     }
 
@@ -2498,7 +2469,12 @@ mod tests {
             ),
             Context {
                 segments: vec![Segment::Context(Context {
-                    segments: vec![Segment::Identifier("bar"), Segment::Value("foo".into())]
+                    segments: vec![
+                        Segment::Identifier("bar"),
+                        Segment::Context(Context {
+                            segments: vec![Segment::Value("foo".into())]
+                        })
+                    ]
                 })]
             }
         );
@@ -2530,7 +2506,12 @@ mod tests {
             ),
             Context {
                 segments: vec![Segment::Context(Context {
-                    segments: vec![Segment::Identifier("qux"), Segment::Value("foo".into())]
+                    segments: vec![
+                        Segment::Identifier("qux"),
+                        Segment::Context(Context {
+                            segments: vec![Segment::Value("foo".into())]
+                        })
+                    ],
                 })]
             }
         );
@@ -2563,10 +2544,20 @@ mod tests {
             Context {
                 segments: vec![
                     Segment::Context(Context {
-                        segments: vec![Segment::Identifier("qux"), Segment::Value("foo".into())]
+                        segments: vec![
+                            Segment::Identifier("qux"),
+                            Segment::Context(Context {
+                                segments: vec![Segment::Value("foo".into())]
+                            })
+                        ],
                     }),
                     Segment::Context(Context {
-                        segments: vec![Segment::Identifier("bar"), Segment::Value("baz".into())]
+                        segments: vec![
+                            Segment::Identifier("bar"),
+                            Segment::Context(Context {
+                                segments: vec![Segment::Value("baz".into())]
+                            })
+                        ],
                     })
                 ]
             },
@@ -2598,7 +2589,7 @@ mod tests {
             ),
             Context {
                 segments: vec![Segment::Context(Context {
-                    segments: vec![Segment::Identifier("bar"), Segment::Value("false".into())]
+                    segments: vec![Segment::Identifier("bar")]
                 })]
             }
         );
@@ -2629,7 +2620,10 @@ mod tests {
             ),
             Context {
                 segments: vec![Segment::Context(Context {
-                    segments: vec![Segment::Identifier("bar"), Segment::Value("true".into())]
+                    segments: vec![
+                        Segment::Identifier("bar"),
+                        Segment::Context(Context { segments: vec![] })
+                    ]
                 })]
             }
         );
@@ -2660,7 +2654,10 @@ mod tests {
             ),
             Context {
                 segments: vec![Segment::Context(Context {
-                    segments: vec![Segment::Identifier("qux"), Segment::Value("true".into())]
+                    segments: vec![
+                        Segment::Identifier("qux"),
+                        Segment::Context(Context { segments: vec![] })
+                    ]
                 })]
             }
         );
@@ -2692,10 +2689,16 @@ mod tests {
             Context {
                 segments: vec![
                     Segment::Context(Context {
-                        segments: vec![Segment::Identifier("qux"), Segment::Value("true".into())]
+                        segments: vec![
+                            Segment::Identifier("qux"),
+                            Segment::Context(Context { segments: vec![] })
+                        ]
                     }),
                     Segment::Context(Context {
-                        segments: vec![Segment::Identifier("bar"), Segment::Value("true".into())]
+                        segments: vec![
+                            Segment::Identifier("bar"),
+                            Segment::Context(Context { segments: vec![] })
+                        ]
                     })
                 ]
             },
@@ -2779,13 +2782,26 @@ mod tests {
                         segments: vec![Segment::Identifier("foo"), Segment::Value("123".into())],
                     }),
                     Segment::Context(Context {
-                        segments: vec![Segment::Identifier("bar"), Segment::Value("foo".into())],
+                        segments: vec![
+                            Segment::Identifier("bar"),
+                            Segment::Context(Context {
+                                segments: vec![Segment::Value("foo".into())]
+                            })
+                        ],
                     }),
                     Segment::Context(Context {
                         segments: vec![Segment::Identifier("quux"), Segment::Value("456".into())],
                     }),
                     Segment::Context(Context {
-                        segments: vec![Segment::Identifier("qux"), Segment::Value("789".into())],
+                        segments: vec![
+                            Segment::Identifier("qux"),
+                            Segment::Context(Context {
+                                segments: vec![Segment::Value("789".into())]
+                            })
+                        ],
+                    }),
+                    Segment::Context(Context {
+                        segments: vec![Segment::Identifier("missing")],
                     }),
                 ]
             }
@@ -2878,7 +2894,12 @@ mod tests {
             Context {
                 segments: vec![
                     Segment::Context(Context {
-                        segments: vec![Segment::Identifier("qux"), Segment::Value("789".into()),],
+                        segments: vec![
+                            Segment::Identifier("qux"),
+                            Segment::Context(Context {
+                                segments: vec![Segment::Value("789".into())]
+                            })
+                        ],
                     }),
                     Segment::Context(Context {
                         segments: vec![
@@ -2892,13 +2913,18 @@ mod tests {
                             Segment::Context(Context {
                                 segments: vec![
                                     Segment::Identifier("bar"),
-                                    Segment::Value("foo".into()),
+                                    Segment::Context(Context {
+                                        segments: vec![Segment::Value("foo".into())]
+                                    }),
                                 ]
                             }),
                         ],
                     }),
                     Segment::Context(Context {
                         segments: vec![Segment::Identifier("quux"), Segment::Value("456".into())],
+                    }),
+                    Segment::Context(Context {
+                        segments: vec![Segment::Identifier("missing")]
                     }),
                 ]
             }
@@ -2982,11 +3008,22 @@ mod tests {
                         segments: vec![Segment::Identifier("foo"), Segment::Value("123".into())],
                     }),
                     Segment::Context(Context {
-                        segments: vec![Segment::Identifier("bar"), Segment::Value("foo".into())],
+                        segments: vec![
+                            Segment::Identifier("bar"),
+                            Segment::Context(Context {
+                                segments: vec![Segment::Value("foo".into())]
+                            })
+                        ],
                     }),
                     Segment::Context(Context {
                         segments: vec![Segment::Identifier("quux"), Segment::Value("--qux".into())],
                     }),
+                    Segment::Context(Context {
+                        segments: vec![Segment::Identifier("qux")],
+                    }),
+                    Segment::Context(Context {
+                        segments: vec![Segment::Identifier("missing")],
+                    })
                 ]
             }
         );
@@ -3092,10 +3129,18 @@ mod tests {
                             Segment::Context(Context {
                                 segments: vec![
                                     Segment::Identifier("bar"),
-                                    Segment::Value("foo".into()),
+                                    Segment::Context(Context {
+                                        segments: vec![Segment::Value("foo".into())]
+                                    }),
                                 ]
                             }),
                         ],
+                    }),
+                    Segment::Context(Context {
+                        segments: vec![Segment::Identifier("qux")]
+                    }),
+                    Segment::Context(Context {
+                        segments: vec![Segment::Identifier("missing")]
                     }),
                 ]
             }

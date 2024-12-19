@@ -374,6 +374,14 @@ fn struct_version_help() {
 }
 
 #[test]
+fn struct_deserialize_with() {
+    assert_run_ok!(Command::new("tests/from_env/struct_deserialize_with").args(["foo"]));
+    assert_run_ok!(
+        Command::new("tests/from_env/struct_deserialize_with").args(["foo", "--directory", "bar"])
+    );
+}
+
+#[test]
 fn enum_version_help() {
     assert_run_err_literal!(
         Command::new("tests/from_env/enum_version_help").args(["--version"]),
