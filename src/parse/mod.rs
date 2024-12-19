@@ -795,8 +795,7 @@ where
                         let found_parsed_options = parsed_context.options;
                         'outer: for (optional_name, optional_context) in found_parsed_options {
                             // Find whether the optional name is in this struct.
-                            for optional_field in optional.iter_mut().chain(&mut *booleans)
-                            {
+                            for optional_field in optional.iter_mut().chain(&mut *booleans) {
                                 if optional_name == optional_field.name
                                     || optional_field.aliases.contains(&optional_name)
                                 {
