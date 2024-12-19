@@ -996,7 +996,7 @@ mod tests {
             {
                 struct AnyVisitor;
 
-                impl<'de> Visitor<'de> for AnyVisitor {
+                impl Visitor<'_> for AnyVisitor {
                     type Value = Any;
 
                     fn expecting(&self, _formatter: &mut Formatter) -> fmt::Result {
@@ -1262,7 +1262,7 @@ mod tests {
             {
                 struct BytesVisitor;
 
-                impl<'de> Visitor<'de> for BytesVisitor {
+                impl Visitor<'_> for BytesVisitor {
                     type Value = Bytes;
 
                     fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
@@ -1298,7 +1298,7 @@ mod tests {
             {
                 struct ByteBufVisitor;
 
-                impl<'de> Visitor<'de> for ByteBufVisitor {
+                impl Visitor<'_> for ByteBufVisitor {
                     type Value = ByteBuf;
 
                     fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
@@ -1334,7 +1334,7 @@ mod tests {
             {
                 struct IdentifierVisitor;
 
-                impl<'de> Visitor<'de> for IdentifierVisitor {
+                impl Visitor<'_> for IdentifierVisitor {
                     type Value = Identifier;
 
                     fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
@@ -1494,7 +1494,7 @@ mod tests {
             {
                 struct StructVisitor;
 
-                impl<'de> Visitor<'de> for StructVisitor {
+                impl Visitor<'_> for StructVisitor {
                     type Value = Struct;
 
                     fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
@@ -2195,7 +2195,7 @@ mod tests {
             {
                 struct EmptyVisitor;
 
-                impl<'de> Visitor<'de> for EmptyVisitor {
+                impl Visitor<'_> for EmptyVisitor {
                     type Value = Empty;
 
                     fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
@@ -2234,7 +2234,7 @@ mod tests {
             {
                 struct BoolVisitor;
 
-                impl<'de> Visitor<'de> for BoolVisitor {
+                impl Visitor<'_> for BoolVisitor {
                     type Value = Bool;
 
                     fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
@@ -2274,7 +2274,7 @@ mod tests {
             {
                 struct PrimitiveVisitor;
 
-                impl<'de> Visitor<'de> for PrimitiveVisitor {
+                impl Visitor<'_> for PrimitiveVisitor {
                     type Value = Primitive;
 
                     fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
@@ -2314,7 +2314,7 @@ mod tests {
             {
                 struct StructVisitor;
 
-                impl<'de> Visitor<'de> for StructVisitor {
+                impl Visitor<'_> for StructVisitor {
                     type Value = Struct;
 
                     fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
@@ -2357,7 +2357,7 @@ mod tests {
             {
                 struct EnumVisitor;
 
-                impl<'de> Visitor<'de> for EnumVisitor {
+                impl Visitor<'_> for EnumVisitor {
                     type Value = Enum;
 
                     fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
@@ -2667,7 +2667,7 @@ mod tests {
             {
                 struct StructVisitor;
 
-                impl<'de> Visitor<'de> for StructVisitor {
+                impl Visitor<'_> for StructVisitor {
                     type Value = Struct;
 
                     fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
@@ -2749,7 +2749,7 @@ mod tests {
             {
                 struct EnumVisitor;
 
-                impl<'de> Visitor<'de> for EnumVisitor {
+                impl Visitor<'_> for EnumVisitor {
                     type Value = Enum;
 
                     fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
@@ -2936,7 +2936,7 @@ mod tests {
             {
                 struct EmptyVisitor;
 
-                impl<'de> Visitor<'de> for EmptyVisitor {
+                impl Visitor<'_> for EmptyVisitor {
                     type Value = Empty;
 
                     fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
@@ -2984,7 +2984,7 @@ mod tests {
             {
                 struct BoolVisitor;
 
-                impl<'de> Visitor<'de> for BoolVisitor {
+                impl Visitor<'_> for BoolVisitor {
                     type Value = Bool;
 
                     fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
@@ -3033,7 +3033,7 @@ mod tests {
             {
                 struct PrimitiveVisitor;
 
-                impl<'de> Visitor<'de> for PrimitiveVisitor {
+                impl Visitor<'_> for PrimitiveVisitor {
                     type Value = Primitive;
 
                     fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
@@ -3082,7 +3082,7 @@ mod tests {
             {
                 struct StructVisitor;
 
-                impl<'de> Visitor<'de> for StructVisitor {
+                impl Visitor<'_> for StructVisitor {
                     type Value = Struct;
 
                     fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
@@ -3134,7 +3134,7 @@ mod tests {
             {
                 struct EnumVisitor;
 
-                impl<'de> Visitor<'de> for EnumVisitor {
+                impl Visitor<'_> for EnumVisitor {
                     type Value = Enum;
 
                     fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
@@ -3291,7 +3291,7 @@ mod tests {
             {
                 struct BoolVisitor;
 
-                impl<'de> Visitor<'de> for BoolVisitor {
+                impl Visitor<'_> for BoolVisitor {
                     type Value = Bool;
 
                     fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {

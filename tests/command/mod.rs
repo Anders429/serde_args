@@ -90,7 +90,7 @@ impl Command {
                 .stdout
                 .ok_or(io::Error::other("no stdout"))?
                 .read_to_string(&mut error)?;
-            return Err(Error::Stdout(error));
+            Err(Error::Stdout(error))
         }
     }
 }

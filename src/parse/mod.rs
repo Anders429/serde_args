@@ -328,7 +328,7 @@ where
                     for (optional_name, optional_context) in parsed_options {
                         let mut found = false;
                         // Find whether the optional name is in this struct.
-                        for optional_field in (&mut *optional).into_iter().chain(&mut *booleans) {
+                        for optional_field in optional.iter_mut().chain(&mut *booleans) {
                             if optional_name == optional_field.name
                                 || optional_field.aliases.contains(&optional_name)
                             {
@@ -373,7 +373,7 @@ where
                 for (optional_name, optional_context) in parsed_context.options {
                     let mut found = false;
                     // Find whether the optional name is in this struct.
-                    for optional_field in (&mut *optional).into_iter().chain(&mut *booleans) {
+                    for optional_field in optional.iter_mut().chain(&mut *booleans) {
                         if optional_name == optional_field.name
                             || optional_field.aliases.contains(&optional_name)
                         {
@@ -414,7 +414,7 @@ where
                     }
                 })
                 .collect();
-            for optional_field in optional.into_iter().chain(booleans) {
+            for optional_field in optional.iter_mut().chain(booleans) {
                 // Check whether the field name or any aliases have been found.
                 let mut found = false;
                 for field_name in
@@ -795,7 +795,7 @@ where
                         let found_parsed_options = parsed_context.options;
                         'outer: for (optional_name, optional_context) in found_parsed_options {
                             // Find whether the optional name is in this struct.
-                            for optional_field in (&mut *optional).into_iter().chain(&mut *booleans)
+                            for optional_field in optional.iter_mut().chain(&mut *booleans)
                             {
                                 if optional_name == optional_field.name
                                     || optional_field.aliases.contains(&optional_name)
@@ -856,7 +856,7 @@ where
                     context = parsed_context.context?;
                     'outer: for (optional_name, optional_context) in parsed_context.options {
                         // Find whether the optional name is in this struct.
-                        for optional_field in (&mut *optional).into_iter().chain(&mut *booleans) {
+                        for optional_field in optional.iter_mut().chain(&mut *booleans) {
                             if optional_name == optional_field.name
                                 || optional_field.aliases.contains(&optional_name)
                             {
@@ -889,7 +889,7 @@ where
                         }
                     })
                     .collect();
-                for optional_field in optional.into_iter().chain(booleans) {
+                for optional_field in optional.iter_mut().chain(booleans) {
                     // Check whether the field name or any aliases have been found.
                     let mut found = false;
                     for field_name in
@@ -2054,7 +2054,7 @@ mod tests {
             ),
             Error::UnrecognizedOption {
                 name: "help".into(),
-                expecting: vec!["baz".into()]
+                expecting: vec!["baz"]
             }
         );
     }

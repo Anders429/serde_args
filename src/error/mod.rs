@@ -489,7 +489,7 @@ mod tests {
                         error: UsageError::Parsing(parse::Error::Help),
                         executable_path: "executable_name".into(),
                         shape: Shape::Struct {
-                            name: "name".into(),
+                            name: "name",
                             description: "description".into(),
                             version: None,
                             required: vec![Field {
@@ -535,7 +535,7 @@ mod tests {
                         error: UsageError::Parsing(parse::Error::Help),
                         executable_path: "executable_name".into(),
                         shape: Shape::Enum {
-                            name: "name".into(),
+                            name: "name",
                             description: "description".into(),
                             version: None,
                             variants: vec![
@@ -579,7 +579,7 @@ mod tests {
                         error: UsageError::Parsing(parse::Error::Help),
                         executable_path: "executable_name".into(),
                         shape: Shape::Variant {
-                            name: "f".into(),
+                            name: "f",
                             description: "bar".into(),
                             version: None,
                             shape: Box::new(Shape::Primitive {
@@ -791,7 +791,7 @@ mod tests {
                         error: UsageError::Parsing(parse::Error::Help),
                         executable_path: "executable_name".into(),
                         shape: Shape::Struct {
-                            name: "name".into(),
+                            name: "name",
                             description: "description".into(),
                             version: None,
                             required: vec![Field {
@@ -837,7 +837,7 @@ mod tests {
                         error: UsageError::Parsing(parse::Error::Help),
                         executable_path: "executable_name".into(),
                         shape: Shape::Enum {
-                            name: "name".into(),
+                            name: "name",
                             description: "description".into(),
                             version: None,
                             variants: vec![
@@ -881,7 +881,7 @@ mod tests {
                         error: UsageError::Parsing(parse::Error::Help),
                         executable_path: "executable_name".into(),
                         shape: Shape::Variant {
-                            name: "f".into(),
+                            name: "f",
                             description: "bar".into(),
                             version: None,
                             shape: Box::new(Shape::Primitive {

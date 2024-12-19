@@ -110,7 +110,7 @@ mod tests {
     fn key_deserializer_identifier() {
         struct KeyVisitor;
 
-        impl<'de> Visitor<'de> for KeyVisitor {
+        impl Visitor<'_> for KeyVisitor {
             type Value = String;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
