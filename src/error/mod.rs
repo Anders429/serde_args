@@ -190,16 +190,11 @@ impl Display for Kind {
                         }
 
                         // Write override options.
-                        let version_flag = if shape.version().is_some() {
-                            format!("\n  {bright_cyan_start}   --version{bright_cyan_end}  Display version information.")
+                        if shape.version().is_some() {
+                            write!(formatter, "\n\n{bright_white_start}Override Options:{bright_white_end}\n  {bright_cyan_start}-h --help{bright_cyan_end}     Display this message.\n  {bright_cyan_start}   --version{bright_cyan_end}  Display version information.")?;
                         } else {
-                            String::new()
-                        };
-                        write!(
-                            formatter,
-                            "\n\n{bright_white_start}Override Options:{bright_white_end}\n  {bright_cyan_start}-h --help{bright_cyan_end}  Display this message.{}",
-                            version_flag,
-                        )?;
+                            write!(formatter, "\n\n{bright_white_start}Override Options:{bright_white_end}\n  {bright_cyan_start}-h --help{bright_cyan_end}  Display this message.")?;
+                        }
 
                         // Write commands.
                         let variant_groups = shape.variant_groups();
@@ -635,7 +630,7 @@ mod tests {
                     }
                 }
             ),
-            "description\n\nUSAGE: executable_name \n\nOverride Options:\n  -h --help  Display this message.\n     --version  Display version information."
+            "description\n\nUSAGE: executable_name \n\nOverride Options:\n  -h --help     Display this message.\n     --version  Display version information."
         )
     }
 
@@ -937,7 +932,7 @@ mod tests {
                     }
                 }
             ),
-            "description\n\n\x1b[97mUSAGE\x1b[0m: \x1b[96mexecutable_name\x1b[0m \x1b[36m\x1b[0m\n\n\x1b[97mOverride Options:\x1b[0m\n  \x1b[96m-h --help\x1b[0m  Display this message.\n  \x1b[96m   --version\x1b[0m  Display version information."
+            "description\n\n\x1b[97mUSAGE\x1b[0m: \x1b[96mexecutable_name\x1b[0m \x1b[36m\x1b[0m\n\n\x1b[97mOverride Options:\x1b[0m\n  \x1b[96m-h --help\x1b[0m     Display this message.\n  \x1b[96m   --version\x1b[0m  Display version information."
         )
     }
 }
