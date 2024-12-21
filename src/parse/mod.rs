@@ -23,6 +23,7 @@ use token::{
     ParsedArgs,
     Token,
 };
+use unicode_segmentation::UnicodeSegmentation;
 
 pub(crate) fn parse<Arg, Args>(args: Args, shape: &mut Shape) -> Result<Context, Error>
 where
@@ -622,7 +623,7 @@ where
                             }
                             if !found {
                                 // The argument could belong to a neighboring context.
-                                if identifier.chars().count() <= 1 {
+                                if identifier.graphemes(true).count() <= 1 {
                                     args.revisit = Some({
                                         let mut bytes = vec![b'-'];
                                         bytes.extend(value);

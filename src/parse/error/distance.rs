@@ -1,15 +1,16 @@
 use std::cmp::min;
+use unicode_segmentation::UnicodeSegmentation;
 
 pub(crate) fn levenshtein(a: &str, b: &str) -> usize {
-    let b_count = b.chars().count();
+    let b_count = b.graphemes(true).count();
     let mut cache = (1..(b_count + 1)).collect::<Vec<_>>();
 
-    a.chars().enumerate().fold(
+    a.graphemes(true).enumerate().fold(
         b_count,
         |#[allow(unused_assignments)] mut result, (i, a_char)| {
             result = i + 1;
             let mut distance = i;
-            b.chars().enumerate().for_each(|(j, b_char)| {
+            b.graphemes(true).enumerate().for_each(|(j, b_char)| {
                 let cached_distance = cache[j];
                 result = min(
                     result + 1,
@@ -63,5 +64,10 @@ mod tests {
     #[test]
     fn levenshtein_similar_start_and_end() {
         assert_eq!(levenshtein("saturday", "sunday"), 3);
+    }
+
+    #[test]
+    fn levenshtein_graphemes() {
+        assert_eq!(levenshtein("foo", "bãr"), 3);
     }
 }

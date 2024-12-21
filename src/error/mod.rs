@@ -22,6 +22,7 @@ use std::{
     },
     iter,
 };
+use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 use width::{
     Width,
@@ -138,7 +139,7 @@ impl Display for Kind {
                                     Intersperse::new(
                                         iter::once(field.name)
                                             .chain(field.aliases.iter().copied())
-                                            .filter(|name| name.chars().count() != 1)
+                                            .filter(|name| name.graphemes(true).count() != 1)
                                             .map(|name| {
                                                 bright_cyan.apply(format!("--{}", name)).into()
                                             })
@@ -153,7 +154,7 @@ impl Display for Kind {
                                     Intersperse::new(
                                         iter::once(field.name)
                                             .chain(field.aliases.iter().copied())
-                                            .filter(|name| name.chars().count() == 1)
+                                            .filter(|name| name.graphemes(true).count() == 1)
                                             .map(|name| {
                                                 bright_cyan.apply(format!("-{}", name)).into()
                                             }),

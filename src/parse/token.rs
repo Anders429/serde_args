@@ -2,6 +2,7 @@ use std::{
     ffi::OsString,
     str,
 };
+use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Debug, Eq, PartialEq)]
 pub(super) enum Token {
@@ -47,7 +48,7 @@ where
                     if short_token.len() > 4 {
                         Some(Token::Positional(token))
                     } else if let Ok(short_token_str) = str::from_utf8(short_token) {
-                        if short_token_str.chars().count() == 1 {
+                        if short_token_str.graphemes(true).count() == 1 {
                             Some(Token::Optional(short_token.to_vec()))
                         } else {
                             Some(Token::Positional(token))
@@ -127,6 +128,13 @@ mod tests {
         let mut args = ParsedArgs::new([OsString::from("-h")].into_iter());
 
         assert_some_eq!(args.next_token(), Token::Optional("h".into()));
+    }
+
+    #[test]
+    fn next_token_short_option_grapheme() {
+        let mut args = ParsedArgs::new([OsString::from("-ã")].into_iter());
+
+        assert_some_eq!(args.next_token(), Token::Optional("ã".into()));
     }
 
     #[test]
